@@ -1,0 +1,41 @@
+Negative tests of the gate, run 2026-11-04 (after the switch to pymarkdown via uvx) on scratchpad
+copies of base/, scripts/, index.yml, .pymarkdown.yaml and README.md. Each copy is broken in one way;
+each must fail with the named reason.
+
+### a (file under base/ with no index entry; check-index.sh must fail)
+FAIL  under base/ but not in index.yml:
+        process/orphan
+exit=1
+
+### b (index entry with no file; check-index.sh must fail)
+FAIL  in index.yml but not under base/:
+        python/nothing-here
+exit=1
+
+### c (project index drifted from root index; check-index.sh must fail)
+FAIL  agent-os/standards/index.yml differs from index.yml (they are the same file by rule):
+        22a23
+        > # drift
+exit=1
+
+### d (non-.md file under base/; check-index.sh must fail)
+FAIL  not a standard (only .md files belong under base/):
+        base/notes.txt
+exit=1
+
+### e (lint finding: gate.sh must stop at step 2, never reach 3/3)
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+/private/tmp/claude-501/-Users-michaelwitwicki-Code-Audio-patchbay-standards/bfa8b532-1c67-4f60-82f3-77fce608b438/scratchpad/neg/e/base/process/bad.md:1:1: MD022: Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below] (blanks-around-headings,blanks-around-headers)
+/private/tmp/claude-501/-Users-michaelwitwicki-Code-Audio-patchbay-standards/bfa8b532-1c67-4f60-82f3-77fce608b438/scratchpad/neg/e/base/process/bad.md:2:49: MD009: Trailing spaces [Expected: 0 or 2; Actual: 1] (no-trailing-spaces)
+exit=1
+
+### f (unparsable script: gate.sh must stop at step 1)
+
+== 1/3  bash -n on every file under scripts/
+scripts/broken.sh: line 3: syntax error: unexpected end of file
+exit=2

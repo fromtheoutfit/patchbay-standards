@@ -1,0 +1,11 @@
+# Rules for gate step 2 (scripts/gate.sh), which runs pymarkdown over base/ and README.md.
+# The tool version is pinned in scripts/gate.sh; the rule set is pinned here. Both are part of the
+# gate and change only outside a spec, with a person (base/process/standards-retrospective.md).
+plugins:
+  # Standards are hand-wrapped prose. 120 keeps a long sentence from needing a reflow on every
+  # edit while still refusing the unwrapped paragraph that makes a diff unreadable.
+  md013:
+    line_length: 120
+    heading_line_length: 120
+    code_blocks: false
+    tables: false
