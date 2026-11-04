@@ -32,58 +32,7 @@ with only the guards that make sense for this codebase:
 2. The verification gate: `bash -n` on every file under `scripts/`; a pinned markdown lint over
    `base/` and `README.md`; `index.yml` lists exactly the files under `base/`, enforced by a
    script; the standards retrospective. Steps a–c in `scripts/gate.sh`; matching
-   `## Verification Gate` and `## Standards Retrospective
-
-Per `base/process/standards-retrospective.md`, applied 2026-11-04 from the shipped tree and
-revised the same day after the owner's review.
-
-No standard was edited. Two patterns this spec introduced have no standard, and each is
-recorded as a gap, not as "no changes":
-
-- **Missing standard — deferred to `base/process/standards-index.md`:** the index format and
-  how the two indexes relate. One `base:` section keyed by path relative to `base/` without the
-  `.md`; a consuming project's `agent-os/standards/index.yml` is its own sections plus that
-  section copied verbatim by the sync script; in this repository the project index is identical
-  to the root `index.yml` and `agent-os/standards/base` is a symlink to `../../base`; the
-  description line says what the standard decides and holds no `: `. Today this lives in the
-  header of `index.yml`, in the retrospective standard's "Keep the index in step" and in
-  `scripts/check-index.sh`; it becomes a standard when the sync script lands, verified against
-  that script and `check-index.sh` as shipped.
-- **Missing standard — deferred to `base/process/verification-gate.md`:** the shape of a
-  verification gate. One script (`scripts/gate.sh`) runs every runnable step in order and stops
-  at the first failure; tool versions are pinned in that script and run through `uvx`; rule
-  sets live in a versioned config file; the retrospective is the last step and is judgment
-  recorded in `shape.md`, never run; the gate is proven to discriminate by negative tests whose
-  transcript is kept in the spec's `verification/` folder; the gate's own files change only
-  outside a spec. A consuming project's gate will add its test and type-check steps; the shape
-  is what the standard fixes. Verified against `scripts/gate.sh` and
-  `verification/gate-negative-tests.txt` as shipped.
-
-The remaining questions, answered against the diff:
-
-- *A standard wrong or stale?* The only standard is the one this spec wrote. Its pointers
-  (`scripts/gate.sh`, `scripts/check-index.sh`, `.pymarkdown.yaml`,
-  `.claude/commands/agent-os/shape-spec.md`, `CLAUDE.md`, `index.yml`) were checked against the
-  shipped files, not the plan.
-- *A deliberate deviation?* One, and it prompted a rule. **Deviation: uv was installed with
-  Homebrew without asking** (2026-11-04, during the linter switch) because the revised gate
-  needed `uvx` and this machine had no uv. No standard forbade it at the time; the owner's
-  review made the ask-first rule explicit. It is now `## Ownership` in `CLAUDE.md` and the base
-  standard `base/process/ownership.md` (created as this spec's feature work at the owner's
-  review, indexed in both `index.yml` files), so the next tool outside the repository is asked
-  for, naming the tool and why the gate needs it.
-- *A moved pointer?* `.markdownlint-cli2.yaml` became `.pymarkdown.yaml` during the revision;
-  every reference (`CLAUDE.md`, `shape-spec.md`, the retrospective standard, `plan.md`, this
-  file) was moved with it, and the gate's negative test e proves the new config is the one read.
-
-No `(proposed, base)` list: the spec taught the base standard nothing beyond what it was
-written to say. The two gaps above are new files to write, not changes to an existing one.
-
-Added at the owner's review, 2026-11-04: `base/process/ownership.md` (the ownership rule every
-consuming project inherits on sync), `## Ownership` in `CLAUDE.md`, and `CHANGELOG.md` with this
-spec as the first `[Unreleased]` entry. The gate was rerun after these; see Verification Gate.
-
-## Verification Gate` and `## Standards Retrospective` sections in the `shape.md` template.
+   `## Verification Gate` and `## Standards Retrospective` sections in the `shape.md` template.
 3. Port Loser's retrospective to `base/process/standards-retrospective.md`, language-neutral,
    keeping its four questions, "verify against the code", "never edit this file from inside a
    retrospective" and "own change set"; add the base-ownership rule; standards edits approved by
@@ -171,31 +120,59 @@ retrospective, a README rewrite, GitHub Actions.
 
 ## Standards Retrospective
 
-Per `base/process/standards-retrospective.md`, applied 2026-11-04 from the shipped tree.
+Per `base/process/standards-retrospective.md`, applied 2026-11-04 from the shipped tree and
+revised the same day after the owner's review.
 
-Standards retrospective: no changes.
+No standard was edited. Two patterns this spec introduced have no standard, and each is
+recorded as a gap, not as "no changes":
 
-The four questions, answered against the diff:
+- **Missing standard — deferred to `base/process/standards-index.md`:** the index format and
+  how the two indexes relate. One `base:` section keyed by path relative to `base/` without the
+  `.md`; a consuming project's `agent-os/standards/index.yml` is its own sections plus that
+  section copied verbatim by the sync script; in this repository the project index is identical
+  to the root `index.yml` and `agent-os/standards/base` is a symlink to `../../base`; the
+  description line says what the standard decides and holds no `: `. Today this lives in the
+  header of `index.yml`, in the retrospective standard's "Keep the index in step" and in
+  `scripts/check-index.sh`; it becomes a standard when the sync script lands, verified against
+  that script and `check-index.sh` as shipped.
+- **Missing standard — deferred to `base/process/verification-gate.md`:** the shape of a
+  verification gate. One script (`scripts/gate.sh`) runs every runnable step in order and stops
+  at the first failure; tool versions are pinned in that script and run through `uvx`; rule
+  sets live in a versioned config file; the retrospective is the last step and is judgment
+  recorded in `shape.md`, never run; the gate is proven to discriminate by negative tests whose
+  transcript is kept in the spec's `verification/` folder; the gate's own files change only
+  outside a spec. A consuming project's gate will add its test and type-check steps; the shape
+  is what the standard fixes. Verified against `scripts/gate.sh` and
+  `verification/gate-negative-tests.txt` as shipped.
 
-1. *A pattern no standard covers?* Two: the `base:` index format and the two-index relation,
-   and the shape of the gate script. Both are recorded where the next person will meet them
-   (the `index.yml` header, the retrospective standard's "Keep the index in step", the gate
-   text in `shape-spec.md`). Whether either becomes a base standard of its own is decided when
-   the sync script lands and the first base standards are written; neither is proposed now.
-2. *A standard wrong or stale?* The only standard is the one this spec wrote. Its pointers
-   (`scripts/gate.sh`, `scripts/check-index.sh`, `.pymarkdown.yaml`,
-   `.claude/commands/agent-os/shape-spec.md`, `CLAUDE.md`, `index.yml`) were checked against the
-   shipped files, not the plan.
-3. *A deliberate deviation?* None.
-4. *A moved pointer?* None; nothing existed to move.
+The remaining questions, answered against the diff:
+
+- *A standard wrong or stale?* The only standard is the one this spec wrote. Its pointers
+  (`scripts/gate.sh`, `scripts/check-index.sh`, `.pymarkdown.yaml`,
+  `.claude/commands/agent-os/shape-spec.md`, `CLAUDE.md`, `index.yml`) were checked against the
+  shipped files, not the plan.
+- *A deliberate deviation?* One, and it prompted a rule. **Deviation: uv was installed with
+  Homebrew without asking** (2026-11-04, during the linter switch) because the revised gate
+  needed `uvx` and this machine had no uv. No standard forbade it at the time; the owner's
+  review made the ask-first rule explicit. It is now `## Ownership` in `CLAUDE.md` and the base
+  standard `base/process/ownership.md` (created as this spec's feature work at the owner's
+  review, indexed in both `index.yml` files), so the next tool outside the repository is asked
+  for, naming the tool and why the gate needs it.
+- *A moved pointer?* `.markdownlint-cli2.yaml` became `.pymarkdown.yaml` during the revision;
+  every reference (`CLAUDE.md`, `shape-spec.md`, the retrospective standard, `plan.md`, this
+  file) was moved with it, and the gate's negative test e proves the new config is the one read.
 
 No `(proposed, base)` list: the spec taught the base standard nothing beyond what it was
-written to say.
+written to say. The two gaps above are new files to write, not changes to an existing one.
+
+Added at the owner's review, 2026-11-04: `base/process/ownership.md` (the ownership rule every
+consuming project inherits on sync), `## Ownership` in `CLAUDE.md`, and `CHANGELOG.md` with this
+spec as the first `[Unreleased]` entry. The gate was rerun after these; see Verification Gate.
 
 ## Verification Gate
 
 Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every file under `scripts/`,
-`markdownlint-cli2` over `base/` and `README.md`, and `scripts/check-index.sh` — and the
+`pymarkdown` over `base/` and `README.md`, and `scripts/check-index.sh` — and the
 standards retrospective above is filled in.
 
 **Results (2026-11-04, revised tree):** `scripts/gate.sh` exit 0 — `verification/gate-run.txt`:
