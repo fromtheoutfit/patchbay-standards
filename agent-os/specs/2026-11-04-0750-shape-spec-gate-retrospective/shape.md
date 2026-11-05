@@ -160,7 +160,10 @@ The remaining questions, answered against the diff:
   for, naming the tool and why the gate needs it.
 - *A moved pointer?* `.markdownlint-cli2.yaml` became `.pymarkdown.yaml` during the revision;
   every reference (`CLAUDE.md`, `shape-spec.md`, the retrospective standard, `plan.md`, this
-  file) was moved with it, and the gate's negative test e proves the new config is the one read.
+  file) was moved with it. The gate's negative test e shows a lint finding stops the gate at step 2;
+  the rules it shows, MD022 and MD009, are defaults, so it does not show that `.pymarkdown.yaml`
+  is the config read. That negative test is owed by the gate spec, issue #3 (corrected
+  2026-11-04 at the review of PR 5).
 
 No `(proposed, base)` list: the spec taught the base standard nothing beyond what it was
 written to say. The two gaps above are new files to write, not changes to an existing one.
@@ -177,7 +180,7 @@ standards retrospective above is filled in.
 
 **Results (2026-11-04, revised tree):** `scripts/gate.sh` exit 0 — `verification/gate-run.txt`:
 both scripts parse; pymarkdown 0.9.41 reports no findings over `base/` and `README.md`;
-`index.yml` and `base/` agree on 1 standard and the project index is identical. The gate was
+`index.yml` and `base/` agree on 2 standards and the project index is identical. The gate was
 also shown to discriminate, on six broken scratchpad copies of the revised scripts —
 `verification/gate-negative-tests.txt`: a file under `base/` with no entry, an entry with no
 file, a drifted project index and a non-`.md` file under `base/` each fail `check-index.sh`

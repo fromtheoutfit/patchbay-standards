@@ -24,7 +24,9 @@ Shaped 2026-11-04 in plan mode with the questions asked. Answers that shape the 
   script is named (none exists yet).
 - **Negative tests are owed by a change to the gate**, not by every spec. Every spec keeps its green
   run as `verification/gate-run.txt`; this spec keeps that only.
-- **The first spec's spliced `shape.md` is fixed here**, text only, as its own change set.
+- **The first spec's spliced `shape.md` is fixed here**, text only, as its own change set. The
+  moved text's "markdownlint-cli2" was updated to "pymarkdown" in the same edit (disclosed at the
+  review of PR 5; the plan's "no new content" was not literally true).
 - References: the two shipped base standards set shape and voice. Standards applied:
   `process/ownership` and `process/standards-retrospective`. No visuals, no product folder.
 
@@ -110,7 +112,7 @@ Same shape. Sections:
    standard not indexed is invisible to every later spec. (Source: retrospective standard "Keep the
    index in step"; `inject-standards.md` line 61.)
 2. **Keys.** Two levels, section then key, as the stock commands read them; a key is the standard's
-   path relative to the standards root without the `.md`; in the `base:` section the key carries the
+   path relative to its section without the `.md`; in the `base:` section the key carries the
    path under `base/` (`process/ownership`), resolving to `agent-os/standards/base/process/ownership.md`
    in a project. (Source: `index.yml` header; `check-index.sh` lines 24–31; `index-standards.md`
    lines 66–99.)
@@ -175,3 +177,79 @@ template."). No new content. Listed separately when the work is reported.
   verified against; nothing is taken from the first spec's prose.
 - `git status --short` shows only: the two new standards, both `index.yml` files, `CHANGELOG.md`,
   the new spec folder, and the first spec's `shape.md`.
+
+## Revision after review (2026-11-04)
+
+The review of PR 5 listed 30 findings. Each was decided one by one with the owner, in plan mode;
+the decisions are in `shape.md` under "Revision after review". Nothing under `scripts/`,
+`.pymarkdown.yaml` or `.claude/commands/agent-os/shape-spec.md` changes: every gate-file finding
+is a proposal in this spec's retrospective and the scope of issue #3, which becomes the one gate
+spec; the retrospective-standard findings widen issue #2.
+
+| Finding | Disposition |
+|---|---|
+| 1a Docs and Version in the gate standard, not in the gate files | Dropped from `verification-gate.md` to match the shipped gate; shipped practice (both `shape.md` files) recorded as ahead of the gate files; re-added by issue #3 |
+| 1b `gate.sh` closing line names one judgment step | Issue #3 |
+| 1c This retrospective recorded none of it | Retrospective rewritten (Task R7) |
+| 1d `check-index.sh` header points at the trimmed `index.yml` header | Issue #3 |
+| 2a "outside a spec" vs "shaped as a spec" | A gate change is its own spec whose feature is the gate |
+| 2b `[Unreleased]` and version bump | Removed entirely |
+| 2c Protected set omits `check-index.sh` | "every script it runs" |
+| 2d Inline suppression is not a gate change | Reworded |
+| 2e `--strict-config` overclaim | Only "a config the tool cannot parse fails the step"; the config-read negative test to issue #3 |
+| 2f README example | Rewritten from the first commit: a blank line after the heading |
+| 2g Nonexistent toolchain standard | No standard named; the step list is each repository's own |
+| 2h First-spec "named exception" | Deleted |
+| 2i Repository facts in the consuming-project section | New "In this repository" section |
+| 2j `gate-run.txt` undated | First line is date and branch; the run is the last thing before hand-over |
+| 2k "scratchpad copies" | "a temporary copy outside the tree" |
+| 3a "relative to the standards root" | "relative to its section" in `index.yml`, `shape.md`, this file |
+| 3b `root` resolution | Exception stated |
+| 3c Section order | Alphabetical, as the stock command writes; ordering sentence to issue #2 |
+| 3d "the YAML parser refuses the file" | `: ` nests, ` #` truncates, when the stock commands read the file |
+| 3e "does not merge" | "the gate does not pass"; tracked-files check to issue #3 |
+| 3f `index-standards` claim | The stock command rewrites the whole file and is not run on a synced index; a safe regeneration named when it ships |
+| 3g "arrives on the next sync" | No entry edited by hand; the section replaced whole at a recorded commit |
+| 3h `comm` locale, untracked files | Issue #3; `.gitignore` added here |
+| 4a Negative test e "proves the config is read" | Corrected in the first spec's `shape.md` |
+| 4b "1 standard" vs transcript's 2 | Corrected |
+| 4c Undisclosed lint-name change | Disclosed here, in `shape.md` and the CHANGELOG |
+| 4d CHANGELOG | Added/Changed split; header reworded |
+| 5a Symlink the index copy | Issue #3 |
+| 5b Duplicated rules | Issue #2 widened |
+| 5c Run-on descriptions | All four shortened |
+
+### Task R1: amend the spec documentation
+
+This file, `shape.md` (Scope fix, "Revision after review", the retrospective and gate sections),
+`references.md` (the review and the files it was checked against), `standards.md` (one line).
+
+### Task R2: rewrite `base/process/verification-gate.md`
+
+Verified against `scripts/gate.sh`, `scripts/check-index.sh`, `.pymarkdown.yaml`,
+`.claude/commands/agent-os/shape-spec.md` (gate task), `CLAUDE.md`, both specs' `shape.md` and
+`verification/` folders, and the first commit's change to `README.md`. Findings 1a, 2a-2k.
+
+### Task R3: rewrite `base/process/standards-index.md`
+
+Verified against `index.yml`, `scripts/check-index.sh`, the `agent-os/standards/` listing and
+`.claude/commands/agent-os/index-standards.md`. Findings 3a-3g.
+
+### Task R4: `index.yml` and `agent-os/standards/index.yml`
+
+The `process/standards-index` description corrected (3a); all four descriptions one sentence (5c).
+
+### Task R5: the first spec's `shape.md`, `CHANGELOG.md`, `.gitignore`
+
+Findings 4a, 4b, 4d, 3h.
+
+### Task R6: issues #2 and #3
+
+Both bodies rewritten with `gh issue edit`, no attribution: #3 as the gate spec, #2 widened.
+
+### Task R7 (FINAL): verification gate
+
+`scripts/gate.sh` rerun after the last edit, transcript to `verification/gate-run.txt` with the
+date and branch on its first line; the retrospective rewritten from the shipped diff. Then stop:
+no commit, stage, push or PR. The reply to the review is drafted outside the tree and posted only
+when the owner says so.

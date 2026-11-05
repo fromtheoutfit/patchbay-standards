@@ -7,6 +7,8 @@ Retrospective says which and why — this file is the snapshot, not the current 
 The core architecture tier (Step 5a) is empty; nothing was included without asking. The two below
 were confirmed by the owner at shaping.
 
+Re-read for the revision after the review of PR 5 (2026-11-04); neither had changed.
+
 ---
 
 ## process/ownership
