@@ -28,22 +28,30 @@ repository's steps is cited here when it ships.
 - **A tool's version is pinned in the script**, in one named variable per tool, with the date it
   was published beside it. The pinned tool is run through a runner that executes it without
   installing it into the project, and the runner is one the repository already assumes. Nothing
-  else is installed to run the gate. A pin is bumped deliberately, outside a spec, and the gate
-  rerun.
+  else is installed to run the gate. A pin is bumped deliberately, in the gate's own spec, and
+  the gate rerun.
 - **A rule set lives in a versioned config file**, at the repository root, named in the script;
-  a config the tool cannot parse fails the step. The file's header says which step reads it and
-  that it changes only outside a spec.
+  a config the tool cannot parse fails the step. A key the tool does not know is not refused, so
+  the spec that adds or changes the config shows a changed value applied, in a negative test. The
+  file's header says which step reads it and that it changes only in the gate's own spec.
 
 ## The fixed order
 
-The runnable steps come first, in the order the script runs them. One judgment step follows, and
-nothing in the script runs it:
+The runnable steps come first, in the order the script runs them. Three judgment steps follow, in
+this order, and nothing in the script runs them; the script's closing line names them, and the gate
+task of `shape-spec.md` lists them after the runnable steps:
 
+- **Docs**: the documentation the change touches reads true after it. The README, the repository's
+  `CLAUDE.md`, the header comments and pointers in the files changed, and every standard that names
+  them are read against the shipped change, and what was checked is recorded in the spec's
+  `shape.md`.
+- **Version**: the change is recorded under `[Unreleased]` in `CHANGELOG.md`, and the version is
+  bumped where a repository has one. Recorded in `shape.md`.
 - **The standards retrospective**, per `base/process/standards-retrospective.md`: the four
   questions answered against the diff, the answer recorded in the spec's `shape.md` under
-  `## Standards Retrospective`. "No changes" is valid; silence is not.
+  `## Standards Retrospective`. "No changes" is valid; silence is not. It is always last.
 
-A spec whose `shape.md` records the green run but not the retrospective has not finished the
+A spec whose `shape.md` records the green run but not the three judgment steps has not finished the
 gate.
 
 ## A failing step is fixed at its cause
@@ -63,20 +71,44 @@ gate.
   that must fail that step with the named reason and the expected exit status, with the steps after
   it never reached. A step that has never been seen to fail is not known to check anything.
 - **The spec that adds or changes a step ships its negative test**, and keeps the transcript in
-  that spec's `verification/` folder. Negative tests run on a temporary copy outside the tree,
-  never on the tree itself, and are rerun whenever the gate's files change.
+  that spec's `verification/` folder. The tests are a script in the repository beside the gate's,
+  not run by the gate, so a rerun is the same test. They run on a temporary copy outside the
+  tree, never on the tree itself, and are rerun whenever the gate's files change.
 - **Every spec keeps its green run** as `verification/gate-run.txt` in its spec folder, so the
   claim "gate green" has the transcript beside it. The first line of the transcript gives the date
   and the branch the run was made on, and the run is the last thing done before the work is
   handed over: an edit after the run is not covered by it. A transcript recorded before this rule
   stays as it was recorded.
 
+## CI
+
+- **The gate's workflow runs the same script and nothing else.** One workflow for the gate, one
+  job, on every pull request and every push to the default branch: check out the repository,
+  install the runner the script already assumes, run `scripts/gate.sh`. No linter, formatter,
+  matrix or check is configured in it; a step the script does not run is not a gate step, and a
+  check CI runs that the script does not is a gate a developer cannot run. A repository may have
+  other workflows for other work; this rule is about the gate's. The judgment steps are never run
+  by a machine.
+- **Every action is pinned to a commit**, the full SHA in `uses:` with the tag it was taken from
+  in a comment beside it, and the runner's own version is pinned through the action's input, so CI
+  runs what the gate was proven with. The image is a named release, not `latest`. The job has a
+  timeout, keeps no credential in the checkout and caches nothing, so it has no moving part beyond
+  the script. A pin is bumped deliberately, in the gate's own spec, and the workflow rerun.
+- **The workflow fails when the script fails**, because the script is one `run` step and a `run`
+  step that exits non-zero fails the job. Before any push, the spec that adds or changes the
+  workflow replays the job's `run` steps, read from the workflow file, on a copy of the tree with
+  one script broken, and shows the job stops at that step with its exit status. That proves the
+  job's control flow on the toolchain at hand, not the hosted run: the hosted run on the pull
+  request is the proof of the workflow itself, and the spec records its run id and conclusion in
+  `verification/` once it exists. What the script does on the hosted toolchain is the script's
+  own portability, proven by its negative tests.
+
 ## The gate's own files change only in their own spec
 
-- **The gate script, every script it runs, the rule-set config and the gate task text in
-  `shape-spec.md` are never changed as a side effect of a spec whose feature is something else**,
-  and never from inside a retrospective. A gate that rewrites its own terms during the process it
-  governs is what this rule exists to prevent.
+- **The gate script, every script it runs, the rule-set config, the CI workflow and the gate task
+  text in `shape-spec.md` are never changed as a side effect of a spec whose feature is something
+  else**, and never from inside a retrospective. A gate that rewrites its own terms during the
+  process it governs is what this rule exists to prevent.
 - **A change to the gate is its own spec**, whose feature is the gate: on its own branch, with the
   owner, carrying the negative test for every step it adds or changes. A finding against a gate
   file made during some other spec is recorded in that spec's retrospective as a proposal and
@@ -85,14 +117,24 @@ gate.
 ## In this repository
 
 The runnable steps are three: every script under `scripts/` parses, the standards under `base/`
-and `README.md` lint clean against the pinned rule set, and `index.yml` lists exactly the files
-under `base/`. `scripts/gate.sh` names the tool, its pin and its config; `scripts/check-index.sh`
-is the third step. Every spec folder under `agent-os/specs/` holds its `verification/gate-run.txt`,
-and the spec that built the gate holds the six negative tests beside it.
+and `README.md` lint clean against the pinned rule set, and `index.yml` lists exactly the tracked
+files under `base/`. `scripts/gate.sh` names the tool, its pin and its config.
+`scripts/check-index.sh` is the third step: it runs only in a git work tree, reads the tracked
+list with `git ls-files`, refuses an untracked file under `base/` and a tracked one missing from
+the disk, sorts every list after its last transform and checks both sorted before `comm`, and
+holds `agent-os/standards/index.yml` to be a symlink to `../../index.yml`.
+`scripts/gate-negative-tests.sh` holds every negative test, fifteen for the scripts and the CI
+replay, and is parsed by step 1, not run by the gate. `.github/workflows/gate.yml` is the gate's
+workflow, pinned to `actions/checkout` v7.0.1 and `astral-sh/setup-uv` v10.3.3 by commit and to
+uv 0.13.7, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and no cache.
+Every spec folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that
+built the gate holds its six negative tests as recorded, and the gate spec (issue #3) holds the
+current transcripts and the hosted runs by id.
 
 ## In a consuming project
 
 This standard is synced in as `agent-os/standards/base/process/verification-gate.md`. The
 project's `scripts/gate.sh` runs its own step list in this shape; its `shape-spec.md` lists those
-steps in the gate task, followed by the standards retrospective; its `CLAUDE.md` names the script
-as the definition of done.
+steps in the gate task, followed by Docs, Version and the standards retrospective; its gate
+workflow runs the script and nothing else; its `CLAUDE.md` names the script as the definition of
+done.
