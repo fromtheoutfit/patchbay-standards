@@ -35,9 +35,11 @@ the root index of `patchbay-standards`.
 - **Every file under the standards folder has an entry, and no entry lacks a file.** In
   `patchbay-standards`, `scripts/check-index.sh` holds `index.yml` to this at every gate run and
   names each miss: a tracked file under `base/` with no entry, an entry with no tracked file. The
-  files are the tracked ones, from `git ls-files`: a standard that was never added to git has no
-  file as far as the gate is concerned, so it cannot pass locally and merge with a dangling entry,
-  and an untracked stray such as `.DS_Store` is not a file either.
+  files are the tracked ones, from `git ls-files`, and the script refuses what sits beside them: a
+  file under `base/` that is not tracked, so a standard never added to git is reported by name
+  rather than passed over, and a tracked file missing from the disk, so a deletion not yet staged
+  is reported rather than counted as present. An ignored stray such as `.DS_Store` is neither
+  tracked nor reported. The script runs only in a git work tree, and says so otherwise.
 - **Only standards live under `base/`**: every file there is a `.md` and is indexed. Notes, drafts
   and assets live elsewhere; `check-index.sh` refuses a tracked non-`.md` file under `base/` by
   name.

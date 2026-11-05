@@ -1,4 +1,8 @@
-Negative tests of the gate, run 2026-11-05 on branch feature/3-gate-spec-ci-workflow-docs-and-version-as-judgment-steps-and-the-gate-file-fixes-from-the-pr-5-review, after every gate file of issue #3 was in place: scripts/gate.sh, scripts/check-index.sh, .pymarkdown.yaml (unchanged), the symlink agent-os/standards/index.yml. Each test is a scratchpad copy of base/, scripts/, index.yml, .pymarkdown.yaml, README.md, .gitignore and agent-os/standards/, git-init'ed and git-added so git ls-files sees it, broken in one way; each must fail with the named reason and exit status, the steps after it never reached. a, b, d, e, f are the first spec's tests rerun on the shipped scripts; c1 and c2 replace its c; g, h, i are new. j, the CI test, is in ci-negative-test.txt. The runner (negtests.sh) lives in the scratchpad, not the tree.
+Negative tests of the gate, run 2026-11-05 on branch feature/3-gate-spec-ci-workflow-docs-and-version-as-judgment-steps-and-the-gate-file-fixes-from-the-pr-5-review by scripts/gate-negative-tests.sh (every test but j), after the
+review of PR 7 was addressed. Each test is a temporary copy of the gate's files, git-added, broken in one way; each must
+fail with the named reason and exit status, the steps after it never reached; k and l also hold a passing case. a, b, d,
+e, f are the first spec's tests on the shipped scripts; c1, c2, c3 replace its c; g to n are this spec's. j is in
+ci-negative-test.txt. <copy x> stands for the temporary directory of test x.
 
 ### a (tracked file under base/ with no index entry; check-index.sh must fail)
 FAIL  tracked under base/ but not in index.yml:
@@ -11,13 +15,17 @@ FAIL  in index.yml but not tracked under base/:
 exit=1
 
 ### c1 (agent-os/standards/index.yml a regular file byte-identical to index.yml; check-index.sh must fail)
--- cmp shows the bytes match (exit 0), so the old cmp check would have passed:
+-- cmp shows the bytes match (exit 0), so a byte comparison would have passed:
 exit=0
 FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a regular file)
 exit=1
 
 ### c2 (agent-os/standards/index.yml a symlink to another file; check-index.sh must fail)
 FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a symlink to ../../README.md)
+exit=1
+
+### c3 (agent-os/standards/index.yml a directory; check-index.sh must fail and say so)
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a directory)
 exit=1
 
 ### d (tracked non-.md file under base/; check-index.sh must fail)
@@ -29,6 +37,7 @@ exit=1
 
 == 1/3  bash -n on every file under scripts/
 ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
 ok   scripts/gate.sh
 
 == 2/3  pymarkdown 0.9.41 over base/ and README.md
@@ -42,8 +51,8 @@ exit=1
 scripts/broken.sh: line 3: syntax error: unexpected end of file
 exit=2
 
-### g (comm collation: C-sorted lists, process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
--- origin/main's script, LANG=en_US.UTF-8, LC_ALL unset (the bug: all three reported missing, and the two indexed entries reported stale):
+### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
+-- the script at aaacc57 (before issue #3), LANG=en_US.UTF-8 and LC_ALL unset: the bug, every entry reported missing and the indexed ones stale:
 FAIL  under base/ but not in index.yml:
         process/B
         process/a_z
@@ -56,41 +65,46 @@ exit=1
 FAIL  tracked under base/ but not in index.yml:
         process/B
 exit=1
--- shipped script, all three indexed, LANG=en_US.UTF-8 and then LC_ALL=C (must pass both):
-ok   index.yml and base/ agree (3 standard(s))
-exit=0
-ok   index.yml and base/ agree (3 standard(s))
+-- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
+ok   index.yml and the tracked files under base/ agree (3 standard(s))
 exit=0
 
-### h (tracked files: git ls-files, not find)
--- untracked base/.DS_Store present (must pass; .gitignore keeps it untracked):
+### h (tracked files are git ls-files: an ignored stray passes, an untracked standard is refused)
+-- untracked, ignored base/.DS_Store present (must pass):
 A  base/process/ownership.md
 A  base/process/standards-index.md
 A  base/process/standards-retrospective.md
 A  base/process/verification-gate.md
 !! base/.DS_Store
 exit=0
-ok   index.yml and base/ agree (4 standard(s))
+ok   index.yml and the tracked files under base/ agree (4 standard(s))
 exit=0
--- untracked base/process/new.md with its index entry (must fail: not tracked):
+-- untracked base/process/new.md with no index entry (must fail: under base/ but not tracked):
 A  base/process/ownership.md
 A  base/process/standards-index.md
 A  base/process/standards-retrospective.md
 A  base/process/verification-gate.md
 ?? base/process/new.md
 exit=0
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
+exit=1
+-- the same file with its index entry (must fail: not tracked, and the entry has no tracked file):
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
 FAIL  in index.yml but not tracked under base/:
         process/new
 exit=1
 
-### i (.pymarkdown.yaml is read: md013.line_length 60 in the copy; gate.sh must stop at step 2 on MD013, 3/3 never reached)
+### i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, 3/3 never reached)
 8:    line_length: 60
 9:    heading_line_length: 60
 == 1/3  bash -n on every file under scripts/
 ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
 ok   scripts/gate.sh
 == 2/3  pymarkdown 0.9.41 over base/ and README.md
-   ... 215 MD013 findings, Expected: 60, the first three:
+   ... 229 MD013 findings, Expected: 60, the first three:
 README.md:3:1: MD013: Line length [Expected: 60, Actual: 109] (line-length)
 base/process/ownership.md:3:1: MD013: Line length [Expected: 60, Actual: 93] (line-length)
 base/process/ownership.md:4:1: MD013: Line length [Expected: 60, Actual: 87] (line-length)
@@ -98,6 +112,57 @@ exit=1
 -- the same copy with the key misspelled (line_lenght: 60): --strict-config does not refuse an unknown key, so the default 80 applies with no config error; in this tree, wrapped at 100, that still fails step 2 (Expected: 80), so the misspelling cannot pass here silently:
 8:    line_lenght: 60
 9:    heading_line_length: 60
-   ... 192 MD013 findings, Expected: 80, the first one:
+   ... 209 MD013 findings, Expected: 80, the first one:
 README.md:3:1: MD013: Line length [Expected: 80, Actual: 109] (line-length)
+exit=1
+
+### k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)
+-- both indexed (must pass):
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+exit=0
+-- zeta.md tracked beside them with no entry (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+-- the script at cf1bdf0 (PR 7's first head), BSD comm: testing misreported as both missing and stale:
+FAIL  tracked under base/ but not in index.yml:
+        process/testing
+        process/zeta
+FAIL  in index.yml but not tracked under base/:
+        process/testing
+exit=1
+-- the same script with GNU comm first on PATH (the ubuntu runner): comm exits 1 on unsorted input, the script reads that as nothing missing, and zeta passes unindexed:
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+ok   index.yml and base/ agree (7 standard(s))
+exit=0
+-- shipped script with GNU comm first on PATH (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+
+### l (a non-ASCII path, base/process/café.md, tracked and indexed; must pass)
+ok   index.yml and the tracked files under base/ agree (5 standard(s))
+exit=0
+-- the script at cf1bdf0 read the path C-quoted and refused it:
+FAIL  not a standard (only .md files belong under base/):
+        "base/process/caf\303\251.md"
+FAIL  in index.yml but not tracked under base/:
+        process/café
+exit=1
+
+### m (a copy that is not a git work tree; check-index.sh must fail by name, not with a bare exit)
+FAIL  not a git work tree rooted at <copy m> (the files under base/ are read with git ls-files)
+exit=1
+
+### n (a tracked standard deleted from disk, deletion not staged; check-index.sh must fail)
+AD base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/verification-gate.md
+exit=0
+FAIL  tracked but missing on disk (stage the deletion, or restore the file):
+        base/process/ownership.md
 exit=1

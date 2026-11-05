@@ -39,3 +39,12 @@
 - `astral-sh/setup-uv` v10.3.3, published 2026-10-28, tag at `68559e99cc807c1eb7e9238fd43a15bba460eec2`;
   its `version` input takes an exact uv version.
 - `astral-sh/uv` 0.13.7, published 2026-11-03; the version installed here.
+
+### The first review of PR 7 (2026-11-05)
+
+- **Location:** the owner's review comment on PR 7, 27 findings at `cf1bdf0`
+- **Relevance:** the second round of this spec; `plan.md` tables every disposition. Findings 1 and
+  3 were reproduced here before the fix (`sort -c` on the stripped list; a C-quoted `café.md`), and
+  the harness shows the `cf1bdf0` script passing an unindexed standard under GNU `comm`.
+- **Hosted runs:** 42062523298 (push) and 42062688286 (pull_request) on `cf1bdf0`, both success,
+  the job ten seconds; the triggers shipped here make the next head run once.

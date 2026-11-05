@@ -134,7 +134,7 @@ Read the confirmed standards files to include their content in the plan context.
 
 **What you read here is a snapshot.** `standards.md` records the standards *as they read
 when the spec was shaped*. If the work teaches them something, they change at the END of
-the spec, in the retrospective (gate step 4) — not by editing `standards.md` after the fact.
+the spec, in the retrospective (gate step 6) — not by editing `standards.md` after the fact.
 If the plan needs a pattern no standard covers, that is a standards change to decide with
 the user now, not an ad-hoc call to make during implementation. For a base standard that
 decision is a proposal (see above), never an in-place edit.
@@ -190,8 +190,9 @@ Run the full verification gate, in order. The spec is not complete until every s
 1. `bash -n` on every file under `scripts/` — every script must parse
 2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`)
    over `base/` and `README.md` — must report no findings
-3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every file
-   has an entry, no entry lacks a file, and `agent-os/standards/index.yml` is a symlink to it
+3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every
+   file has an entry, no entry lacks a file, nothing under `base/` is untracked or missing from
+   the disk, and `agent-os/standards/index.yml` is a symlink to it
 4. **Docs** — the documentation the change touches reads true after it: `README.md`, `CLAUDE.md`,
    the header comments and pointers in the files changed, and every standard that names them.
    Record what was checked in `shape.md`.
@@ -227,9 +228,8 @@ Each task should be specific and actionable.
 
 **Always include the final verification task** (`scripts/gate.sh` — `bash -n`, `pymarkdown`,
 `scripts/check-index.sh` — then Docs, Version and the standards retrospective) as the last task in
-every plan,
-regardless of feature size. Do not skip this for "small" changes — a one-file fix is exactly the
-kind of spec that quietly invents a pattern.
+every plan, regardless of feature size. Do not skip this for "small" changes — a one-file fix is
+exactly the kind of spec that quietly invents a pattern.
 
 ### Step 9: Ready for Execution
 
@@ -295,10 +295,24 @@ None yet; see Step 5a. The first base standards will fill this tier.
 **Feature-specific:**
 - {folder/standard} — [why it applies]
 
+## Verification Gate
+
+Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every file under
+`scripts/`, `pymarkdown` over `base/` and `README.md`, and `scripts/check-index.sh` —
+and the three judgment steps are recorded, in this order: Docs, Version, then the
+standards retrospective below.
+
+**Results ({date}):** [exit status, branch, `verification/gate-run.txt`; which negative
+tests were rerun if a gate file changed]
+
+**Docs (step 4):** [what documentation was checked and reads true]
+
+**Version (step 5):** [the `[Unreleased]` entry in `CHANGELOG.md`; the version bump, if any]
+
 ## Standards Retrospective
 
-Per `base/process/standards-retrospective.md`. Filled in at the END of the
-spec, from the shipped diff — not at shaping time. "No changes" is valid; silence is not.
+Step 6, always last. Per `base/process/standards-retrospective.md`. Filled in at the END
+of the spec, from the shipped diff — not at shaping time. "No changes" is valid; silence is not.
 
 Either:
 
@@ -308,7 +322,8 @@ Or a list, each entry naming the standard, what the spec taught it, and the ship
 that verifies it:
 
 - `{project standard}` — [what changed, and the code that proves it]
-- `agent-os/standards/index.yml` — [updated for the above]
+- `index.yml` — [updated for the above; the root index here, since `agent-os/standards/index.yml`
+  is a symlink to it; a consuming project edits its own sections of its project index]
 - **Deviation, not a standard change:** [what we did differently and why it stays a one-off]
 
 ### Standards retrospective (proposed, base)
@@ -317,14 +332,6 @@ Only when the spec taught a base standard something. Proposals, never local edit
 becomes a pull request to `patchbay-standards`, approved by a person.
 
 - `base/{folder/standard}.md` — [the change, and the shipped code that proves it]
-
-## Verification Gate
-
-Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every file under
-`scripts/`, `pymarkdown` over `base/` and `README.md`, and `scripts/check-index.sh` —
-and the three judgment steps are recorded here: Docs (what documentation was checked and
-reads true), Version (the `[Unreleased]` entry in `CHANGELOG.md`), and the standards
-retrospective above.
 ```
 
 ## standards.md Content

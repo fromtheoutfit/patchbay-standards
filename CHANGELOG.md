@@ -13,18 +13,25 @@ bring in.
 
 - Fourth spec, `agent-os/specs/2026-11-05-1000-gate-spec-ci-docs-version/` (issue #3), the gate's
   own spec: every gate file changes here and nowhere else, each changed step with its negative test.
-  - `.github/workflows/gate.yml`: the one CI workflow. One job on every push and pull request:
-    checkout, uv, `scripts/gate.sh`, nothing else. `actions/checkout` v7.0.1 and
+  - `.github/workflows/gate.yml`: the gate's workflow. One job on every pull request and every push
+    to `main`: checkout, uv, `scripts/gate.sh`, nothing else. `actions/checkout` v7.0.1 and
     `astral-sh/setup-uv` v10.3.3 pinned by commit with the tag beside it, uv pinned to 0.13.7,
-    runner `ubuntu-24.04`. Proven to fail when the script fails by running the job's steps from the
-    workflow file on a broken copy (`verification/ci-negative-test.txt`), since an agent never pushes.
+    runner `ubuntu-24.04`, a ten-minute timeout, no persisted credential, no cache. The job's run
+    steps are replayed from the workflow file on a broken copy before any push
+    (`verification/ci-negative-test.txt`); the hosted runs on the pull request are recorded there
+    by id.
   - `agent-os/standards/index.yml` is a symlink to `../../index.yml`, as `agent-os/standards/base`
     is to `../../base`: one index to edit, nothing to keep equal.
   - Docs and Version as judgment steps 4 and 5 of the gate, the standards retrospective 6, in
     `shape-spec.md`'s gate task, `scripts/gate.sh`'s header and closing line, and `CLAUDE.md`.
-  - Eleven negative tests in `verification/`: the first spec's a, b, d, e, f rerun on the shipped
-    scripts; c1 and c2 (a regular file with matching bytes, a symlink elsewhere) replacing c; g (the
-    `comm` locale case); h (`git ls-files`); i (`.pymarkdown.yaml` shown to be read); j (CI).
+  - `scripts/gate-negative-tests.sh`: every negative test as a committed script, not run by the
+    gate, parsed by step 1, each test on a temporary copy. Transcripts in `verification/`: the
+    first spec's a, b, d, e, f on the shipped scripts; c1, c2, c3 (a regular file with matching
+    bytes, a symlink elsewhere, a directory) replacing c; g (the `comm` locale case); h (an
+    untracked standard refused, an ignored stray not); i (`.pymarkdown.yaml` shown to be read);
+    k (a key that is a prefix of another, with the PR 7 head's script shown passing an unindexed
+    standard under GNU `comm`); l (a non-ASCII path); m (not a git work tree); n (a tracked file
+    missing from the disk); j (the CI replay).
   - `base/process/verification-gate.md`: the Docs and Version rules in "The fixed order", a "CI"
     section, the workflow added to the protected gate files, "In this repository" and "In a
     consuming project" updated, all written from the shipped files.
@@ -67,13 +74,20 @@ bring in.
 
 ### Changed
 
-- `scripts/check-index.sh` (issue #3): `comm` runs under `LC_ALL=C` like the sorts that feed it
-  (under `en_US.UTF-8` a C-sorted list with one entry missing reported every entry missing); the
-  file list is `git ls-files -- base`, so an untracked `.DS_Store` is not refused and a standard
-  never added to git fails by name; the project index is checked to be a symlink to
-  `../../index.yml` instead of compared byte for byte; the header points at
-  `base/process/standards-index.md`.
-- `index.yml`: the `process/verification-gate` description rewritten for the judgment steps and CI.
+- `scripts/check-index.sh` (issue #3): `LC_ALL=C` is exported once, so `comm` collates like the
+  sorts that feed it (under `en_US.UTF-8` a C-sorted list with one entry missing reported every
+  entry missing); every list is sorted after its last transform and both are checked sorted before
+  `comm`, whose exit is tested on its own (the PR 7 head sorted before stripping, so GNU `comm`
+  refused the input and the script read that as nothing missing); the file list is
+  `git ls-files -- base` with paths unquoted, so an ignored `.DS_Store` is not refused, a standard
+  never added to git is refused by name, a tracked file missing from the disk is refused, and a
+  non-ASCII path passes; outside a git work tree the step fails by name; the project index is
+  checked to be a symlink to `../../index.yml` instead of compared byte for byte, a directory
+  reported as such; the header points at `base/process/standards-index.md`.
+- `index.yml`: the `process/verification-gate` description rewritten for the judgment steps and CI;
+  the header says tracked files and the symlink.
+- `scripts/gate.sh`, `.pymarkdown.yaml`: a pin or rule set is bumped "in the gate's own spec", as
+  the gate standard says, not "outside a spec".
 - `base/process/standards-retrospective.md` (issue #2, third spec
   `agent-os/specs/2026-11-05-0741-retrospective-points-at-owners/`): "Keep the index in step" and
   "Never edit this file from inside a retrospective" are each a short pointer at the standard that

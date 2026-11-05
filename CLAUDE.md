@@ -51,8 +51,8 @@ prohibition is on attribution markers, not on citing the work.
   **then its three judgment steps are recorded in `shape.md`, in this order: Docs, Version, and
   the standards retrospective.** Docs: the documentation the change touches reads true after it.
   Version: the change is recorded under `[Unreleased]` in `CHANGELOG.md`. CI
-  (`.github/workflows/gate.yml`) runs `scripts/gate.sh` on every push and pull request and nothing
-  else; the judgment steps are never run by a machine.
+  (`.github/workflows/gate.yml`) runs `scripts/gate.sh` on every pull request and every push to
+  `main`, and nothing else; the judgment steps are never run by a machine.
 - The retrospective is the gate's last step: check what the spec taught against the standards,
   add the pattern it invented, correct what it proved stale, keep `index.yml` in step — or
   record `Standards retrospective: no changes` in the spec's `shape.md`. "No changes" is valid;

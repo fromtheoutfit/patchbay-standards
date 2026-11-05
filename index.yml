@@ -1,6 +1,6 @@
 # patchbay-standards: the base index. Format and the two-index relation are the rule in
 # base/process/standards-index.md; scripts/check-index.sh (gate step 3) holds this file equal to
-# the files under base/ and to agent-os/standards/index.yml.
+# the tracked files under base/, and holds agent-os/standards/index.yml to be a symlink to it.
 #
 # One `base:` section, keyed by each standard's path relative to base/ without the .md. A
 # description says what the standard DECIDES, not what area it belongs to, and holds no `: `.

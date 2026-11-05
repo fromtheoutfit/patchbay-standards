@@ -14,8 +14,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Pinned: pymarkdownlnt 0.9.41, published 2026-10-13. Bump deliberately, outside a spec, and
-# rerun the gate.
+# Pinned: pymarkdownlnt 0.9.41, published 2026-10-13. Bump deliberately, in the gate's own spec
+# (base/process/verification-gate.md), and rerun the gate.
 PYMARKDOWN_VERSION=0.9.41
 
 step() { printf '\n== %s\n' "$1"; }
@@ -31,7 +31,7 @@ uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown \
   --strict-config --config .pymarkdown.yaml scan --recurse base README.md
 echo "ok   no findings"
 
-step "3/3  index.yml lists exactly the files under base/"
+step "3/3  index.yml lists exactly the tracked files under base/"
 scripts/check-index.sh
 
 printf '\nGate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.\n'
