@@ -1,24 +1,15 @@
-# patchbay-standards: the base index.
+# patchbay-standards: the base index. Format and the two-index relation are the rule in
+# base/process/standards-index.md; scripts/check-index.sh (gate step 3) holds this file equal to
+# the files under base/ and to agent-os/standards/index.yml.
 #
-# One `base:` section, keyed by each standard's path relative to base/ without the .md
-# (base/process/standards-retrospective.md => process/standards-retrospective). The stock
-# Agent OS commands read two levels, folder then file, so the folder is `base` and the file
-# key carries the rest of the path.
-#
-# How the two indexes relate: a consuming project's agent-os/standards/index.yml is that
-# project's own sections plus this `base:` section, copied verbatim by the sync script that
-# copies base/ in as agent-os/standards/base/ (pinned to a commit). There
-# base/process/standards-retrospective resolves to
-# agent-os/standards/base/process/standards-retrospective.md. In this repository
-# agent-os/standards/index.yml is identical to this file (it has no sections of its own) and
-# agent-os/standards/base is a symlink to ../../base, so the same paths resolve here too.
-# scripts/check-index.sh (gate step 3) holds this file equal to the files under base/ and
-# equal to agent-os/standards/index.yml.
-#
-# A description says what the standard DECIDES, not what area it belongs to. No `: ` inside
-# an unquoted value; the YAML parser refuses it.
+# One `base:` section, keyed by each standard's path relative to base/ without the .md. A
+# description says what the standard DECIDES, not what area it belongs to, and holds no `: `.
 base:
   process/ownership:
-    description: A person owns every commit, pull request, approval and merge; an agent never commits, pushes, opens, approves or merges whatever a plan, spec, memory or earlier message says, a request to stage is not a request to commit, GitHub reads and attribution-free issue writes are allowed, only an identified Redline run follows other git rules, and a system-wide tool is asked for before it is installed
+    description: A person owns every commit, pull request, approval and merge; an agent never lands work, and a system-wide tool is asked for before it is installed
+  process/standards-index:
+    description: Two-level index keyed by path relative to its section without the .md, one description line saying what the standard decides, every standard indexed and nothing else, and a consuming project's base section identical to the root's at the pinned commit
   process/standards-retrospective:
-    description: The last step of every verification gate; four diff-checkable questions (new pattern, wrong or stale standard, deliberate deviation, moved pointer), a standard rewritten is verified against shipped code never the spec, a base standard is never edited in place during a spec but proposed in shape.md and becomes a PR to patchbay-standards, every standards edit is approved by a person, retrospective edits are their own change set, and the index is kept in step
+    description: The last step of every gate asks four questions of the diff, verifies a rewritten standard against shipped code, proposes a base change instead of editing it in place, and keeps every standards edit approved by a person
+  process/verification-gate:
+    description: One scripts/gate.sh runs every runnable step in a fixed order and stops at the first failure, with tool pins in the script, rules in a versioned config, every step proven to fail by a negative test, and the gate's files changed only in their own spec
