@@ -34,9 +34,13 @@ the root index of `patchbay-standards`.
 
 - **Every file under the standards folder has an entry, and no entry lacks a file.** In
   `patchbay-standards`, `scripts/check-index.sh` holds `index.yml` to this at every gate run and
-  names each miss: a file under `base/` with no entry, an entry with no file.
+  names each miss: a tracked file under `base/` with no entry, an entry with no tracked file. The
+  files are the tracked ones, from `git ls-files`: a standard that was never added to git has no
+  file as far as the gate is concerned, so it cannot pass locally and merge with a dangling entry,
+  and an untracked stray such as `.DS_Store` is not a file either.
 - **Only standards live under `base/`**: every file there is a `.md` and is indexed. Notes, drafts
-  and assets live elsewhere; `check-index.sh` refuses a non-`.md` file under `base/` by name.
+  and assets live elsewhere; `check-index.sh` refuses a tracked non-`.md` file under `base/` by
+  name.
 - **A base change that adds, renames or removes a file carries its index entry** in the same
   change; the gate does not pass without it.
 
@@ -58,9 +62,11 @@ the root index of `patchbay-standards`.
 
 ## In this repository
 
-- **`agent-os/standards/index.yml` is identical to `index.yml`**, byte for byte, because this
-  repository has no sections of its own; `check-index.sh` holds the two equal and prints the
-  diff when they drift. The root file is edited; the copy follows it.
+- **`agent-os/standards/index.yml` is a symlink to `../../index.yml`**, because this repository
+  has no sections of its own and the root index is the whole of its index: one file to edit,
+  nothing to keep equal. `check-index.sh` refuses anything else by what it found, a regular file
+  even when its bytes match, a symlink to any other target, or nothing. The root file is edited;
+  the link follows by construction.
 - **`agent-os/standards/base` is a symlink to `../../base`**, so the stock commands resolve
   `agent-os/standards/base/<key>.md` here exactly as in a consuming project. The symlink is this
   repository's convenience and never ships to a project; a project holds a copy, pinned to a

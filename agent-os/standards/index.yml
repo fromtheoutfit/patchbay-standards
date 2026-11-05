@@ -1,15 +1,1 @@
-# patchbay-standards: the base index. Format and the two-index relation are the rule in
-# base/process/standards-index.md; scripts/check-index.sh (gate step 3) holds this file equal to
-# the files under base/ and to agent-os/standards/index.yml.
-#
-# One `base:` section, keyed by each standard's path relative to base/ without the .md. A
-# description says what the standard DECIDES, not what area it belongs to, and holds no `: `.
-base:
-  process/ownership:
-    description: A person owns every commit, pull request, approval and merge; an agent never lands work, and a system-wide tool is asked for before it is installed
-  process/standards-index:
-    description: Two-level index keyed by path relative to its section without the .md, one description line saying what the standard decides, every standard indexed and nothing else, and a consuming project's base section identical to the root's at the pinned commit
-  process/standards-retrospective:
-    description: The last step of every gate asks four questions of the diff, verifies a rewritten standard against shipped code, proposes a base change instead of editing it in place, and keeps every standards edit approved by a person
-  process/verification-gate:
-    description: One scripts/gate.sh runs every runnable step in a fixed order and stops at the first failure, with tool pins in the script, rules in a versioned config, every step proven to fail by a negative test, and the gate's files changed only in their own spec
+../../index.yml
