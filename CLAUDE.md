@@ -47,8 +47,12 @@ prohibition is on attribution markers, not on citing the work.
   whole of `agent-os/standards/`. A spec is not complete until its verification gate passes —
   `scripts/gate.sh`, which runs `bash -n` on every file under `scripts/`, `pymarkdown` through
   `uvx` (pinned there, rules in `.pymarkdown.yaml`) over `base/` and `README.md`, and
-  `scripts/check-index.sh`, which holds `index.yml` equal to the files under `base/` —
-  **and its standards retrospective is done.**
+  `scripts/check-index.sh`, which holds `index.yml` equal to the tracked files under `base/` —
+  **then its three judgment steps are recorded in `shape.md`, in this order: Docs, Version, and
+  the standards retrospective.** Docs: the documentation the change touches reads true after it.
+  Version: the change is recorded under `[Unreleased]` in `CHANGELOG.md`. CI
+  (`.github/workflows/gate.yml`) runs `scripts/gate.sh` on every push and pull request and nothing
+  else; the judgment steps are never run by a machine.
 - The retrospective is the gate's last step: check what the spec taught against the standards,
   add the pattern it invented, correct what it proved stale, keep `index.yml` in step — or
   record `Standards retrospective: no changes` in the spec's `shape.md`. "No changes" is valid;

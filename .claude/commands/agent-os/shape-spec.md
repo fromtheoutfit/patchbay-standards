@@ -190,9 +190,14 @@ Run the full verification gate, in order. The spec is not complete until every s
 1. `bash -n` on every file under `scripts/` — every script must parse
 2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`)
    over `base/` and `README.md` — must report no findings
-3. `scripts/check-index.sh` — `index.yml` lists exactly the files under `base/`: every file has
-   an entry, no entry lacks a file, and `agent-os/standards/index.yml` is identical to it
-4. **Standards retrospective** — per `base/process/standards-retrospective.md`:
+3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every file
+   has an entry, no entry lacks a file, and `agent-os/standards/index.yml` is a symlink to it
+4. **Docs** — the documentation the change touches reads true after it: `README.md`, `CLAUDE.md`,
+   the header comments and pointers in the files changed, and every standard that names them.
+   Record what was checked in `shape.md`.
+5. **Version** — the change is recorded under `[Unreleased]` in `CHANGELOG.md`, and the version
+   bumped where a repository has one. Record it in `shape.md`.
+6. **Standards retrospective** — per `base/process/standards-retrospective.md`:
    check what this spec taught against the standards, add any pattern it invented,
    correct anything it proved stale, and keep `index.yml` in step — as an edit for a
    project standard, as a proposal under `## Standards retrospective (proposed, base)` for
@@ -200,7 +205,8 @@ Run the full verification gate, in order. The spec is not complete until every s
    can be committed apart from it. If the spec taught nothing, record
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
 
-`scripts/gate.sh` runs steps 1–3 as one command. Step 4 is judgment, recorded in `shape.md`.
+`scripts/gate.sh` runs steps 1–3 as one command. Steps 4–6 are judgment, in that order, recorded
+in `shape.md`; the retrospective is always last.
 
 If any step fails, fix the underlying issue (do not bypass) and rerun before marking the
 spec complete.
@@ -220,7 +226,8 @@ After Task 1 is confirmed, continue building out the remaining implementation ta
 Each task should be specific and actionable.
 
 **Always include the final verification task** (`scripts/gate.sh` — `bash -n`, `pymarkdown`,
-`scripts/check-index.sh` — plus the standards retrospective) as the last task in every plan,
+`scripts/check-index.sh` — then Docs, Version and the standards retrospective) as the last task in
+every plan,
 regardless of feature size. Do not skip this for "small" changes — a one-file fix is exactly the
 kind of spec that quietly invents a pattern.
 
@@ -233,9 +240,10 @@ Plan complete. When you approve and execute:
 
 1. Task 1 will save all spec documentation first
 2. Then implementation tasks will proceed
-3. The final task runs the verification gate, ending with the standards
-   retrospective. The spec is not complete until the gate is green AND the
-   standards are either updated (or proposed, for base/) or recorded as "no changes"
+3. The final task runs the verification gate: the three runnable steps, then Docs,
+   Version and the standards retrospective. The spec is not complete until the gate is
+   green, Docs and Version are recorded, AND the standards are either updated (or
+   proposed, for base/) or recorded as "no changes"
 
 Ready to start? (approve / adjust)
 ```
@@ -314,7 +322,9 @@ becomes a pull request to `patchbay-standards`, approved by a person.
 
 Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every file under
 `scripts/`, `pymarkdown` over `base/` and `README.md`, and `scripts/check-index.sh` —
-and the standards retrospective above is filled in.
+and the three judgment steps are recorded here: Docs (what documentation was checked and
+reads true), Version (the `[Unreleased]` entry in `CHANGELOG.md`), and the standards
+retrospective above.
 ```
 
 ## standards.md Content
@@ -360,5 +370,5 @@ the current text.
 - **Visuals are optional** — Not every feature needs mockups.
 - **Feature-specific standards inform the plan** — If the plan conflicts with one, revise the plan, or record in `shape.md` why the standard doesn't apply here. A standard that's simply wrong gets fixed in the retrospective, not worked around — and a base standard gets *proposed*, not edited.
 - **Specs are discoverable** — Months later, someone can find this spec and understand what was built and why.
-- **The gate is the definition of done** — A spec with a script that does not parse, a lint finding, an index out of step with `base/`, or an unwritten retrospective is unfinished work, however small the change.
-- **Standards are a living record** — The retrospective in gate step 4 is how they grow. A spec that taught nothing says so in `shape.md`; a spec that taught something changes a standard (or proposes a base change) in its own change set, verified against the shipped code rather than the plan.
+- **The gate is the definition of done** — A spec with a script that does not parse, a lint finding, an index out of step with `base/`, a doc that reads false, a missing CHANGELOG entry, or an unwritten retrospective is unfinished work, however small the change.
+- **Standards are a living record** — The retrospective in gate step 6 is how they grow. A spec that taught nothing says so in `shape.md`; a spec that taught something changes a standard (or proposes a base change) in its own change set, verified against the shipped code rather than the plan.

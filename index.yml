@@ -12,4 +12,4 @@ base:
   process/standards-retrospective:
     description: The last step of every gate asks four questions of the diff, verifies a rewritten standard against shipped code, proposes a base change instead of editing it in place, and keeps every standards edit approved by a person
   process/verification-gate:
-    description: One scripts/gate.sh runs every runnable step in a fixed order and stops at the first failure, with tool pins in the script, rules in a versioned config, every step proven to fail by a negative test, and the gate's files changed only in their own spec
+    description: One scripts/gate.sh runs every runnable step in a fixed order and stops at the first failure, then Docs, Version and the retrospective as judgment; tool pins in the script, rules in a versioned config, CI runs the same script and nothing else with every action pinned to a commit, every step proven to fail by a negative test, and the gate's files changed only in their own spec

@@ -1,0 +1,44 @@
+CI negative test j, run 2026-11-05 on branch feature/3-gate-spec-ci-workflow-docs-and-version-as-judgment-steps-and-the-gate-file-fixes-from-the-pr-5-review.
+The workflow (.github/workflows/gate.yml) is not run on GitHub here: the agent does not push, and the
+real run happens when the owner opens the pull request. This proves the same thing locally: the job's
+steps are read from the workflow file by ci-steps.py (kept in the scratchpad, not the tree) and the
+'run' steps executed in order in a scratch copy of the tree, each under the shell GitHub gives a run
+step on ubuntu (bash --noprofile --norc -eo pipefail). GitHub's rule, from the workflow syntax
+reference: a step that exits non-zero fails the job unless continue-on-error is set, and this job
+sets nothing. The two 'uses' steps are checkout (the copy stands in for it) and setup-uv pinned to
+uv 0.13.7; the uv on PATH here is that version, shown below.
+
+uv on PATH: uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+
+### j1 (unbroken copy of the tree; the job must pass)
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+ok   no findings
+
+== 3/3  index.yml lists exactly the files under base/
+ok   index.yml and base/ agree (4 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+job: gate  runs-on: ubuntu-24.04  triggers: push, pull_request
+step 1: uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  (not run here; see the note)
+step 2: uses astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  with {'version': '0.13.7'}  (not run here; see the note)
+step 3: run scripts/gate.sh
+step 3 exit=0
+job: passed
+exit=0
+
+### j2 (scripts/broken.sh added, as negative test f; gate.sh fails at step 1, so the job must fail)
+
+== 1/3  bash -n on every file under scripts/
+scripts/broken.sh: line 3: syntax error: unexpected end of file
+job: gate  runs-on: ubuntu-24.04  triggers: push, pull_request
+step 1: uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  (not run here; see the note)
+step 2: uses astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  with {'version': '0.13.7'}  (not run here; see the note)
+step 3: run scripts/gate.sh
+step 3 exit=2
+job: FAILED at step 3 (a run step that exits non-zero fails the job)
+exit=2

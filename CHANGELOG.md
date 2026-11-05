@@ -11,6 +11,26 @@ bring in.
 
 ### Added
 
+- Fourth spec, `agent-os/specs/2026-11-05-1000-gate-spec-ci-docs-version/` (issue #3), the gate's
+  own spec: every gate file changes here and nowhere else, each changed step with its negative test.
+  - `.github/workflows/gate.yml`: the one CI workflow. One job on every push and pull request:
+    checkout, uv, `scripts/gate.sh`, nothing else. `actions/checkout` v7.0.1 and
+    `astral-sh/setup-uv` v10.3.3 pinned by commit with the tag beside it, uv pinned to 0.13.7,
+    runner `ubuntu-24.04`. Proven to fail when the script fails by running the job's steps from the
+    workflow file on a broken copy (`verification/ci-negative-test.txt`), since an agent never pushes.
+  - `agent-os/standards/index.yml` is a symlink to `../../index.yml`, as `agent-os/standards/base`
+    is to `../../base`: one index to edit, nothing to keep equal.
+  - Docs and Version as judgment steps 4 and 5 of the gate, the standards retrospective 6, in
+    `shape-spec.md`'s gate task, `scripts/gate.sh`'s header and closing line, and `CLAUDE.md`.
+  - Eleven negative tests in `verification/`: the first spec's a, b, d, e, f rerun on the shipped
+    scripts; c1 and c2 (a regular file with matching bytes, a symlink elsewhere) replacing c; g (the
+    `comm` locale case); h (`git ls-files`); i (`.pymarkdown.yaml` shown to be read); j (CI).
+  - `base/process/verification-gate.md`: the Docs and Version rules in "The fixed order", a "CI"
+    section, the workflow added to the protected gate files, "In this repository" and "In a
+    consuming project" updated, all written from the shipped files.
+  - `base/process/standards-index.md`: the tracked-files rule under "Every standard and nothing
+    else" and the symlink under "In this repository", written from the shipped script.
+
 - Second spec, `agent-os/specs/2026-11-04-1016-gate-and-index-standards/` (issue #1): the two base
   standards the first retrospective recorded as missing, written from the shipped gate and index
   and revised after the review of PR 5 so every claim is backed by a shipped file.
@@ -47,6 +67,13 @@ bring in.
 
 ### Changed
 
+- `scripts/check-index.sh` (issue #3): `comm` runs under `LC_ALL=C` like the sorts that feed it
+  (under `en_US.UTF-8` a C-sorted list with one entry missing reported every entry missing); the
+  file list is `git ls-files -- base`, so an untracked `.DS_Store` is not refused and a standard
+  never added to git fails by name; the project index is checked to be a symlink to
+  `../../index.yml` instead of compared byte for byte; the header points at
+  `base/process/standards-index.md`.
+- `index.yml`: the `process/verification-gate` description rewritten for the judgment steps and CI.
 - `base/process/standards-retrospective.md` (issue #2, third spec
   `agent-os/specs/2026-11-05-0741-retrospective-points-at-owners/`): "Keep the index in step" and
   "Never edit this file from inside a retrospective" are each a short pointer at the standard that

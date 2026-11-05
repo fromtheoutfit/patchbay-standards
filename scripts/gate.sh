@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # The runnable half of the verification gate: steps 1-3 of the gate every spec in this
-# repository ends with (.claude/commands/agent-os/shape-spec.md, Task N). Step 4, the
-# standards retrospective, is judgment, recorded in the spec's shape.md per
-# base/process/standards-retrospective.md; nothing here can run it.
+# repository ends with (.claude/commands/agent-os/shape-spec.md, Task N). Steps 4-6 are
+# judgment, recorded in the spec's shape.md: Docs (the documentation the change touches reads
+# true), Version (the change under [Unreleased] in CHANGELOG.md) and the standards
+# retrospective per base/process/standards-retrospective.md; nothing here can run them.
+# CI runs this same script and nothing else (.github/workflows/gate.yml).
 #
 # Usage: scripts/gate.sh        (exits non-zero on the first failing step)
 #
@@ -32,4 +34,4 @@ echo "ok   no findings"
 step "3/3  index.yml lists exactly the files under base/"
 scripts/check-index.sh
 
-printf '\nGate steps 1-3 passed. Step 4 is the standards retrospective: record it in shape.md.\n'
+printf '\nGate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.\n'
