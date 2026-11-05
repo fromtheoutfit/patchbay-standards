@@ -1,0 +1,13 @@
+2026-11-05  branch feature/2-point-keep-the-index-in-step-and-never-edit-this-file-at-the-standards-that-own-those-rules
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+ok   no findings
+
+== 3/3  index.yml lists exactly the files under base/
+ok   index.yml and base/ agree (4 standard(s))
+
+Gate steps 1-3 passed. Step 4 is the standards retrospective: record it in shape.md.
