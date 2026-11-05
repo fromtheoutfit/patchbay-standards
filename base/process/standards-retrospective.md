@@ -88,9 +88,9 @@ change set. An agent proposes; it does not land a standard on its own.
 A standard added, renamed or removed carries its index entry in the same change set: a project
 standard in the project's own sections of `agent-os/standards/index.yml`, a base proposal in the
 root `index.yml` of `patchbay-standards`, where `scripts/check-index.sh` holds the index to the
-files under `base/` so a proposal without its entry does not pass the gate. The index's format, the
-description line and how a consuming project's index relates to the root index are
-`base/process/standards-index.md`'s.
+files under `base/` and the `gate` check is required on `main`, so a proposal without its entry
+does not merge. The index's format, the description line and how a consuming project's index
+relates to the root index are `base/process/standards-index.md`'s.
 
 ## Never edit this file from inside a retrospective
 

@@ -44,7 +44,7 @@ the root index of `patchbay-standards`.
   and assets live elsewhere; `check-index.sh` refuses a tracked non-`.md` file under `base/` by
   name.
 - **A base change that adds, renames or removes a file carries its index entry** in the same
-  change; the gate does not pass without it.
+  change; the `gate` check is required on `main`, so a change without it does not merge.
 
 ## Two indexes, one `base:` section
 
@@ -54,13 +54,15 @@ the root index of `patchbay-standards`.
   `base:` section identical to the root `base:` section at the commit the project pins.** No
   entry in that section is edited by hand: an entry it lacks, or a description it disagrees
   with, is changed in `patchbay-standards` and taken when the project moves its pin. The section
-  is replaced whole, at a recorded commit; until a sync exists, a project copies it whole from
-  the root `index.yml` at the commit it pins.
+  is replaced whole by `scripts/sync-standards.sh`, at the commit it records in
+  `agent-os/standards/base/.version`; how, and what else the sync writes, is
+  `base/process/standards-sync.md`'s.
 - **A project's own sections are edited by hand, in the same change set as its own standards**,
   as the retrospective standard directs. The stock `/agent-os:index-standards` command rewrites
   the whole file, the `base:` section included, and removes entries it finds no file for without
   asking, so it is not run on an index that carries a synced `base:` section. The regeneration
-  that is safe to run is named here when it ships.
+  that is safe to run is `scripts/sync-standards.sh --index-only`, which replaces the `base:`
+  section alone and leaves every other line in place (`base/process/standards-sync.md`).
 
 ## In this repository
 
@@ -77,6 +79,6 @@ the root index of `patchbay-standards`.
 ## In a consuming project
 
 This standard is synced in as `agent-os/standards/base/process/standards-index.md`. The project's
-`agent-os/standards/index.yml` carries the `base:` section as pinned and its own sections beside
-it; its retrospective keeps its own sections in step, and proposes base entries to
+`agent-os/standards/index.yml` carries the `base:` section as the sync wrote it and its own
+sections beside it; its retrospective keeps its own sections in step, and proposes base entries to
 `patchbay-standards`.
