@@ -213,3 +213,202 @@ New: `scripts/sync-standards.sh`, `base/process/standards-sync.md`, the spec fol
 Changed: `scripts/gate-negative-tests.sh`, `base/process/standards-index.md`,
 `base/process/standards-retrospective.md`, `base/process/verification-gate.md`, `index.yml`,
 `CHANGELOG.md`.
+
+# Revision after the review of PR 9 (2026-11-05)
+
+Shaped in plan mode with `/agent-os:shape-spec`. The first round's plan (issue #8, the five parts) is
+the spec folder's `plan.md`; this plan is the revision and is appended there by Task 1. Owner's
+answers this round: the whole review (22 items), on the same branch, recorded in the existing spec
+folder `agent-os/specs/2026-11-05-1441-sync-script-and-standards-sync/` under "Revision after
+review" as the fourth spec did for PR 7; visuals none; references and standards as the first round,
+`process/standards-sync` added to the standards list.
+
+## Context
+
+PR 9 (head `3d3e111`) carries the fifth spec. The owner's review comment lists 22 findings, two
+reproduced on macOS and blocking: BSD `head -n 0` exits 1, so a `base:` section or an `--init`
+insertion point on line 1 crashes the splice (item 1), and a sync that fails in `regen_index` has
+already replaced `base/` and `.version`, leaving the project half-synced (item 2). The rest: the
+self-copy claim is false (3), the default ref pins a feature-branch HEAD silently (4), `git archive`
+applies the checkout's eol settings (5, reproduced here: `-c core.autocrlf=true` gives `\r\n`), a
+subdirectory path passes validation then fails with exit 128 (6), the index is written by truncation
+(7), the JSON claims the script copy before it runs (8), mode conflicts exit 2 unnamed (9), `json_str`
+misses control characters (10); four harness findings (11–14); four standards findings (15–18); four
+cleanups (19–22). Branch is clean at `3d3e111`; the tree's gate is green (every file tracked).
+
+## Decisions (owner's, this round)
+
+- **Scope: all 22 items, same spec folder.** Dispositions tabled below and in the spec's `plan.md`;
+  decisions in `shape.md`'s "Revision after review (2026-11-05)"; a fresh `gate-run.txt`, every
+  negative test rerun (`gate-negative-tests.txt`, and j in `ci-negative-test.txt`, so the
+  verification-gate sentence about "the current transcript" reads true), and the hosted run on PR 9
+  recorded by id.
+- **Item 3: keep the last-act copy, fix the words.** No exec. The script header and
+  `standards-sync.md` say: the project's copy is replaced with the script at the pinned commit as
+  the last thing the sync writes, so the next sync runs it; the sync that delivers a change to the
+  script is run by the copy before it.
+- **Item 4: the default ref is origin's default branch.** `<ref>` defaults to the checkout's
+  `refs/remotes/origin/HEAD` (`origin/main` here); a checkout with no `origin/HEAD` is told to pass
+  a ref or set it (`git remote set-head origin --auto`), exit 2. An explicit ref whose commit is not
+  an ancestor of origin's default branch is synced with a `WARN` line on stderr naming it. The
+  scratch upstream in the harness gets `origin/main` so the default is exercised.
+- **Item 18: fix the sentence in place as feature work.** `verification-gate.md`'s "In this
+  repository" paragraph is in this spec's scope (Task 5 of the first plan); the sentence is corrected
+  with j rerun so it reads true, and `shape.md`'s retrospective answer 2 says the edit was feature
+  work, not a retrospective edit.
+- **Item 5: read blobs with `git cat-file`**, not `git archive` (mine): `git ls-tree -r -z` the
+  commit for `base`, `index.yml`, `scripts/sync-standards.sh`, refuse any entry that is not a
+  regular blob (mode 100644/100755) or whose path holds a control character (exit 2, named), write
+  each with `git cat-file blob`. Raw bytes: no eol conversion, no attribute, no filter.
+- **Item 10: control characters in paths are refused**, so the newline-separated lists and the
+  JSON hold by construction; `json_str` keeps escaping `\` and `"`. The upstream path and the ref
+  are checked the same way.
+- **Item 15: CI guidance** in `standards-sync.md`: both repositories under the workspace, the
+  project in a subdirectory and `patchbay-standards` beside it, checked out at the commit in
+  `.version` (a step reads the file and passes it as `ref:`, or `fetch-depth: 0`), the gate run with
+  `working-directory` set to the project. Prose and the shape of the steps, not a YAML listing.
+
+## Dispositions
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | `head -n 0` on a line-1 section or insertion point | Fix: one awk for bounds, one awk splice, one awk insertion; no `head`/`tail`. Test r: line-1 cases, with the `3d3e111` script shown crashing. |
+| 2 | Failed sync leaves `base/` and `.version` new, index old | Fix: build `base/` (with `.version`), the index and the section in `$tmp`, check every precondition (target index parseable included), then swap. Exit 2 writes nothing; shown in u. |
+| 3 | Self-copy claim false | Owner: keep the copy, reword header and standard. |
+| 4 | Default ref is HEAD | Owner: `origin/HEAD`; warn on an unpushed explicit ref. Tests o, u. |
+| 5 | `git archive` applies eol/attributes | Fix: `ls-tree` + `cat-file blob`. |
+| 6 | Subdirectory path → exit 128 | Fix: `up=$(git -C "$path" rev-parse --show-toplevel)`; shown in u as a positive. |
+| 7 | Index written by truncation | Fix: temp file beside it, `mv`. |
+| 8 | JSON before the script copy | Fix: copy, then print. |
+| 9 | Mode conflicts unnamed | Fix: `die 2` naming both flags. Test u. |
+| 10 | `json_str` and control characters | Fix: refuse control characters in paths (exit 2); see Decisions. |
+| 11 | Hard-coded entry counts in p, q | Fix: counts computed from the upstream index. |
+| 12 | No line-1 test | Fix: r gains the no-index sync-again and `--index-only` cases, `--init` on `testing:` at line 1 and on a comment above it. |
+| 13 | `first_sync` unchecked | Fix: `first_sync x \|\| continue` in p, q, s, t, v. |
+| 14 | Oracle runs to EOF | Fix: `expected_section` trims trailing blank/comment lines (a different implementation from the script's); r syncs an upstream index with a trailing comment. |
+| 15 | CI guidance incomplete | Fix: see Decisions. |
+| 16 | `--init` normalizes blank lines | Fix: say so in the header and the standard. |
+| 17 | Count and transcript claim | Fix: "fifteen (a to n except j)"; j rerun here, `ci-negative-test.txt` recorded. |
+| 18 | In-place rewrite vs proposal | Owner: in place, as feature work; `shape.md` reworded. |
+| 19 | Two awk state machines, repeated messages | Fix: one `section_bounds`, extraction by line range, messages in one place. |
+| 20 | Dead `: >`, double sort | Fix. |
+| 21 | `mk_upstream` repeats `mk` | Fix: `mk_upstream() { mk "$1" && commit ... && origin/main; }`. |
+| 22 | Export before cheap checks, second archive | Fix: checks first; one export, a pristine copy kept for the post-swap verification. |
+
+## Task 1: Records first
+
+Append this plan to the spec's `plan.md` as `# Revision after the review of PR 9 (2026-11-05)` with
+the table. Add `## Revision after review (2026-11-05)` to `shape.md` after Decisions, in the fourth
+spec's form: the review's size, the owner's four choices, and the decisions that extend or reverse
+the first round's (default ref, the self-copy wording, export by `cat-file`, build-then-swap, the
+refusals). Results, Docs, Version and the retrospective are rewritten at the end (Task 6).
+
+## Task 2: `scripts/sync-standards.sh`
+
+Bash 3.2, `set -euo pipefail`, `LC_ALL=C`, header rewritten to match. Order of the script:
+
+1. **Flags** as now; `--index-only`/`--check` conflicts and repeats `die 2 "one mode per run: ..."`;
+   `--*` unknown, too many arguments, a ref with `--check`/`--index-only`, `--init` outside a sync:
+   all `die 2` by name (usage on stderr first).
+2. **Preconditions, cheap first, nothing exported yet**: cwd is the work-tree top; `$base` not a
+   symlink; `$path` is a git checkout, `up=$(git -C "$path" rev-parse --show-toplevel)` (resolved,
+   so a subdirectory works); `$up`, `$ref` hold no control character; the project's index
+   `section_state` is `ok`, or `none` with `--init` in a sync (else `die 2`, the message in one
+   function). Commit: a sync resolves `$ref` (default from `git -C "$up" symbolic-ref --quiet --short
+   refs/remotes/origin/HEAD`, else `die 2`); the other modes read `.version`. `cat-file -e` for the
+   three paths. Warning: in a sync, when `origin/HEAD` exists and `merge-base --is-ancestor "$sha"
+   refs/remotes/origin/HEAD` fails, `WARN  <sha> is not on origin/main: ...` on stderr.
+3. **Export once** (`export_commit`): `git -C "$up" ls-tree -r -z "$sha" -- base index.yml
+   scripts/sync-standards.sh > "$tmp/tree"`; read with `read -r -d ''`, split mode/type/path; refuse
+   mode not 100644/100755 and control characters; `git cat-file blob "$sha:$path" >
+   "$tmp/export/$path"`. Then `section_state "$tmp/export/index.yml"` must be `ok` (`die 2 "index.yml
+   at $sha has no parseable base: section"`), and `base_section` of it to `$tmp/section.new`.
+4. **Section helpers**: `section_bounds <file>` (the one awk, prints `start end`); `base_section` is
+   `awk -v s -v e 'NR>=s && NR<=e'`; `section_state` as now on top of bounds; `splice_section`
+   (awk: at `NR==s` print `section.new`, print lines `NR<s || NR>e`); `insert_section <at>` (awk
+   buffering lines before `at`, trailing blanks stripped, one blank, the section, one blank, the
+   rest; `at` 0 = end of file; an empty or absent file gets the section alone). Header documents
+   the normalization: the blank lines directly above the insertion collapse to one, a missing final
+   newline is added.
+5. **`build_index`** (no write): sets `index_status` created|replaced|unchanged and writes
+   `$tmp/index.new` when it changes. `write_index`: `cp "$tmp/index.new" "$idx.new" && mv
+   "$idx.new" "$idx"` (same directory; `mkdir -p` for a created file).
+6. **`project_files`**: `git ls-files -z` + `--others --exclude-standard -z` into a file, read with
+   `-d ''`, refuse control characters, on-disk regular files, minus `.version`, `sort -u` once.
+   `compare` keeps `sort -c`, `comm`, `cmp`; no second sort, no dead `: >`.
+7. **Modes**: `check` as now (export, compare, section, script; JSON; exit 0/1). `index-only`:
+   `build_index`, `write_index` when changed, report, JSON. `sync`: `compare` → `.pre` lists;
+   `build_index`; `cp -R "$tmp/export/base" "$tmp/new/base"`, `.version` written inside it; then the
+   swap: `rm -rf "$base"; mv "$tmp/new/base" "$base"`; `write_index` when changed; verify against the
+   pristine export (`compare` + `section_differs`, `die 1`); script copy (`.new`, `chmod +x`, `mv`)
+   when it differs; then the stderr report, the JSON, `ok   synced to <sha>`.
+8. `json_str` escapes `\` and `"` (paths are control-free by 2 and 3).
+
+## Task 3: `scripts/gate-negative-tests.sh`
+
+- Helpers: `mk_upstream() { mk "$1" && commit "$1" "the working tree" && push_upstream "$1"; }`
+  where `push_upstream <dir>` sets `refs/remotes/origin/main` to HEAD and `origin/HEAD` to it (what a
+  push would leave); `first_sync` callers use `|| continue`; `expected_section <upstream>` =
+  `sed -n '/^base:/,$p'` then an awk that drops trailing blank and comment lines (a second
+  implementation of the rule); `expected_index` uses it; `entries <file>` for counts;
+  `old_script` generalized to `old_file <name> <sha> <path>` for the `3d3e111` sync script.
+- o: the default ref is `origin/main`, not HEAD: one extra empty commit ahead, `--init` pins
+  `origin/main`; then an explicit `HEAD` sync shows the `WARN` line and pins HEAD. A subdirectory path
+  (`../patchbay-standards/base`) is accepted and reported resolved.
+- p, q: counts computed; `push_upstream` after each commit. v: the same.
+- r: after the no-index `--init` (section on line 1) a committed upstream description edit is
+  synced (section replaced at line 1), a hand edit then `--index-only`; `--init` on an index whose
+  first line is `testing:` and on one with `# comment` directly above it; an upstream index with a
+  trailing comment and blank line synced, the trailing lines not in the project. The `3d3e111`
+  script run on the line-1 case: `head: illegal line count -- 0`, and `git status` showing `base/`
+  and `.version` changed with the index not (items 1 and 2 as they were).
+- u: `--check --index-only` named; a target commit whose `index.yml` is `base: {}` refused (exit 2)
+  with `git status` empty after; no `origin/HEAD` in the checkout and no ref → exit 2 named.
+- Header paragraph on o–v updated (origin/main, the two fixtures).
+
+Run the default set and j; both transcripts to `verification/`.
+
+## Task 4: Standards and docs, from the shipped files
+
+- `base/process/standards-sync.md`: "What the sync writes" (script copy wording per the owner;
+  default ref; `git cat-file`, raw, so neither an uncommitted edit nor the checkout's line-ending
+  settings reach the project; exit 2 cases now including a target commit with no parseable section,
+  two mode flags, a control character in a path, no `origin/HEAD`; "built in a temporary directory
+  and swapped in, so exit 2 leaves the project as it was"). "Pinned, not tracking": the default is
+  origin's default branch; an explicit unpushed ref is warned about. "The index": `--init`'s
+  normalization. "In a consuming project": the CI layout (Decisions, item 15).
+- `base/process/verification-gate.md`: "fifteen for the gate's scripts (a to n except j)"; "the spec
+  that last changed the harness holds the current transcripts, j's included"; "In a consuming
+  project": the sibling is checked out under the workspace at the commit in `.version`.
+- `base/process/standards-index.md`: unchanged unless a sentence reads false after Task 2 (checked).
+- `index.yml`: `process/standards-sync` description reread; changed only if its rule changed.
+- `CHANGELOG.md`: the fifth spec's Added entry revised to the shipped script (cat-file, the default
+  ref, build-then-swap, the refusals) with one sentence naming the PR 9 review; lines ≤ 100.
+
+## Task 5: Hosted run
+
+`gh run list --workflow gate --branch <branch>` (read only): the run on `3d3e111`, id and
+conclusion, recorded at the end of `verification/ci-negative-test.txt`; the next head's run is read
+back by the owner or the next session after the push.
+
+## Task 6: Verification gate
+
+1. `scripts/gate.sh` → exit 0 on the tree (every input tracked), transcript `verification/gate-run.txt`
+   replaced (date and branch first line, run under `bash -c` for `PIPESTATUS`), the last act.
+2. Negative tests: default set → `gate-negative-tests.txt`; `j` → `ci-negative-test.txt`.
+3. **Docs**: header, harness header/usage, the three standards and `index.yml` read against the
+   shipped script; `README.md`, `CLAUDE.md` unchanged and true. Recorded in `shape.md`.
+4. **Version**: `CHANGELOG.md` entry as revised. Recorded.
+5. **Retrospective** rewritten from the revised diff against `main`: answer 2 reworded (item 18);
+   the `(proposed, base)` item about an unstaged new standard stays (it came from the first
+   hand-over and is still a gap); any new pattern this round taught (build-then-swap for a script
+   that writes several things; the pushed-ref default) is already in `standards-sync.md` as feature
+   work.
+6. Stop; print `git status --short`. No stage, commit, push or PR edit.
+
+## Files
+
+Changed: `scripts/sync-standards.sh`, `scripts/gate-negative-tests.sh`, `base/process/standards-sync.md`,
+`base/process/verification-gate.md`, `CHANGELOG.md`, the spec folder (`plan.md`, `shape.md`,
+`verification/gate-run.txt`, `verification/gate-negative-tests.txt`, new `verification/ci-negative-test.txt`).
+Possibly: `base/process/standards-index.md`, `index.yml`.

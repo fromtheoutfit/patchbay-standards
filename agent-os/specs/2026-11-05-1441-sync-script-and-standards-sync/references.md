@@ -41,3 +41,22 @@
 - **Relevance:** The stock regeneration the sync's `--index-only` replaces on a synced index: it
   rewrites the whole file, `root` first then sections alphabetical, one blank line between sections.
   `--init` inserts the `base:` section where that ordering puts it.
+
+## Added for the revision after the review of PR 9 (2026-11-05)
+
+### The owner's review of PR 9
+
+- **Location:** the comment on https://github.com/fromtheoutfit/patchbay-standards/pull/9 dated
+  2026-11-05, "Review of 3d3e111"; read with `gh pr view 9 --json comments`.
+- **Relevance:** The 22 findings this revision addresses; two reproduced on macOS. Dispositions in
+  `plan.md`, decisions in `shape.md`'s "Revision after review".
+
+### The fourth spec's revision record
+
+- **Location:** `agent-os/specs/2026-11-05-1000-gate-spec-ci-docs-version/shape.md` ("Revision
+  after review") and its `plan.md` ("Revision after the first review of PR 7").
+- **Relevance:** The shape of a review round recorded in the same spec folder: the owner's choices
+  named, the rest accepted as the review recommends, a disposition table in `plan.md`, every
+  transcript rerun.
+- **Key patterns:** showing the bug as it was with the script from history (`old_script`, now
+  `old_file`) beside the shipped one; the hosted run recorded by id in `ci-negative-test.txt`.

@@ -124,13 +124,14 @@ list with `git ls-files`, refuses an untracked file under `base/` and a tracked 
 the disk, sorts every list after its last transform and checks both sorted before `comm`, and
 holds `agent-os/standards/index.yml` to be a symlink to `../../index.yml`.
 `scripts/gate-negative-tests.sh` holds every negative test, fifteen for the gate's scripts (a to
-n), eight for `scripts/sync-standards.sh` (o to v, `base/process/standards-sync.md`) and the CI
-replay (j), and is parsed by step 1, not run by the gate. `.github/workflows/gate.yml` is the gate's
-workflow, pinned to `actions/checkout` v7.0.1 and `astral-sh/setup-uv` v10.3.3 by commit and to
-uv 0.13.7, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and no cache.
+n except j), eight for `scripts/sync-standards.sh` (o to v, `base/process/standards-sync.md`) and
+the CI replay (j), and is parsed by step 1, not run by the gate. `.github/workflows/gate.yml` is the
+gate's workflow, pinned to `actions/checkout` v7.0.1 and `astral-sh/setup-uv` v10.3.3 by commit and
+to uv 0.13.7, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and no cache.
 Every spec folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that
 built the gate holds its six negative tests as recorded, the spec that last changed the harness
-holds the current transcript, and the gate spec (issue #3) holds the hosted runs by id.
+holds the current transcripts, j's included, and the gate spec (issue #3) holds the hosted runs that
+proved the workflow, by id.
 
 ## In a consuming project
 
@@ -139,4 +140,6 @@ project's `scripts/gate.sh` runs its own step list in this shape; its `shape-spe
 steps in the gate task, followed by Docs, Version and the standards retrospective; its gate
 workflow runs the script and nothing else; its `CLAUDE.md` names the script as the definition of
 done. `scripts/sync-standards.sh --check` is one of its steps, and that script is a gate file the
-sync itself replaces from the pinned commit, never a hand edit (`base/process/standards-sync.md`).
+sync itself replaces from the pinned commit, never a hand edit; its gate workflow checks
+`patchbay-standards` out beside the project under the workspace, at the commit in
+`agent-os/standards/base/.version` (`base/process/standards-sync.md`).
