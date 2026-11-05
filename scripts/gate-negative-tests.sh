@@ -3,12 +3,18 @@
 # can fail is proven to fail"). Not run by scripts/gate.sh; gate step 1 parses this file. Each
 # test copies the gate's files into a fresh temporary directory, git-inits and git-adds the copy
 # so git ls-files sees it, breaks it in one way, and must fail with the named reason and exit
-# status, the steps after it never reached; the two positive cases (k, l) must pass. Nothing in
+# status, the steps after it never reached; the positive cases beside them must pass. Nothing in
 # the tree is touched. The transcript of a run is kept in the spec's verification/ folder as
 # gate-negative-tests.txt (every test but j) and ci-negative-test.txt (j, the CI replay).
 #
+# Tests o to v are scripts/sync-standards.sh's (base/process/standards-sync.md), a gate file in
+# every consuming project: each builds a scratch patchbay-standards checkout whose HEAD commit holds
+# the working tree's files (mk_upstream) beside a scratch consuming project, an Agent OS install
+# with its own index sections and two local standards (mk_project), and runs the sync from the
+# project as a project would, the sibling checkout as the default path.
+#
 # Usage: scripts/gate-negative-tests.sh [test ...]   (default: every test but j; "all" adds j)
-#   tests: a b c1 c2 c3 d e f g h i k l m n j
+#   tests: a b c1 c2 c3 d e f g h i k l m n o p q r s t u v j
 # Needs git and uv (j reads the workflow with pyyaml, through uv run --with, installing nothing).
 # g, k and l also run a script from history (git show <sha>:scripts/check-index.sh) to show the
 # bug they guard against as it was; that part is skipped where the commit is absent, and k's
@@ -32,6 +38,60 @@ run() {  # run <name> <cmd...>: run in the copy, print its output and exit statu
 }
 hdr() { printf '\n### %s\n' "$1"; }
 note() { printf -- '-- %s\n' "$1"; }
+commit() {  # commit <dir> <message>: in $NEG/<dir>, with a fixed identity and no signing
+  git -c user.name=test -c user.email=test@example.invalid -c commit.gpgsign=false \
+    -C "$NEG/$1" commit -q --allow-empty -m "$2"
+}
+mk_upstream() {  # mk_upstream <dir>: a patchbay-standards checkout whose HEAD holds the working tree's files
+  d="$NEG/$1"; rm -rf "$d"; mkdir -p "$d/agent-os"
+  cp -R base scripts "$d/"; cp index.yml .pymarkdown.yaml README.md .gitignore "$d/"
+  cp -R agent-os/standards "$d/agent-os/"
+  git -c init.defaultBranch=main -C "$d" init -q && git -C "$d" add -A && commit "$1" "the working tree"
+}
+mk_project() {  # mk_project <dir>: a consuming project before its first sync, an Agent OS install
+  d="$NEG/$1"; rm -rf "$d"; mkdir -p "$d/agent-os/standards/testing" "$d/agent-os/specs"
+  printf '[project]\nname = "scratch"\nversion = "0.1.0"\n' > "$d/pyproject.toml"
+  printf '# scratch\n\n## Ownership\n\nThe owner owns every commit.\n' > "$d/CLAUDE.md"
+  printf '.DS_Store\n.venv/\n' > "$d/.gitignore"
+  printf '# Coding style\n\nFour-space indent, one import per line.\n' > "$d/agent-os/standards/coding-style.md"
+  printf '# Fixtures\n\nEvery adapter builds its fake device from the shared fixture.\n' > "$d/agent-os/standards/testing/fixtures.md"
+  cat > "$d/agent-os/standards/index.yml" <<'YML'
+# scratch: the standards index. Own sections are edited by hand; base: is synced.
+root:
+  coding-style:
+    description: Four-space indent and one import per line
+
+# project standards below
+testing:
+  fixtures:
+    description: Every adapter builds its fake device from the shared fixture
+# end of index
+YML
+  git -c init.defaultBranch=main -C "$d" init -q && git -C "$d" add -A && commit "$1" "an Agent OS install"
+}
+expected_index() {  # expected_index <upstream dir>: mk_project's index after --init, built by hand (sed, not the script's awk)
+  cat <<'YML'
+# scratch: the standards index. Own sections are edited by hand; base: is synced.
+root:
+  coding-style:
+    description: Four-space indent and one import per line
+
+YML
+  sed -n '/^base:/,$p' "$NEG/$1/index.yml"
+  cat <<'YML'
+
+# project standards below
+testing:
+  fixtures:
+    description: Every adapter builds its fake device from the shared fixture
+# end of index
+YML
+}
+first_sync() {  # first_sync <test>: $NEG/<test>/project synced from its sibling checkout with --init, quietly, and committed
+  ( cd "$NEG/$1/project" && ../patchbay-standards/scripts/sync-standards.sh --init >/dev/null 2>&1 ) ||
+    { echo "first sync of $1/project failed"; return 1; }
+  git -C "$NEG/$1/project" add -A && commit "$1/project" "chore: sync base standards"
+}
 old_script() {  # old_script <name> <sha>: scripts/check-index-<sha>.sh in the copy, or return 1
   if git cat-file -e "$2:scripts/check-index.sh" 2>/dev/null; then
     git show "$2:scripts/check-index.sh" > "$NEG/$1/scripts/check-index-$2.sh"
@@ -42,8 +102,8 @@ old_script() {  # old_script <name> <sha>: scripts/check-index-<sha>.sh in the c
 }
 
 tests=("$@")
-[ "${#tests[@]}" -eq 0 ] && tests=(a b c1 c2 c3 d e f g h i k l m n)
-[ "${tests[*]}" = all ] && tests=(a b c1 c2 c3 d e f g h i k l m n j)
+[ "${#tests[@]}" -eq 0 ] && tests=(a b c1 c2 c3 d e f g h i k l m n o p q r s t u v)
+[ "${tests[*]}" = all ] && tests=(a b c1 c2 c3 d e f g h i k l m n o p q r s t u v j)
 
 for t in "${tests[@]}"; do case "$t" in
 a) hdr "a (tracked file under base/ with no index entry; check-index.sh must fail)"
@@ -179,5 +239,153 @@ PY
    }
    note "j1, clean copy (the job must pass):"; replay j1
    note "j2, scripts/broken.sh added as in test f (gate.sh fails at step 1, so the job must fail):"; replay j2 ;;
+o) hdr "o (first sync of a consuming project: refused without --init; the sibling default; --init creates the base: section, pins the commit, installs the script)"
+   mk_upstream o/patchbay-standards; mk_project o/project
+   note "no base: section and no --init (must fail, exit 2, nothing written):"
+   run o/project ../patchbay-standards/scripts/sync-standards.sh
+   run o/project git status --short
+   note "no sibling checkout: the same project copied elsewhere, --init from the checkout's copy (must fail naming ../patchbay-standards, exit 2):"
+   mkdir "$NEG/o/elsewhere"; cp -R "$NEG/o/project" "$NEG/o/elsewhere/project"
+   run o/elsewhere/project "$NEG/o/patchbay-standards/scripts/sync-standards.sh" --init
+   note "--init from the sibling checkout, the default path (must pass):"
+   run o/project ../patchbay-standards/scripts/sync-standards.sh --init
+   note "the pinned commit is the checkout's HEAD:"
+   run o/project cat agent-os/standards/base/.version
+   run o/patchbay-standards git rev-parse HEAD
+   note "the index is the hand-built expected one, own sections byte for byte (cmp must pass); base/ is the commit's base/ plus .version; the script is the commit's:"
+   expected_index o/patchbay-standards > "$NEG/o/expected.yml"
+   run o/project cmp agent-os/standards/index.yml ../expected.yml
+   run o/project diff -r -x .version ../patchbay-standards/base agent-os/standards/base
+   run o/project cmp scripts/sync-standards.sh ../patchbay-standards/scripts/sync-standards.sh
+   run o/project git status --short ;;
+p) hdr "p (a working-tree edit in the checkout is not synced; a committed addition is)"
+   mk_upstream p/patchbay-standards; mk_project p/project; first_sync p
+   printf '\nAn uncommitted edit.\n' >> "$NEG/p/patchbay-standards/base/process/ownership.md"
+   run p/patchbay-standards git status --short
+   git -C "$NEG/p/patchbay-standards" show HEAD:base/process/ownership.md > "$NEG/p/committed.md"
+   note "sync with the edit uncommitted (must pass with nothing added, removed or changed; the project's file stays the committed bytes):"
+   run p/project scripts/sync-standards.sh
+   run p/project cmp agent-os/standards/base/process/ownership.md ../committed.md
+   run p/project git status --short
+   note "the edit committed together with base/process/new.md and its entry (must pass: new.md added, ownership.md changed, index replaced with 5 entries):"
+   printf '# New\n\nA standard.\n' > "$NEG/p/patchbay-standards/base/process/new.md"
+   awk '/^  process\/ownership:/ { print "  process/new:"; print "    description: A new standard" } { print }' "$NEG/p/patchbay-standards/index.yml" > "$NEG/p/index.yml"
+   mv "$NEG/p/index.yml" "$NEG/p/patchbay-standards/index.yml"
+   git -C "$NEG/p/patchbay-standards" add -A; commit p/patchbay-standards "add process/new"
+   run p/project scripts/sync-standards.sh
+   run p/project grep -n 'process/new' agent-os/standards/index.yml
+   run p/project git status --short ;;
+q) hdr "q (a file removed upstream is removed here, with its entry)"
+   mk_upstream q/patchbay-standards; mk_project q/project; first_sync q
+   git -C "$NEG/q/patchbay-standards" rm -q base/process/ownership.md
+   awk '/^  process\/ownership:/ { skip = 2 } skip > 0 { skip--; next } { print }' "$NEG/q/patchbay-standards/index.yml" > "$NEG/q/index.yml"
+   mv "$NEG/q/index.yml" "$NEG/q/patchbay-standards/index.yml"
+   git -C "$NEG/q/patchbay-standards" add -A; commit q/patchbay-standards "remove process/ownership"
+   note "sync to the removing commit (must pass: ownership.md removed, index replaced with 3 entries, the file gone):"
+   run q/project scripts/sync-standards.sh
+   run q/project ls agent-os/standards/base/process
+   run q/project grep -c 'process/ownership' agent-os/standards/index.yml   # 0 matches, grep's own exit 1
+   run q/project git status --short ;;
+r) hdr "r (own sections survive byte for byte: after --init, a second sync and --index-only; the section goes where the stock ordering puts it, comments staying with their key; a missing index is created)"
+   mk_upstream r/patchbay-standards; mk_project r/project
+   expected_index r/patchbay-standards > "$NEG/r/expected.yml"
+   note "mk_project's index (root:, a comment, testing:, a trailing comment) after --init, after a second sync, after --index-only; each cmp against the hand-built file must pass:"
+   ( cd "$NEG/r/project" && ../patchbay-standards/scripts/sync-standards.sh --init >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected.yml
+   ( cd "$NEG/r/project" && scripts/sync-standards.sh >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected.yml
+   ( cd "$NEG/r/project" && scripts/sync-standards.sh --index-only >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected.yml
+   note "an index with api: and zed: and no root: (base: goes between them, under api's trailing blank, above zed's comment):"
+   printf 'api:\n  errors:\n    description: One error envelope\n\n\n# zed\nzed:\n  last:\n    description: The last\n' > "$NEG/r/project/agent-os/standards/index.yml"
+   rm -rf "$NEG/r/project/agent-os/standards/base" "$NEG/r/project/scripts"
+   { printf 'api:\n  errors:\n    description: One error envelope\n\n'; sed -n '/^base:/,$p' "$NEG/r/patchbay-standards/index.yml"; printf '\n# zed\nzed:\n  last:\n    description: The last\n'; } > "$NEG/r/expected2.yml"
+   ( cd "$NEG/r/project" && ../patchbay-standards/scripts/sync-standards.sh --init >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected2.yml
+   note "an index with api: alone (base: is appended after one blank line):"
+   printf 'api:\n  errors:\n    description: One error envelope\n' > "$NEG/r/project/agent-os/standards/index.yml"
+   { printf 'api:\n  errors:\n    description: One error envelope\n\n'; sed -n '/^base:/,$p' "$NEG/r/patchbay-standards/index.yml"; } > "$NEG/r/expected3.yml"
+   ( cd "$NEG/r/project" && scripts/sync-standards.sh --init >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected3.yml
+   note "no index file at all (--init creates one holding the section alone):"
+   rm "$NEG/r/project/agent-os/standards/index.yml"
+   sed -n '/^base:/,$p' "$NEG/r/patchbay-standards/index.yml" > "$NEG/r/expected4.yml"
+   ( cd "$NEG/r/project" && scripts/sync-standards.sh --init >/dev/null 2>&1 ); echo "exit=$?"
+   run r/project cmp agent-os/standards/index.yml ../expected4.yml ;;
+s) hdr "s (a hand-edited base: entry is drift; --index-only repairs the section and touches nothing else)"
+   mk_upstream s/patchbay-standards; mk_project s/project; first_sync s
+   sed -i.bak 's/^    description: A person owns every commit.*/    description: Hand-edited here/' "$NEG/s/project/agent-os/standards/index.yml"
+   rm "$NEG/s/project/agent-os/standards/index.yml.bak"
+   run s/project git diff --stat
+   note "--check (must fail: index differs, exit 1):"
+   run s/project scripts/sync-standards.sh --check
+   note "--index-only (must pass: section replaced), then --check (must pass) and git status (must be empty: nothing but the section was written):"
+   run s/project scripts/sync-standards.sh --index-only
+   run s/project scripts/sync-standards.sh --check
+   run s/project git status --short ;;
+t) hdr "t (the drift check passes after a sync and fails on a one-byte edit, an extra file, a missing file; an ignored stray is not drift; a ref or a missing .version is a usage error)"
+   mk_upstream t/patchbay-standards; mk_project t/project; first_sync t
+   note "clean (must pass):"
+   run t/project scripts/sync-standards.sh --check
+   note "one byte appended to process/ownership.md (must fail naming it, exit 1):"
+   printf 'x' >> "$NEG/t/project/agent-os/standards/base/process/ownership.md"
+   run t/project scripts/sync-standards.sh --check
+   git -C "$NEG/t/project" checkout -q -- agent-os/standards/base/process/ownership.md
+   note "an extra file under base/, untracked (must fail: extra):"
+   printf '# Extra\n' > "$NEG/t/project/agent-os/standards/base/process/extra.md"
+   run t/project scripts/sync-standards.sh --check
+   rm "$NEG/t/project/agent-os/standards/base/process/extra.md"
+   note "a tracked file deleted from disk (must fail: missing):"
+   rm "$NEG/t/project/agent-os/standards/base/process/standards-index.md"
+   run t/project scripts/sync-standards.sh --check
+   git -C "$NEG/t/project" checkout -q -- agent-os/standards/base/process/standards-index.md
+   note "an ignored .DS_Store under base/ (must pass):"
+   touch "$NEG/t/project/agent-os/standards/base/.DS_Store"
+   run t/project git status --short --ignored agent-os/standards/base
+   run t/project scripts/sync-standards.sh --check
+   rm "$NEG/t/project/agent-os/standards/base/.DS_Store"
+   note "--check with a ref (usage, exit 2):"
+   run t/project scripts/sync-standards.sh --check ../patchbay-standards HEAD
+   note "--check with no .version (exit 2):"
+   mv "$NEG/t/project/agent-os/standards/base/.version" "$NEG/t/version.bak"
+   run t/project scripts/sync-standards.sh --check
+   mv "$NEG/t/version.bak" "$NEG/t/project/agent-os/standards/base/.version"
+   note "--check with a pinned commit the checkout does not have (exit 2):"
+   printf '%s\n' 0123456789abcdef0123456789abcdef01234567 > "$NEG/t/project/agent-os/standards/base/.version"
+   run t/project scripts/sync-standards.sh --check
+   git -C "$NEG/t/project" checkout -q -- agent-os/standards/base/.version
+   run t/project git status --short ;;
+u) hdr "u (refusals, each exit 2 by name: inside patchbay-standards itself, not at a work-tree root, a plain directory or another repository as the path, a ref that is not a commit, an unknown flag, an unparseable base: line)"
+   mk_upstream u/patchbay-standards; mk_project u/project; mkdir "$NEG/u/plain"
+   note "run inside the checkout itself, where agent-os/standards/base is a symlink:"
+   run u/patchbay-standards scripts/sync-standards.sh --init .
+   note "run from a folder below the project's root:"
+   run u/project/agent-os ../../patchbay-standards/scripts/sync-standards.sh --init ../../patchbay-standards
+   note "a plain directory as the path:"
+   run u/project ../patchbay-standards/scripts/sync-standards.sh --init ../plain
+   note "a git checkout that is not patchbay-standards (the project itself):"
+   run u/project ../patchbay-standards/scripts/sync-standards.sh --init .
+   note "a ref that is not a commit:"
+   run u/project ../patchbay-standards/scripts/sync-standards.sh --init ../patchbay-standards no-such-ref
+   note "an unknown flag:"
+   run u/project ../patchbay-standards/scripts/sync-standards.sh --frobnicate
+   note "a base: line that is not a parseable section (base: {}), even with --init:"
+   printf 'base: {}\n' >> "$NEG/u/project/agent-os/standards/index.yml"
+   run u/project ../patchbay-standards/scripts/sync-standards.sh --init
+   run u/project git status --short ;;
+v) hdr "v (the script copies itself from the synced commit, as the last act; a working-tree edit to it is not copied)"
+   mk_upstream v/patchbay-standards; mk_project v/project; first_sync v
+   printf '\n# a later change to the script\n' >> "$NEG/v/patchbay-standards/scripts/sync-standards.sh"
+   note "the change uncommitted, sync (must pass; the project's script unchanged):"
+   run v/project scripts/sync-standards.sh
+   run v/project git status --short
+   git -C "$NEG/v/patchbay-standards" add -A; commit v/patchbay-standards "change the script"
+   note "the change committed, sync (must pass, exit 0 with the JSON printed; the project's script updated to the commit's bytes, cmp must pass):"
+   run v/project scripts/sync-standards.sh
+   run v/project cmp scripts/sync-standards.sh ../patchbay-standards/scripts/sync-standards.sh
+   run v/project tail -1 scripts/sync-standards.sh
+   run v/project git status --short
+   note "and the drift check against the new commit (must pass):"
+   run v/project scripts/sync-standards.sh --check ;;
 *) echo "unknown test: $t" >&2; exit 2 ;;
 esac; done

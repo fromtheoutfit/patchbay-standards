@@ -1,0 +1,38 @@
+Gate run 2026-11-05 on branch feature/8-sync-spec-scriptssync-standardssh-the-safe-index-regeneration-and-baseprocessstandards-syncmd, the last act before hand-over. Two transcripts.
+
+=== 1. scripts/gate.sh on the tree as handed over. base/process/standards-sync.md is new and not yet staged (staging is the
+owner\x27s, base/process/ownership.md), and scripts/check-index.sh reads git ls-files, so step 3 reports that one file by name.
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+ok   no findings
+
+== 3/3  index.yml lists exactly the tracked files under base/
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/standards-sync.md
+FAIL  in index.yml but not tracked under base/:
+        process/standards-sync
+exit=1
+
+=== 2. The same scripts/gate.sh on a temporary copy of the tree with that file git-added (the copy pattern of
+scripts/gate-negative-tests.sh): what the tree\x27s run becomes after the owner\x27s git add.
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+ok   no findings
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (5 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0

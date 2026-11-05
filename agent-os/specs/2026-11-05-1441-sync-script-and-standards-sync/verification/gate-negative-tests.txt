@@ -1,0 +1,416 @@
+Negative tests of the gate, run 2026-11-05 on branch feature/8-sync-spec-scriptssync-standardssh-the-safe-index-regeneration-and-baseprocessstandards-syncmd by scripts/gate-negative-tests.sh (every test but j), after the last edit to
+scripts/sync-standards.sh and the harness. a to n are the gate's tests as the fourth spec recorded them, rerun on the shipped scripts (step 1 now
+also parses scripts/sync-standards.sh); o to v are this spec's, the sync script's: each builds a scratch patchbay-standards checkout whose
+HEAD holds the working tree's files beside a scratch Agent OS project with its own index sections and two local standards, and runs the
+sync from the project. Each negative must fail with the named reason and exit status; the positive cases beside them must pass. j is
+unchanged from the fourth spec's ci-negative-test.txt (the workflow did not change). <copy x> stands for the temporary directory of test x.
+
+### a (tracked file under base/ with no index entry; check-index.sh must fail)
+FAIL  tracked under base/ but not in index.yml:
+        process/orphan
+exit=1
+
+### b (index entry with no file; check-index.sh must fail)
+FAIL  in index.yml but not tracked under base/:
+        python/nothing-here
+exit=1
+
+### c1 (agent-os/standards/index.yml a regular file byte-identical to index.yml; check-index.sh must fail)
+-- cmp shows the bytes match (exit 0), so a byte comparison would have passed:
+exit=0
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a regular file)
+exit=1
+
+### c2 (agent-os/standards/index.yml a symlink to another file; check-index.sh must fail)
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a symlink to ../../README.md)
+exit=1
+
+### c3 (agent-os/standards/index.yml a directory; check-index.sh must fail and say so)
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a directory)
+exit=1
+
+### d (tracked non-.md file under base/; check-index.sh must fail)
+FAIL  not a standard (only .md files belong under base/):
+        base/notes.txt
+exit=1
+
+### e (lint finding: gate.sh must stop at step 2, never reach 3/3)
+
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+<copy e>/base/process/bad.md:1:1: MD022: Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below] (blanks-around-headings,blanks-around-headers)
+<copy e>/base/process/bad.md:2:51: MD009: Trailing spaces [Expected: 0 or 2; Actual: 1] (no-trailing-spaces)
+exit=1
+
+### f (unparsable script: gate.sh must stop at step 1)
+
+== 1/3  bash -n on every file under scripts/
+scripts/broken.sh: line 3: syntax error: unexpected end of file
+exit=2
+
+### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
+-- the script at aaacc57 (before issue #3), LANG=en_US.UTF-8 and LC_ALL unset: the bug, every entry reported missing and the indexed ones stale:
+FAIL  under base/ but not in index.yml:
+        process/B
+        process/a_z
+        process/ab
+FAIL  in index.yml but not under base/:
+        process/a_z
+        process/ab
+exit=1
+-- shipped script, same environment (must name process/B alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/B
+exit=1
+-- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
+ok   index.yml and the tracked files under base/ agree (3 standard(s))
+exit=0
+
+### h (tracked files are git ls-files: an ignored stray passes, an untracked standard is refused)
+-- untracked, ignored base/.DS_Store present (must pass):
+A  base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+!! base/.DS_Store
+exit=0
+ok   index.yml and the tracked files under base/ agree (5 standard(s))
+exit=0
+-- untracked base/process/new.md with no index entry (must fail: under base/ but not tracked):
+A  base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+?? base/process/new.md
+exit=0
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
+exit=1
+-- the same file with its index entry (must fail: not tracked, and the entry has no tracked file):
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
+FAIL  in index.yml but not tracked under base/:
+        process/new
+exit=1
+
+### i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, 3/3 never reached)
+8:    line_length: 60
+9:    heading_line_length: 60
+== 1/3  bash -n on every file under scripts/
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+== 2/3  pymarkdown 0.9.41 over base/ and README.md
+   ... 301 MD013 findings, Expected: 60, the first three:
+README.md:3:1: MD013: Line length [Expected: 60, Actual: 109] (line-length)
+base/process/ownership.md:3:1: MD013: Line length [Expected: 60, Actual: 93] (line-length)
+base/process/ownership.md:4:1: MD013: Line length [Expected: 60, Actual: 87] (line-length)
+exit=1
+-- the same copy with the key misspelled (line_lenght: 60): --strict-config does not refuse an unknown key, so the default 80 applies with no config error; in this tree, wrapped at 100, that still fails step 2 (Expected: 80), so the misspelling cannot pass here silently:
+8:    line_lenght: 60
+9:    heading_line_length: 60
+   ... 275 MD013 findings, Expected: 80, the first one:
+README.md:3:1: MD013: Line length [Expected: 80, Actual: 109] (line-length)
+exit=1
+
+### k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)
+-- both indexed (must pass):
+ok   index.yml and the tracked files under base/ agree (7 standard(s))
+exit=0
+-- zeta.md tracked beside them with no entry (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+-- the script at cf1bdf0 (PR 7's first head), BSD comm: testing misreported as both missing and stale:
+FAIL  tracked under base/ but not in index.yml:
+        process/testing
+        process/zeta
+FAIL  in index.yml but not tracked under base/:
+        process/testing
+exit=1
+-- the same script with GNU comm first on PATH (the ubuntu runner): comm exits 1 on unsorted input, the script reads that as nothing missing, and zeta passes unindexed:
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+ok   index.yml and base/ agree (8 standard(s))
+exit=0
+-- shipped script with GNU comm first on PATH (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+
+### l (a non-ASCII path, base/process/café.md, tracked and indexed; must pass)
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+exit=0
+-- the script at cf1bdf0 read the path C-quoted and refused it:
+FAIL  not a standard (only .md files belong under base/):
+        "base/process/caf\303\251.md"
+FAIL  in index.yml but not tracked under base/:
+        process/café
+exit=1
+
+### m (a copy that is not a git work tree; check-index.sh must fail by name, not with a bare exit)
+FAIL  not a git work tree rooted at <copy m> (the files under base/ are read with git ls-files)
+exit=1
+
+### n (a tracked standard deleted from disk, deletion not staged; check-index.sh must fail)
+AD base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+exit=0
+FAIL  tracked but missing on disk (stage the deletion, or restore the file):
+        base/process/ownership.md
+exit=1
+
+### o (first sync of a consuming project: refused without --init; the sibling default; --init creates the base: section, pins the commit, installs the script)
+-- no base: section and no --init (must fail, exit 2, nothing written):
+FAIL  agent-os/standards/index.yml has no base: section; a first sync passes --init to create it
+exit=2
+exit=0
+-- no sibling checkout: the same project copied elsewhere, --init from the checkout's copy (must fail naming ../patchbay-standards, exit 2):
+FAIL  ../patchbay-standards is not a git checkout; pass the path to a patchbay-standards checkout
+exit=2
+-- --init from the sibling checkout, the default path (must pass):
+sync base standards: none -> c1d07b1dd46f0d5194775494cf36e7c52a7e7b6a  (<copy o>/patchbay-standards, ref HEAD)
+  added    process/ownership.md
+  added    process/standards-index.md
+  added    process/standards-retrospective.md
+  added    process/standards-sync.md
+  added    process/verification-gate.md
+  index    base: section created (5 entries)
+  script   scripts/sync-standards.sh installed
+{"mode":"sync","upstream":"<copy o>/patchbay-standards","ref":"HEAD","old":null,"new":"c1d07b1dd46f0d5194775494cf36e7c52a7e7b6a","added":["process/ownership.md","process/standards-index.md","process/standards-retrospective.md","process/standards-sync.md","process/verification-gate.md"],"removed":[],"changed":[],"index":"created","script":"installed"}
+ok   synced to c1d07b1dd46f0d5194775494cf36e7c52a7e7b6a
+exit=0
+-- the pinned commit is the checkout's HEAD:
+c1d07b1dd46f0d5194775494cf36e7c52a7e7b6a
+exit=0
+c1d07b1dd46f0d5194775494cf36e7c52a7e7b6a
+exit=0
+-- the index is the hand-built expected one, own sections byte for byte (cmp must pass); base/ is the commit's base/ plus .version; the script is the commit's:
+exit=0
+exit=0
+exit=0
+ M agent-os/standards/index.yml
+?? agent-os/standards/base/
+?? scripts/
+exit=0
+
+### p (a working-tree edit in the checkout is not synced; a committed addition is)
+ M base/process/ownership.md
+exit=0
+-- sync with the edit uncommitted (must pass with nothing added, removed or changed; the project's file stays the committed bytes):
+sync base standards: df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f -> df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f  (<copy p>/patchbay-standards, ref HEAD)
+  index    base: section unchanged (5 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy p>/patchbay-standards","ref":"HEAD","old":"df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f","new":"df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f","added":[],"removed":[],"changed":[],"index":"unchanged","script":"unchanged"}
+ok   synced to df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f
+exit=0
+exit=0
+exit=0
+-- the edit committed together with base/process/new.md and its entry (must pass: new.md added, ownership.md changed, index replaced with 5 entries):
+sync base standards: df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f -> 8b5618daf4130e4fe7a8a19a18a44e4b4f0c8d07  (<copy p>/patchbay-standards, ref HEAD)
+  added    process/new.md
+  changed  process/ownership.md
+  index    base: section replaced (6 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy p>/patchbay-standards","ref":"HEAD","old":"df6fcaa9c6e931f56b1712e1b7571a9244dc5f4f","new":"8b5618daf4130e4fe7a8a19a18a44e4b4f0c8d07","added":["process/new.md"],"removed":[],"changed":["process/ownership.md"],"index":"replaced","script":"unchanged"}
+ok   synced to 8b5618daf4130e4fe7a8a19a18a44e4b4f0c8d07
+exit=0
+7:  process/new:
+exit=0
+ M agent-os/standards/base/.version
+ M agent-os/standards/base/process/ownership.md
+ M agent-os/standards/index.yml
+?? agent-os/standards/base/process/new.md
+exit=0
+
+### q (a file removed upstream is removed here, with its entry)
+-- sync to the removing commit (must pass: ownership.md removed, index replaced with 3 entries, the file gone):
+sync base standards: 39822547fdd6bbcb460d5e5aee2285e060d841b0 -> 58a338673438c768942dba04568287a2b8da15c4  (<copy q>/patchbay-standards, ref HEAD)
+  removed  process/ownership.md
+  index    base: section replaced (4 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy q>/patchbay-standards","ref":"HEAD","old":"39822547fdd6bbcb460d5e5aee2285e060d841b0","new":"58a338673438c768942dba04568287a2b8da15c4","added":[],"removed":["process/ownership.md"],"changed":[],"index":"replaced","script":"unchanged"}
+ok   synced to 58a338673438c768942dba04568287a2b8da15c4
+exit=0
+standards-index.md
+standards-retrospective.md
+standards-sync.md
+verification-gate.md
+exit=0
+0
+exit=1
+ M agent-os/standards/base/.version
+ D agent-os/standards/base/process/ownership.md
+ M agent-os/standards/index.yml
+exit=0
+
+### r (own sections survive byte for byte: after --init, a second sync and --index-only; the section goes where the stock ordering puts it, comments staying with their key; a missing index is created)
+-- mk_project's index (root:, a comment, testing:, a trailing comment) after --init, after a second sync, after --index-only; each cmp against the hand-built file must pass:
+exit=0
+exit=0
+exit=0
+exit=0
+exit=0
+exit=0
+-- an index with api: and zed: and no root: (base: goes between them, under api's trailing blank, above zed's comment):
+exit=0
+exit=0
+-- an index with api: alone (base: is appended after one blank line):
+exit=0
+exit=0
+-- no index file at all (--init creates one holding the section alone):
+exit=0
+exit=0
+
+### s (a hand-edited base: entry is drift; --index-only repairs the section and touches nothing else)
+ agent-os/standards/index.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+exit=0
+-- --check (must fail: index differs, exit 1):
+check base standards against a2787e69007848a4adf34c9b33078d948772d208  (<copy s>/patchbay-standards)
+  index    base: section differs
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy s>/patchbay-standards","commit":"a2787e69007848a4adf34c9b33078d948772d208","missing":[],"extra":[],"changed":[],"index":"differs","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at a2787e69007848a4adf34c9b33078d948772d208 (see above)
+exit=1
+-- --index-only (must pass: section replaced), then --check (must pass) and git status (must be empty: nothing but the section was written):
+regenerate the base: section of agent-os/standards/index.yml from a2787e69007848a4adf34c9b33078d948772d208  (<copy s>/patchbay-standards)
+  index    base: section replaced (5 entries)
+{"mode":"index-only","upstream":"<copy s>/patchbay-standards","commit":"a2787e69007848a4adf34c9b33078d948772d208","index":"replaced"}
+exit=0
+check base standards against a2787e69007848a4adf34c9b33078d948772d208  (<copy s>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy s>/patchbay-standards","commit":"a2787e69007848a4adf34c9b33078d948772d208","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at a2787e69007848a4adf34c9b33078d948772d208
+exit=0
+exit=0
+
+### t (the drift check passes after a sync and fails on a one-byte edit, an extra file, a missing file; an ignored stray is not drift; a ref or a missing .version is a usage error)
+-- clean (must pass):
+check base standards against 18adaed8ea8f7bf422885bf36b73f2fb9915899c  (<copy t>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"18adaed8ea8f7bf422885bf36b73f2fb9915899c","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 18adaed8ea8f7bf422885bf36b73f2fb9915899c
+exit=0
+-- one byte appended to process/ownership.md (must fail naming it, exit 1):
+check base standards against 18adaed8ea8f7bf422885bf36b73f2fb9915899c  (<copy t>/patchbay-standards)
+  changed  process/ownership.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"18adaed8ea8f7bf422885bf36b73f2fb9915899c","missing":[],"extra":[],"changed":["process/ownership.md"],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 18adaed8ea8f7bf422885bf36b73f2fb9915899c (see above)
+exit=1
+-- an extra file under base/, untracked (must fail: extra):
+check base standards against 18adaed8ea8f7bf422885bf36b73f2fb9915899c  (<copy t>/patchbay-standards)
+  extra    process/extra.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"18adaed8ea8f7bf422885bf36b73f2fb9915899c","missing":[],"extra":["process/extra.md"],"changed":[],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 18adaed8ea8f7bf422885bf36b73f2fb9915899c (see above)
+exit=1
+-- a tracked file deleted from disk (must fail: missing):
+check base standards against 18adaed8ea8f7bf422885bf36b73f2fb9915899c  (<copy t>/patchbay-standards)
+  missing  process/standards-index.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"18adaed8ea8f7bf422885bf36b73f2fb9915899c","missing":["process/standards-index.md"],"extra":[],"changed":[],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 18adaed8ea8f7bf422885bf36b73f2fb9915899c (see above)
+exit=1
+-- an ignored .DS_Store under base/ (must pass):
+!! agent-os/standards/base/.DS_Store
+exit=0
+check base standards against 18adaed8ea8f7bf422885bf36b73f2fb9915899c  (<copy t>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"18adaed8ea8f7bf422885bf36b73f2fb9915899c","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 18adaed8ea8f7bf422885bf36b73f2fb9915899c
+exit=0
+-- --check with a ref (usage, exit 2):
+usage: scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]
+       scripts/sync-standards.sh --index-only [<path-to-patchbay-standards>]
+       scripts/sync-standards.sh --check [<path-to-patchbay-standards>]
+Run from the consuming project's root. <path> defaults to ../patchbay-standards; <ref> to its HEAD.
+FAIL  --check takes no ref; it reads the commit in agent-os/standards/base/.version
+exit=2
+-- --check with no .version (exit 2):
+FAIL  agent-os/standards/base/.version is missing; nothing is pinned (run a sync first)
+exit=2
+-- --check with a pinned commit the checkout does not have (exit 2):
+FAIL  pinned commit 0123456789abcdef0123456789abcdef01234567 is not in <copy t>/patchbay-standards (fetch it)
+exit=2
+exit=0
+
+### u (refusals, each exit 2 by name: inside patchbay-standards itself, not at a work-tree root, a plain directory or another repository as the path, a ref that is not a commit, an unknown flag, an unparseable base: line)
+-- run inside the checkout itself, where agent-os/standards/base is a symlink:
+FAIL  agent-os/standards/base is a symlink: this is patchbay-standards itself, not a consuming project
+exit=2
+-- run from a folder below the project's root:
+FAIL  run from the consuming project's root, the top of its git work tree (here: <copy u>/project/agent-os)
+exit=2
+-- a plain directory as the path:
+FAIL  ../plain is not a git checkout; pass the path to a patchbay-standards checkout
+exit=2
+-- a git checkout that is not patchbay-standards (the project itself):
+FAIL  <copy u>/project is not a patchbay-standards checkout at b075d30ff9337616e3edac4dddf9be89e50c111a: base is missing from that commit
+exit=2
+-- a ref that is not a commit:
+FAIL  no-such-ref is not a commit in <copy u>/patchbay-standards
+exit=2
+-- an unknown flag:
+usage: scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]
+       scripts/sync-standards.sh --index-only [<path-to-patchbay-standards>]
+       scripts/sync-standards.sh --check [<path-to-patchbay-standards>]
+Run from the consuming project's root. <path> defaults to ../patchbay-standards; <ref> to its HEAD.
+FAIL  unknown flag --frobnicate
+exit=2
+-- a base: line that is not a parseable section (base: {}), even with --init:
+FAIL  agent-os/standards/index.yml has a base: line that is not a parseable section (a second base: line, or content after the colon)
+exit=2
+ M agent-os/standards/index.yml
+exit=0
+
+### v (the script copies itself from the synced commit, as the last act; a working-tree edit to it is not copied)
+-- the change uncommitted, sync (must pass; the project's script unchanged):
+sync base standards: 79d4f941e1e4719d166e84437344aa876e2fc651 -> 79d4f941e1e4719d166e84437344aa876e2fc651  (<copy v>/patchbay-standards, ref HEAD)
+  index    base: section unchanged (5 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy v>/patchbay-standards","ref":"HEAD","old":"79d4f941e1e4719d166e84437344aa876e2fc651","new":"79d4f941e1e4719d166e84437344aa876e2fc651","added":[],"removed":[],"changed":[],"index":"unchanged","script":"unchanged"}
+ok   synced to 79d4f941e1e4719d166e84437344aa876e2fc651
+exit=0
+exit=0
+-- the change committed, sync (must pass, exit 0 with the JSON printed; the project's script updated to the commit's bytes, cmp must pass):
+sync base standards: 79d4f941e1e4719d166e84437344aa876e2fc651 -> c9eb0e6b0df1a03911b4509bdb61c42fc09273ef  (<copy v>/patchbay-standards, ref HEAD)
+  index    base: section unchanged (5 entries)
+  script   scripts/sync-standards.sh updated
+{"mode":"sync","upstream":"<copy v>/patchbay-standards","ref":"HEAD","old":"79d4f941e1e4719d166e84437344aa876e2fc651","new":"c9eb0e6b0df1a03911b4509bdb61c42fc09273ef","added":[],"removed":[],"changed":[],"index":"unchanged","script":"updated"}
+ok   synced to c9eb0e6b0df1a03911b4509bdb61c42fc09273ef
+exit=0
+exit=0
+# a later change to the script
+exit=0
+ M agent-os/standards/base/.version
+ M scripts/sync-standards.sh
+exit=0
+-- and the drift check against the new commit (must pass):
+check base standards against c9eb0e6b0df1a03911b4509bdb61c42fc09273ef  (<copy v>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy v>/patchbay-standards","commit":"c9eb0e6b0df1a03911b4509bdb61c42fc09273ef","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at c9eb0e6b0df1a03911b4509bdb61c42fc09273ef
+exit=0
+harness exit=0

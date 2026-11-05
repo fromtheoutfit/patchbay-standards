@@ -11,6 +11,37 @@ bring in.
 
 ### Added
 
+- Fifth spec, `agent-os/specs/2026-11-05-1441-sync-script-and-standards-sync/` (issue #8): the sync
+  that makes a second patchbay repository possible, and the standard that describes it, verified
+  against the script as shipped.
+  - `scripts/sync-standards.sh`: run from a consuming project's root, with the sibling
+    `../patchbay-standards` as the default path and its `HEAD` as the default ref. Exports `base/`,
+    `index.yml` and the script itself from the commit with `git archive`, never the working tree;
+    replaces `agent-os/standards/base/` whole; writes the commit to
+    `agent-os/standards/base/.version`; replaces the `base:` section of
+    `agent-os/standards/index.yml` byte for byte and leaves every other line in place; verifies the
+    result against a fresh export; copies itself from the same commit over the project's copy as
+    the last act. Reports what changed on stderr and one JSON object on stdout; exit 0, 1 on a
+    failed check, 2 on usage or a precondition. `--init` creates the `base:` section (and the
+    index) for a first sync; `--index-only` regenerates the section alone,
+    the safe replacement for the stock `index-standards` on a synced index; `--check` is the drift
+    check, naming every file missing, extra or changed, a differing section and a differing script.
+  - `scripts/gate-negative-tests.sh`: tests o to v for the sync, each on a scratch checkout whose
+    `HEAD` holds the working tree's files beside a scratch Agent OS project with its own index
+    sections and two local standards: o (first sync, the sibling default, `--init`), p (a
+    working-tree edit is not synced, a committed addition is), q (a removed file is removed), r (own
+    sections survive byte for byte against a hand-built index, in four layouts), s (a hand-edited
+    entry is drift and `--index-only` repairs it), t (`--check` on a one-byte edit, an extra file,
+    a missing file, an ignored stray, a ref, a missing `.version`), u (refusals by name), v (the
+    script copies itself from the commit, not the working tree). Transcript in the spec's
+    `verification/`.
+  - `base/process/standards-sync.md`: what the sync writes and nothing else; the invariant and
+    `--check`; pinned, not tracking, with the sync commit's title and scope; the `base:` section
+    rule, `--index-only` and `--init`; a base edit is a pull request here. Indexed in `index.yml`.
+  - `verification/branch-protection.txt`: the `gh api .../branches/main/protection` output showing
+    the `gate` check required on `main`, which the "does not merge" wording below is verified
+    against.
+
 - Fourth spec, `agent-os/specs/2026-11-05-1000-gate-spec-ci-docs-version/` (issue #3), the gate's
   own spec: every gate file changes here and nowhere else, each changed step with its negative test.
   - `.github/workflows/gate.yml`: the gate's workflow. One job on every pull request and every push
@@ -74,6 +105,15 @@ bring in.
 
 ### Changed
 
+- `base/process/standards-index.md` (issue #8): the interim hand-copy sentence and "named here when
+  it ships" are pointers at `base/process/standards-sync.md` and `scripts/sync-standards.sh
+  --index-only`; a base change without its index entry "does not merge" (the `gate` check is
+  required on `main`) rather than "does not pass the gate".
+  `base/process/standards-retrospective.md`: the same "does not merge" in "Keep the index in step".
+  `base/process/verification-gate.md`: the negative-test count in "In this repository" rewritten
+  from the shipped harness, the current transcript's home, and `sync-standards.sh --check` named as
+  a consuming project's gate step.
+  `index.yml`: the `process/standards-index` description rewritten for the sync.
 - `scripts/check-index.sh` (issue #3): `LC_ALL=C` is exported once, so `comm` collates like the
   sorts that feed it (under `en_US.UTF-8` a C-sorted list with one entry missing reported every
   entry missing); every list is sorted after its last transform and both are checked sorted before
