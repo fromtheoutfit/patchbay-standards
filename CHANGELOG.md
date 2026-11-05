@@ -47,6 +47,13 @@ bring in.
 
 ### Changed
 
+- `base/process/standards-retrospective.md` (issue #2, third spec
+  `agent-os/specs/2026-11-05-0741-retrospective-points-at-owners/`): "Keep the index in step" and
+  "Never edit this file from inside a retrospective" are each a short pointer at the standard that
+  owns the rule, `base/process/standards-index.md` and `base/process/verification-gate.md`. The
+  sync-script sentence, the `base:`-first ordering sentence and the gate-file list are gone, and
+  the retrospective is changed "in its own spec" rather than "outside a spec", as the file's
+  ownership section and the gate standard already say. Nothing else in the file changes.
 - `index.yml` and `agent-os/standards/index.yml`: the header trimmed to a pointer at the index
   standard; all four descriptions shortened to one sentence each.
 - The first spec's `shape.md` unspliced: its filled-in retrospective moved from inside Scope to its

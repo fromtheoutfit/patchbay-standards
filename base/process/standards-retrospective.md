@@ -85,29 +85,21 @@ change set. An agent proposes; it does not land a standard on its own.
 
 ## Keep the index in step
 
-`agent-os/standards/index.yml` is what `/agent-os:shape-spec` Step 5 reads to decide which
-standards a future spec surfaces. **A standard added or renamed but not indexed is invisible to
-every spec after this one**: the file exists and nobody ever finds it.
-
-The index has one `base:` section, the `base:` section of `index.yml` at the root of
-`patchbay-standards`, copied verbatim by the sync script and keyed by each standard's path
-relative to `base/` without the `.md`, followed by the project's own sections. A base proposal
-that adds or renames a file therefore carries its index entry with it; `scripts/check-index.sh`
-in `patchbay-standards` holds that root index equal to the files under `base/`, so a proposal
-without the entry does not merge. A project's own sections are updated in the same change set
-as its own standards. `/agent-os:index-standards` regenerates them; the description line is
-what future retrieval matches against, so make it say what the standard decides, not what area
-it belongs to.
+A standard added, renamed or removed carries its index entry in the same change set: a project
+standard in the project's own sections of `agent-os/standards/index.yml`, a base proposal in the
+root `index.yml` of `patchbay-standards`, where `scripts/check-index.sh` holds the index to the
+files under `base/` so a proposal without its entry does not pass the gate. The index's format, the
+description line and how a consuming project's index relates to the root index are
+`base/process/standards-index.md`'s.
 
 ## Never edit this file from inside a retrospective
 
 A gate that rewrites its own terms during the process it governs is precisely what this
-prohibition exists for. Strengthening or relaxing the retrospective is a deliberate edit made
-**outside** a spec, with the user, on its own branch.
+prohibition exists for. Strengthening or relaxing the retrospective is a deliberate edit made in
+its own spec, with the user, on its own branch, never inside the retrospective of some other spec.
 
-The same applies to the verification-gate task text in
-`.claude/commands/agent-os/shape-spec.md` and, in `patchbay-standards`, to the gate's runnable
-half: `scripts/gate.sh`, `scripts/check-index.sh` and `.pymarkdown.yaml`.
+The gate's own files are under the same rule. Which files those are, and that they change only in
+a spec whose feature is the gate, are `base/process/verification-gate.md`'s.
 
 ## Recording the answer
 
