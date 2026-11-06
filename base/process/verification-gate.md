@@ -25,6 +25,13 @@ repository's steps is cited here when it ships.
   (`ok   <what>`) or what failed is named with its reason and the offending path; a bare exit code
   is not a report. The script ends by naming the step that follows it, so a reader of the
   transcript knows the run was not the whole gate.
+- **A step that installs its pinned tools fails as itself.** The install is checked on its own,
+  before any tool checks the tree, with a reason of its own: a lockfile that no longer matches its
+  manifest, a manifest or lockfile the runner cannot read, a package that will not build, a runner
+  missing from `PATH` or not at its pinned version, a pin that names no published version. A
+  failed install is then never reported as the first tool's finding, and each tool's reason is
+  about that tool alone. A tool run afterwards under the runner's locked mode repeats a check the
+  install has passed.
 - **A step that reads files from the tree reads the files git lists**: the tracked files plus the
   untracked ones git does not ignore, at the top of a git work tree that is the repository root.
   Either it reads git's list, `git ls-files --cached --others --exclude-standard`, one call for
@@ -42,15 +49,29 @@ repository's steps is cited here when it ships.
 
 ## Pinned
 
-- **A tool's version is pinned in the script**, in one named variable per tool, with the date it
-  was published beside it. The pinned tool is run through a runner that executes it without
-  installing it into the project, and the runner is one the repository already assumes. Nothing
-  else is installed to run the gate. A pin is bumped deliberately, in the gate's own spec, and
-  the gate rerun.
-- **A rule set lives in a versioned config file**, at the repository root, named in the script;
-  a config the tool cannot parse fails the step. A key the tool does not know is not refused, so
-  the spec that adds or changes the config shows a changed value applied, in a negative test. The
-  file's header says which step reads it and that it changes only in the gate's own spec.
+- **A tool's version is pinned exactly, in one place, with the date it was published beside
+  it.** In a repository with no package manifest the pin is in the script, one named variable
+  per tool, and the tool runs through a runner that executes it without installing it into the
+  project. In a repository with a manifest the pin is in the manifest's development dependency
+  group, exact, and resolved in the lockfile, and the gate runs every tool under the runner's
+  locked mode: a pin edited without re-locking fails the step rather than rewriting the lockfile,
+  so the gate writes nothing but ignored files and caches. A type checker or a test runner needs
+  the project installed, which a runner that installs nothing cannot give it. The runner is one
+  the repository already assumes, and nothing else is installed to run the gate. A pin is bumped
+  deliberately, in the gate's own spec, and the gate rerun. The pins are gate files either way: in
+  the script, as part of it; in a manifest, the pins of the tools the gate runs and what the
+  lockfile resolves for them, while the group's other entries, a test library a feature spec adds
+  among them, are the project's.
+- **The runner's own version is pinned too.** Where the manifest can pin it and the runner then
+  refuses any other version on every command that reads the project's settings, it is pinned
+  there, once: a local run and CI use the same runner, and CI reads the version from the manifest,
+  as "CI" below says.
+  Otherwise CI pins it, through the action's input, and a local run uses the runner on `PATH`.
+- **A rule set lives in a versioned config file at the repository root, named in the script, or
+  in the manifest's tool sections.** In the second case those sections, with the tool pins above,
+  are the gate's, and the rest of the manifest is the project's, changing in any spec; the file's
+  header says which is which. Either way a config the tool cannot parse fails the step, and
+  the header says which step reads the rule set and that it changes only in the gate's own spec.
 
 ## The fixed order
 
@@ -87,6 +108,14 @@ gate.
 - **A step is shown to discriminate by a negative test**: a copy of the tree, broken in one way,
   that must fail that step with the named reason and the expected exit status, with the steps after
   it never reached. A step that has never been seen to fail is not known to check anything.
+- **A rule set and a pin are each shown to be read, and the install to fail as itself.** A rule
+  set is shown read by three cases: a changed value applied, so the clean tree now fails the
+  step, and a value the tool cannot use and a file it cannot parse, each failing the step by name.
+  A key the tool does not know is not refused, so the changed value is what shows the file is
+  read. A pin is shown read by a version that cannot install: in a lockfile, a pin edited and the
+  lockfile left; in the script, a version never published; for a runner the manifest pins, a
+  version that is not the one running. Each fails the install by its own reason before any tool
+  runs, and the case where the first tool fails shows the install passing first.
 - **The spec that adds or changes a step ships its negative test**, and keeps the transcript in
   that spec's `verification/` folder. The tests are a script in the repository beside the gate's,
   not run by the gate, so a rerun is the same test. They run on a temporary copy outside the
@@ -98,10 +127,12 @@ gate.
   the wrong reason. Every run names the status it expects and prints the one it got, and a run
   that expects a failure also names the reason its output must hold, the failing line with its
   path where one is printed: a script that gives one status for several reasons cannot otherwise
-  be told apart from itself with the guard under test deleted. A mismatch of either is marked
-  `UNEXPECTED`, and the harness exits 1 at the end naming the counts, so a transcript's last line
-  says whether every case behaved and a case that passed when it should have failed, or failed for
-  another reason, is never read as a pass.
+  be told apart from itself with the guard under test deleted. A run that fails at a step also
+  holds its output to no later step's banner, so the steps after it are shown never reached, not
+  assumed, and a passing run may name lines its output must hold, in order. A mismatch of any of
+  these is marked `UNEXPECTED`, and the harness exits 1 at the end naming the counts, so a
+  transcript's last line says whether every case behaved and a case that passed when it should
+  have failed, or failed for another reason, is never read as a pass.
 - **Every spec keeps its green run** as `verification/gate-run.txt` in its spec folder, so the
   claim "gate green" has the transcript beside it. The first line of the transcript gives the date
   and the branch the run was made on, and the run is the last thing done before the work is
@@ -110,18 +141,28 @@ gate.
 
 ## CI
 
-- **The gate's workflow runs the same script and nothing else.** One workflow for the gate, one
-  job, on every pull request and every push to the default branch: check out the repository,
-  install the runner the script already assumes, run `scripts/gate.sh`. No linter, formatter,
-  matrix or check is configured in it; a step the script does not run is not a gate step, and a
-  check CI runs that the script does not is a gate a developer cannot run. A repository may have
-  other workflows for other work; this rule is about the gate's. The judgment steps are never run
-  by a machine.
+- **The gate's workflow runs the same script, and checks nothing the script does not.** One
+  workflow for the gate, one job, on every pull request and every push to the default branch:
+  check out the repository, install the runner the script already assumes and, in a repository
+  with a lockfile, the locked toolchain, as a step of its own from the project's directory, then
+  run `scripts/gate.sh`. That install is the one the script's own install step makes, so a failure
+  there is one the gate would report, met before the gate starts. No linter,
+  formatter, matrix or check is configured in it; a step the script does not run is not a gate
+  step, and a check CI runs that the script does not is a gate a developer cannot run. A
+  repository may have other workflows for other work; this rule is about the gate's. The judgment
+  steps are never run by a machine.
 - **Every action is pinned to a commit**, the full SHA in `uses:` with the tag it was taken from
-  in a comment beside it, and the runner's own version is pinned through the action's input, so CI
-  runs what the gate was proven with. The image is a named release, not `latest`. The job has a
-  timeout, keeps no credential in the checkout and caches nothing, so it has no moving part beyond
-  the script. A pin is bumped deliberately, in the gate's own spec, and the workflow rerun.
+  in a comment beside it, and the runner's own version is pinned, so CI runs what the gate was
+  proven with: through the action's input, or, where the manifest pins the runner, by the action
+  reading it from the manifest in the project's directory, with no input, so the version is
+  written once. A failed lookup is loud, not a drift: the action installs its latest runner,
+  which the manifest's pin refuses at the locked install, its first command that reads the
+  project's settings, unless it is the pinned version. The
+  image is a named release, not `latest`. The job has a timeout, keeps no credential in the
+  checkout, and caches nothing but what a key that changes with the lockfile holds: the same key
+  restores what the same lockfile resolves to, and a changed lockfile misses it, so the cache is
+  not a moving part. A repository with no lockfile has nothing to key a cache on and caches
+  nothing. A pin is bumped deliberately, in the gate's own spec, and the workflow rerun.
 - **The workflow fails when the script fails**, because the script is one `run` step and a `run`
   step that exits non-zero fails the job. Before any push, the spec that adds or changes the
   workflow replays the job's `run` steps, read from the workflow file, on a copy of the tree with
@@ -133,10 +174,12 @@ gate.
 
 ## The gate's own files change only in their own spec
 
-- **The gate script, every script it runs, the rule-set config, the CI workflow and the gate task
-  text in `shape-spec.md` are never changed as a side effect of a spec whose feature is something
-  else**, and never from inside a retrospective. A gate that rewrites its own terms during the
-  process it governs is what this rule exists to prevent.
+- **The gate script, every script it runs, the tool pins (in the script, or in a manifest's
+  development group with what the lockfile resolves for them), the rule-set config (a file, or a
+  manifest's tool sections), the CI workflow and the gate task text in `shape-spec.md` are never
+  changed as a side effect of a spec whose feature is something else**, and never from inside a
+  retrospective. A gate that rewrites its own terms during the process it governs is what this
+  rule exists to prevent.
 - **A change to the gate is its own spec**, whose feature is the gate: on its own branch, with the
   owner, carrying the negative test for every step it adds or changes. A finding against a gate
   file made during some other spec is recorded in that spec's retrospective as a proposal and
@@ -151,21 +194,31 @@ and names the tool, its pin and its config. Steps 1 and 2 read the files git lis
 above says. Step 1 first refuses a tree whose work-tree top is not the repository root, then
 parses a file ending in `.sh` or starting with a bash shebang; any other file fails the step by
 name, since only shell scripts live under `scripts/` (test w). Step 2 passes pymarkdown the `.md`
-files of its list, since pymarkdown walks a directory without reading `.gitignore` (test y).
-`scripts/check-index.sh` is the third step: it runs only in a git work tree whose top is the
-repository root, reads the tracked list with `git ls-files`, refuses an untracked file under
-`base/` and a tracked one missing from the disk, sorts every list after its last transform and
-checks both sorted before `comm`, and holds `agent-os/standards/index.yml` to be a symlink to
-`../../index.yml`. `scripts/gate-negative-tests.sh` holds every negative test, eighteen for the
-gate's scripts (a to n but j, with c as c1 to c3, and w, x and y), eight for
-`scripts/sync-standards.sh` (o to v, `base/process/standards-sync.md`) and the CI replay (j), in
-the harness shape above, and is parsed by step 1, not run by the gate.
+files of its list, since pymarkdown walks a directory without reading `.gitignore` (test y), and,
+before pymarkdown lints, installs the pin as itself: `uvx` missing from `PATH`, or a pin `uvx`
+cannot install, fails the step by name, and pymarkdown's own reason is about findings and the rule
+set it reads (tests z and e). `uvx` has no form that installs without running, so the install
+check runs `pymarkdown version`, which checks nothing in the tree, and a pymarkdown that will not
+start fails there by the same reason. This repository has no package manifest, so pymarkdown's
+pin is `PYMARKDOWN_VERSION` in the script, with its date, run through `uvx`, and the rule set is
+`.pymarkdown.yaml`, shown read by a changed value applied and by an unparsable value and an
+unparsable file each refused (test i). `scripts/check-index.sh` is the third step: it runs only in
+a git work tree whose top is the repository root, reads the tracked list with `git ls-files`,
+refuses an untracked file under `base/` and a tracked one missing from the disk, sorts every list
+after its last transform and checks both sorted before `comm`, and holds
+`agent-os/standards/index.yml` to be a symlink to `../../index.yml`.
+`scripts/gate-negative-tests.sh` holds every negative test, nineteen for the gate's scripts (a to
+n but j, with c as c1 to c3, and w, x, y and z), eight for `scripts/sync-standards.sh` (o to v,
+`base/process/standards-sync.md`) and the CI replay (j), in the harness shape above, and is parsed
+by step 1, not run by the gate.
 `.github/workflows/gate.yml` is the gate's workflow, pinned to `actions/checkout` v7.0.1 and
-`astral-sh/setup-uv` v10.3.3 by commit and to uv 0.13.7, on `ubuntu-24.04` with a ten-minute
-timeout, no persisted credential and no cache. Every spec folder under `agent-os/specs/` holds its
-`verification/gate-run.txt`; the spec that built the gate holds its six negative tests as recorded,
-the spec that last changed the harness (issue #10) holds the current transcripts, j's included, and
-the gate spec (issue #3) holds the hosted runs that proved the workflow, by id.
+`astral-sh/setup-uv` v10.3.3 by commit and to uv 0.13.7 through setup-uv's input, there being no
+manifest to read it from, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and
+no cache, there being no lockfile to key one on; a local run uses the uv on `PATH`. Every spec
+folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that built the gate
+holds its six negative tests as recorded, the spec that last changed the harness (issue #12) holds
+the current transcripts, j's included, and the gate spec (issue #3) holds the hosted runs that
+proved the workflow, by id.
 
 `scripts/gate.sh` here and in a consuming project share one skeleton: the `cd` and usage checks,
 the `step`, `fail`, `listed` and `present` helpers, step 1 with its root guard, and the closing
@@ -184,9 +237,26 @@ under `scripts/` parsed as git lists them, a file ending in `.sh` or starting wi
 any other file refused by name. Every later step that reads files from the tree reads the files
 git lists, by git's list or by a tool that honours `.gitignore` and is given no path git ignores.
 Its `shape-spec.md` lists those steps in the gate task, followed by Docs, Version and the standards
-retrospective; its gate workflow runs the script and nothing else; its `CLAUDE.md` names the script
-as the definition of done. `scripts/sync-standards.sh --check` is one of its steps, and that
-script is a gate file the sync itself replaces from the pinned commit, never a hand edit; its gate
-workflow checks `patchbay-standards` out beside the project under the workspace, at the commit in
-`agent-os/standards/base/.version` by the pin step `base/process/standards-sync.md` names, and its
-negative tests stand the sibling up by the fixture named there.
+retrospective; its gate workflow runs the script and checks nothing the script does not; its
+`CLAUDE.md` names the script as the definition of done. `scripts/sync-standards.sh --check` is one
+of its steps, and that script is a gate file the sync itself replaces from the pinned commit, never
+a hand edit; its gate workflow checks `patchbay-standards` out beside the project under the
+workspace, at the commit in `agent-os/standards/base/.version` by the pin step
+`base/process/standards-sync.md` names, and its negative tests stand the sibling up by the fixture
+named there.
+
+A consuming project is a uv package, with a manifest and a lockfile, so its gate takes the
+manifest's forms above. Its tools are pinned exactly in the `[dependency-groups] dev` section of
+`pyproject.toml`, each with its publish date, resolved in `uv.lock` and run as
+`uv run --locked <tool>`. The `[tool.*]` sections of `pyproject.toml` are the gate's, holding its
+rule set and, in `[tool.uv] required-version`, uv's own pin, and so are the tool pins in
+`[dependency-groups] dev` with what `uv.lock` resolves for them; `[project]`, `[build-system]` and
+the rest of `[dependency-groups]` are the package's, and the file's header says which is which.
+The step that runs the first tool opens with `uv sync --locked`, which installs exactly what
+`uv.lock` names and fails the step as the sync, with its own reason, on a stale lockfile, a
+manifest or lockfile uv cannot read, a package that will not build or a uv that is not the
+required version; the tools after it run under `--locked`. Its gate workflow installs uv with
+`astral-sh/setup-uv` pinned by commit, its `working-directory` the project's checkout and no
+`version`, so it reads `required-version` from `pyproject.toml` there, with its cache on and
+`cache-dependency-glob: uv.lock`; then runs `uv sync --locked` from the project's directory as a
+step of its own; then the gate.

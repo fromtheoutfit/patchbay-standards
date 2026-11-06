@@ -11,6 +11,59 @@ bring in.
 
 ### Added
 
+- Seventh spec, `agent-os/specs/2026-11-06-0721-gate-spec-3-seven-base-proposals/` (issue #12), the
+  third gate spec: the seven base proposals from patchbay's toolchain spec and its revision after
+  the review of fromtheoutfit/patchbay#4 landed, each rule written from patchbay's shipped files
+  at its `origin/main` (`73a583a`) and from this repository's gate, never from the proposals'
+  text. Written general, two of them reach this repository's gate, which changes to meet them
+  with a negative test each. `verification/patchbay-evidence.txt` records what the rules were
+  read from, patchbay's hosted runs 42149183261 and 42150149022 among it. Revised after the review
+  of PR 14 (twelve findings): the gate's tool pins are gate files, the harness checks that a
+  failure's later steps never ran, z asserts the gate's own lines, and the wording below; the
+  rest of patchbay's side is fromtheoutfit/patchbay#6.
+  - `base/process/verification-gate.md`: "One script" gains the install rule (a step that installs
+    its pinned tools checks the install on its own, before any tool checks the tree, with its own
+    reason, so
+    a stale lockfile, an unreadable manifest, a package that will not build, a missing or wrong
+    runner or an unpublished pin is never reported as the first tool's finding); "Pinned" says
+    where a pin lives (in the script with no package manifest, otherwise exact in the manifest's
+    development group, resolved in the lockfile, every tool run under the locked mode so a pin
+    edited without re-locking fails, the pins gate files either way: in a manifest, the pins of
+    the tools the gate runs and what the lockfile resolves for them, the group's other entries the
+    project's), that the runner's own version is pinned once in the manifest where the runner
+    refuses any other on every command that reads the project's settings (probed with uv 0.13.7),
+    and that the rule set may be the manifest's tool sections, the header saying which sections
+    are the gate's; the harness bullet adds that a run failing at a step is held to no later
+    step's banner and a passing run may name its lines; "Every step that can fail is
+    proven to fail" gains the proof of a rule set (a changed value applied, an unparsable value
+    and an unparsable file refused), of a pin (one that cannot install, in a lockfile, the script
+    or the manifest's runner pin) and of the install (failing by its own reason, passing before
+    the first tool's failure); "CI", whose heading now reads "runs the same script, and checks
+    nothing the script does not", installs the locked toolchain as its own step where there is a
+    lockfile, reads the runner's version from the manifest where it pins one (a failed lookup is
+    loud, refused at the locked install), and admits a cache only on a key that changes with the
+    lockfile; "The gate's own files" names the tool pins and a manifest's tool sections; "In this
+    repository" gains step 2's install (its check runs `pymarkdown version`, uvx having no
+    install-only form), the no-manifest form (pin in the script, uv as setup-uv's input, no
+    cache), tests i and z and the count of nineteen; "In a consuming project" gains the uv forms
+    (`[dependency-groups] dev` pins in `uv.lock`, gate files with the `[tool.*]` sections,
+    `uv run --locked`, `[tool.uv] required-version`, `uv sync --locked` opening the first tool's
+    step, setup-uv by commit with no `version` and its cache on `uv.lock`, a `uv sync --locked`
+    step before the gate).
+  - `scripts/gate-negative-tests.sh`: test z (the clean copy's named lines, the install's `ok`
+    line before the lint's; `uvx` hidden by `PATH=/usr/bin:/bin`, where z's setup checks bash,
+    dirname, git, sort, head and grep are, fails step 2 by name; a pin naming pymarkdownlnt
+    0.9.999, never published, fails step 2 as the install, the gate's own line asserted and not
+    uv's wording, pymarkdown never linting); test i gains `line_length: wide`, refused under
+    `--strict-config` naming the property, and a stray `[` appended to `.pymarkdown.yaml`, refused
+    as YAML naming the file, its traceback elided from the print up to the first unindented line;
+    e asserts the install's `ok` line before MD009. `check` asserts any text it is given, whatever
+    the status, and holds a reason naming `FAIL  step N/M`, or `gate.sh`'s usage or cd line, to no
+    step banner past step N, so the "never printed" of e, f, i, w, x, y and z is checked; the j
+    replay runs its Python with `-u`, so each step's line prints before its output. Transcripts
+    in the spec's `verification/`, j rerun there, `review-mutations.txt` showing a gate that runs
+    every step and one without the install check each caught.
+
 - Sixth spec, `agent-os/specs/2026-11-05-2019-gate-spec-2-five-base-proposals/` (issue #10), the
   second gate spec: the five base proposals from patchbay's first two specs landed, each rule
   written from patchbay's shipped files at its `origin/main` and from this repository's gate files
@@ -161,6 +214,26 @@ bring in.
 
 ### Changed
 
+- `scripts/gate.sh` (issue #12): step 2 installs the pin as its own check before pymarkdown lints.
+  `uvx` missing from `PATH` fails the step by name; `uvx --from pymarkdownlnt==$PYMARKDOWN_VERSION
+  pymarkdown version` fails it as the install, "uvx could not install pymarkdownlnt==<pin>, the
+  pinned version, or pymarkdown would not start", where a pin never published was reported
+  before as "pymarkdown reported findings, or could not run"; `ok   pymarkdownlnt==<pin>
+  installed through uvx` names the version that ran. The pinned invocation is built once, `pmd`,
+  for the install and the scan. The scan's reason is now "pymarkdown reported findings, or could
+  not read .pymarkdown.yaml". The header says so, citing the rule.
+- `base/process/standards-retrospective.md` (issue #12): the proposals heading in "Who owns which
+  standard" is `### Standards retrospective (proposed, base)`, as the file's own "Recording the
+  answer" template and every spec's `shape.md` have it, not `##`.
+- `CLAUDE.md` and `.claude/commands/agent-os/shape-spec.md` (issue #12): the proposals heading is
+  `###`, in `CLAUDE.md`'s Specs section and in `shape-spec.md`'s Step 5 and gate step 6; step 2 is
+  described as the script runs it, the pin installed through `uvx` as its own check first.
+- `index.yml` (issue #12): the `process/verification-gate` description rewritten for the install
+  rule, the pins' two homes, the runner's pin, the rule set in a manifest's tool sections, CI's
+  locked install and lockfile-keyed cache, and the rule set's and pin's negative tests; after the
+  review of PR 14, the install before any tool checks the tree, CI checking nothing the script
+  does not, the tool pins among the gate's files, and a negative test's later steps checked as
+  never reached.
 - `scripts/gate.sh` (issue #10): aligned with patchbay's, then revised after the review of PR 11.
   Exits 1 at the first failing step after `FAIL  step N/3: <reason>` on stderr, whatever
   `bash -n`, pymarkdown or `check-index.sh` returned (test f recorded `bash -n`'s 2 before); any

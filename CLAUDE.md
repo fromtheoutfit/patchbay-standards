@@ -46,10 +46,11 @@ prohibition is on attribution markers, not on citing the work.
   standards every patchbay repository syncs in as `agent-os/standards/base/`; here they are the
   whole of `agent-os/standards/`. A spec is not complete until its verification gate passes —
   `scripts/gate.sh`, which runs `bash -n` on every shell script under `scripts/` as git lists
-  them, `pymarkdown` through `uvx` (pinned there, rules in `.pymarkdown.yaml`) over the `.md`
-  files under `base/` and `README.md` as git lists them, and `scripts/check-index.sh`, which holds
-  `index.yml` equal to the tracked files under `base/`, and exits 1 at the first failing step,
-  named, or 2 on usage or when it cannot enter the repository root —
+  them, `pymarkdown` through `uvx` (pinned there and installed as its own check first, rules in
+  `.pymarkdown.yaml`) over the `.md` files under `base/` and `README.md` as git lists them, and
+  `scripts/check-index.sh`, which holds `index.yml` equal to the tracked files under `base/`, and
+  exits 1 at the first failing step, named, or 2 on usage or when it cannot enter the repository
+  root —
   **then its three judgment steps are recorded in `shape.md`, in this order: Docs, Version, and
   the standards retrospective.** Docs: the documentation the change touches reads true after it.
   Version: the change is recorded under `[Unreleased]` in `CHANGELOG.md`. CI
@@ -67,7 +68,7 @@ prohibition is on attribution markers, not on citing the work.
   describes agrees with it by construction, including when it is wrong.
 - **`base/` is owned by this repository and is never edited in place during a spec's
   retrospective** — not here, not in a consuming project. The retrospective records the proposed
-  change in `shape.md` under `## Standards retrospective (proposed, base)`, and the proposal
+  change in `shape.md` under `### Standards retrospective (proposed, base)`, and the proposal
   becomes a pull request here. Changing a base standard is a spec's own feature work on its own
   branch. Every standards edit is approved by a person, always.
 - Retrospective edits are their own change set: listed separately when the work is
