@@ -1,7 +1,9 @@
-patchbay evidence for base/python/toolchain.md, 2026-11-06, written on branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config of
-patchbay-standards. Every patchbay file is read from origin/main with git show, never from the
-checkout, which is on the merged feature branch. The probes run on a scratch export of that
-commit (git archive), under uv 0.13.7; <scratch> is a directory outside both repositories.
+patchbay evidence for base/python/toolchain.md, 2026-11-06, regenerated after the review of PR 16, on
+branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config of patchbay-standards.
+Every patchbay file is read from origin/main with git show, never from the checkout, which is on
+the merged feature branch. The probes run on scratch exports of that commit (git archive), under
+uv 0.13.7; <scratch> is a directory outside both repositories, and each export or output
+directory is a fresh mktemp -d there, shown as <scratch>/<name>.XXXXXX.
 
 ### 1. The commit read
 
@@ -155,15 +157,25 @@ $ git show origin/main:.gitignore | grep -n '^.hypothesis/'
 $ git ls-tree -r --name-only origin/main | grep -E '(^|/)(setup\.py|setup\.cfg|requirements[^/]*\.txt|tox\.ini|\.flake8|mypy\.ini|pytest\.ini|\.ruff\.toml|ruff\.toml|uv\.toml|conftest\.py|[^/]*\.lock)$|^tests/.*__init__\.py$'   (the config files the standard says are absent, any lockfile, conftest.py, an __init__.py under tests/: only uv.lock is listed)
 uv.lock
 
-$ git show origin/main:README.md | grep -n 'uv run pre-commit'   (the two uv runs without --locked, which run pre-commit itself)
+$ git show origin/main:README.md | grep -n 'uv run pre-commit'   (patchbay runs pre-commit itself without --locked; section 8)
 91:uv run pre-commit install        # once, to run the hooks on every commit
 92:uv run pre-commit run --all-files   # the hooks over the tree, with or without the git hook
+
+$ git show origin/main:README.md | grep -n 'reads .\.python-version'
+48:to install it. `uv sync` reads `.python-version` (3.12), fetches that interpreter into uv's cache if
 
 $ git show origin/main:.pre-commit-config.yaml | grep -n 'uv run pre-commit'
 7:# dev group. Install the git hook once with `uv run pre-commit install`; `uv run pre-commit run
 
-### 4. ruff 0.17.4 under patchbay's [tool.ruff]: noqa and the floor
-Each probe is a module under src/patchbay/ with a docstring, so only the probed rule can trip.
+$ git show origin/main:pyproject.toml | grep -n -B1 'strict-config' | head -4   (the comment cites the gate standard; section 9)
+112-# -q: the gate's transcript is read by a person. --strict-markers: an unregistered marker is a
+113:# typo, so it fails. --strict-config: a key pytest does not know in this section fails the run,
+114-# as the gate standard asks of a rule-set config.
+115:addopts = "-q --strict-markers --strict-config"
+
+### 4. ruff 0.17.4 under patchbay's [tool.ruff]: noqa, the floor, and what ALL reports
+Each probe is a module under src/patchbay/ with a docstring, so only the probed rule can trip;
+after its run the probe is moved out of the export, never deleted.
 
 $ cat src/patchbay/_probe_blanket.py
 """Probe: a blanket noqa that suppresses a finding."""
@@ -226,57 +238,296 @@ Found 1 error.
 [*] 1 fixable with `--fix`.
 exit=1
 
-### 5. uv_build: what the [build-system] range changes under uv 0.13.7
-uv documents that it builds with the backend bundled in it "if its version is compatible with
-the uv_build requirement" and otherwise uses a compatible uv_build package
-(https://docs.astral.sh/uv/concepts/build-backend/). Under uv 0.13.7, offline and with no cache,
-both uv build and the editable build of uv sync build with the bundled backend whatever the range
-says; a range that does not contain the running uv is a warning, and the build succeeds.
+What select = ["ALL"] reports on the tree with the ignore list emptied. The emptying has to reset the
+selection in the same command-line layer: an override of lint.ignore alone does not re-enable a rule the
+file ignores (the settings lines below), so the reset is shown before its result is read.
 
-$ requires = ["uv_build>=0.13.7,<0.14.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+$ uv run --locked ruff check --no-cache --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             not enabled
+  missing-trailing-comma               not enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+
+$ uv run --locked ruff check --no-cache --config 'lint.ignore = []' --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             not enabled
+  missing-trailing-comma               not enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+
+$ uv run --locked ruff check --no-cache --config 'lint.select = ["ALL"]' --config 'lint.ignore = []' --config 'lint.per-file-ignores = {}' --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             enabled
+  missing-trailing-comma               enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+
+$ uv run --locked ruff check --no-cache --output-format concise --config 'lint.select = ["ALL"]' --config 'lint.ignore = []' --config 'lint.per-file-ignores = {}' .
+warning: `incorrect-blank-line-before-class` (D203) and `blank-line-before-class` (D211) are incompatible. Ignoring `incorrect-blank-line-before-class`.
+warning: `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible. Ignoring `multi-line-summary-second-line`.
+src/patchbay/__init__.py:1:1: CPY001 Missing copyright notice at top of file
+tests/unit/test_package.py:1:1: INP001 File `tests/unit/test_package.py` is part of an implicit namespace package. Add an `__init__.py`.
+tests/unit/test_package.py:1:1: CPY001 Missing copyright notice at top of file
+tests/unit/test_package.py:11:5: S101 Use of `assert` detected
+tests/unit/test_package.py:17:5: S101 Use of `assert` detected
+tests/unit/test_package.py:18:5: S101 Use of `assert` detected
+tests/unit/test_version.py:1:1: INP001 File `tests/unit/test_version.py` is part of an implicit namespace package. Add an `__init__.py`.
+tests/unit/test_version.py:1:1: CPY001 Missing copyright notice at top of file
+tests/unit/test_version.py:26:5: S101 Use of `assert` detected
+tests/unit/test_version.py:31:5: S101 Use of `assert` detected
+tests/unit/test_version.py:37:5: S101 Use of `assert` detected
+tests/unit/test_version.py:44:5: S101 Use of `assert` detected
+tests/unit/test_version.py:45:5: S101 Use of `assert` detected
+Found 13 errors.
+exit=1
+
+$ uv run --locked ruff format --check --no-cache --config 'lint.select = ["ALL"]' --config 'lint.ignore = []' --config 'lint.per-file-ignores = {}' .
+warning: `incorrect-blank-line-before-class` (D203) and `blank-line-before-class` (D211) are incompatible. Ignoring `incorrect-blank-line-before-class`.
+warning: `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible. Ignoring `multi-line-summary-second-line`.
+warning: The following rule may cause conflicts when used with the formatter: `missing-trailing-comma` (`COM812`). To avoid unexpected behavior, we recommend disabling this rule, either by removing it from the `lint.select` or `lint.extend-select` configuration, or adding it to the `lint.ignore` configuration.
+34 files already formatted
+exit=0
+
+$ uv run --locked ruff rule <code> --output-format json | <code, preview, status>   (for each of the six ignores)
+D203 preview=False status={'Stable': {'since': 'v0.0.70'}}
+D213 preview=False status={'Stable': {'since': 'v0.0.69'}}
+COM812 preview=False status={'Stable': {'since': 'v0.0.223'}}
+CPY001 preview=False status={'Stable': {'since': '0.16.0'}}
+S101 preview=False status={'Stable': {'since': 'v0.0.116'}}
+INP001 preview=False status={'Stable': {'since': 'v0.0.225'}}
+
+### 5. uv_build: which backend uv 0.13.7 builds with, by [build-system] range
+uv's documentation says uv builds with the backend bundled in it "if its version is compatible with the
+uv_build requirement" (https://docs.astral.sh/uv/concepts/build-backend/). Its source at the 0.13.7 tag
+says what compatible means: the range contains the running uv or one of COMPATIBLE_VERSIONS, and no ==
+pin names another version; otherwise uv builds through PEP 517 with a uv_build package from the index.
+The first round of this spec probed only a range that held one of COMPATIBLE_VERSIONS (0.12.24), and
+read its result as 'whatever the range says'; the cases below are chosen to tell the claims apart.
+
+$ gh api repos/astral-sh/uv/git/ref/tags/0.13.7 --jq .object.sha
+316c827e058c16b71d5c507a20729c2995a7bcce
+
+$ gh api -H 'Accept: application/vnd.github.raw' 'repos/astral-sh/uv/contents/crates/uv-build-backend/src/metadata.rs?ref=0.13.7' | grep -nE '<COMPATIBLE_VERSIONS, the range test, the == test>'
+40:const COMPATIBLE_VERSIONS: &[&str] = &["0.9.30", "0.10.12", "0.11.33", "0.12.24"];
+139:    IncompatibleRange(VersionSpecifiers),
+141:    VersionMismatch(Version),
+249:/// Active exact pins in the backend requirement and constraints must match the running uv version.
+258:pub fn check_direct_build(
+330:            if !compatible.iter().any(|version| specifier.contains(version)) =>
+332:            return Err(DirectBuildIncompatibility::IncompatibleRange(
+352:                *specifier.operator() == Operator::Equal && !specifier.contains(&uv_version)
+355:            return Err(DirectBuildIncompatibility::VersionMismatch(
+
+$ gh api -H 'Accept: application/vnd.github.raw' 'repos/astral-sh/uv/contents/crates/uv-build-commands/src/lib.rs?ref=0.13.7' | grep -nE 'Not using .uv_build. direct build|Using bundled'
+752:                    "Not using `uv_build` direct build for `{}` because {}",
+763:            "Using bundled `uv_build` backend for `{}`",
+
+-- requires = ["uv_build>=0.13.7,<0.14.0"]: the shipped range, containing the running uv
+
+$ uv build --wheel --offline --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
 DEBUG Using bundled `uv_build` backend for `.`
-Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
 exit=0
 
-$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
-DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+$ uv build --wheel --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Using bundled `uv_build` backend for `.`
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
 exit=0
 
-$ requires = ["uv_build>=0.12.0,<0.13.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+exit=0
+
+$ uv sync --locked --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+exit=0
+
+-- requires = ["uv_build>=0.12.0,<0.13.0"]: outside the running uv, holding 0.12.24 of COMPATIBLE_VERSIONS
+
+$ uv build --wheel --offline --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
 DEBUG Using bundled `uv_build` backend for `.`
 warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
-Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
 exit=0
 
-$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
-DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+$ uv build --wheel --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Using bundled `uv_build` backend for `.`
+warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
 warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
 exit=0
 
-$ requires = ["uv_build==0.13.7"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+$ uv sync --locked --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+exit=0
+
+-- requires = ["uv_build>=0.8.0,<0.9.0"]: outside the running uv and every COMPATIBLE_VERSIONS entry
+
+$ uv build --wheel --offline --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Not using `uv_build` direct build for `.` because `uv_build>=0.8.0, <0.9.0` is not a known compatible range
+error: Failed to build `<scratch>/pb.XXXXXX`
+  cause: Because uv-build was not found in the cache and you require uv-build>=0.8.0,<0.9.0, we can conclude that your requirements are unsatisfiable.
+hint: Packages were unavailable because the network was disabled. When the network is disabled, registry packages may only be read from the cache.
+exit=2
+
+$ uv build --wheel --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Not using `uv_build` direct build for `.` because `uv_build>=0.8.0, <0.9.0` is not a known compatible range
+DEBUG Selecting: uv-build==0.8.24 [compatible] (uv_build-0.8.24-py3-none-macosx_11_0_arm64.whl)
+DEBUG Installing `uv-build==0.8.24` in `<tmp>`
+DEBUG Identified uncached distribution: uv-build==0.8.24
+DEBUG Downloading and building requirement for build: uv-build==0.8.24
+DEBUG Installing build requirement: uv-build==0.8.24
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+error: Failed to build `patchbay-core @ file://<scratch>/pb.XXXXXX`
+  cause: Because uv-build was not found in the cache and you require uv-build>=0.8.0,<0.9.0, we can conclude that your requirements are unsatisfiable.
+exit=1
+
+$ uv sync --locked --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Selecting: uv-build==0.8.24 [compatible] (uv_build-0.8.24-py3-none-macosx_11_0_arm64.whl)
+DEBUG Installing build requirement: uv-build==0.8.24
+exit=0
+
+-- requires = ["uv_build==0.13.6"]: a literal pin that is not the running uv
+
+$ uv build --wheel --offline --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Not using `uv_build` direct build for `.` because `uv_build==0.13.6` is not a known compatible range
+error: Failed to build `<scratch>/pb.XXXXXX`
+  cause: No solution found when resolving: `uv-build==0.13.6`
+  cause: Because uv-build was not found in the cache and you require uv-build==0.13.6, we can conclude that your requirements are unsatisfiable.
+hint: Packages were unavailable because the network was disabled. When the network is disabled, registry packages may only be read from the cache.
+exit=2
+
+$ uv build --wheel --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Not using `uv_build` direct build for `.` because `uv_build==0.13.6` is not a known compatible range
+DEBUG Selecting: uv-build==0.13.6 [compatible] (uv_build-0.13.6-py3-none-macosx_11_0_arm64.whl)
+DEBUG Installing `uv-build==0.13.6` in `<tmp>`
+DEBUG Identified uncached distribution: uv-build==0.13.6
+DEBUG Downloading and building requirement for build: uv-build==0.13.6
+DEBUG Installing build requirement: uv-build==0.13.6
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+error: Failed to build `patchbay-core @ file://<scratch>/pb.XXXXXX`
+  cause: Because uv-build was not found in the cache and you require uv-build==0.13.6, we can conclude that your requirements are unsatisfiable.
+exit=1
+
+$ uv sync --locked --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Selecting: uv-build==0.13.6 [compatible] (uv_build-0.13.6-py3-none-macosx_11_0_arm64.whl)
+DEBUG Installing build requirement: uv-build==0.13.6
+exit=0
+
+-- requires = ["uv_build==0.13.7"]: a literal pin that is the running uv
+
+$ uv build --wheel --offline --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
 DEBUG Using bundled `uv_build` backend for `.`
-Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
 exit=0
 
-$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
-DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+$ uv build --wheel --no-cache -v -o <scratch>/wheels.XXXXXX 2>&1 | grep -E '<backend chosen, warning, uv_build fetched, result>'
+DEBUG Using bundled `uv_build` backend for `.`
+Successfully built <scratch>/wheels.XXXXXX/patchbay_core-0.0.1-py3-none-any.whl
 exit=0
 
-### 6. What uv init writes for [build-system]
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+exit=0
 
-$ cd <scratch>/init && uv init --package --build-backend uv --name probe-init --vcs none --no-workspace --offline
+$ uv sync --locked --no-cache --reinstall-package patchbay-core -v 2>&1 | grep -E '<direct or PEP 517, warning, result>'
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+exit=0
+
+$ uv sync --locked -q   (the export back at its shipped range)
+exit=0
+
+### 6. What uv init writes: [build-system] and .python-version
+
+$ cd <scratch>/init.XXXXXX && uv init --package --build-backend uv --name probe-init --vcs none --no-workspace --offline
 Initialized project `probe-init`
 exit=0
 
-$ grep -n -A2 '^\[build-system\]' <scratch>/init/pyproject.toml
+$ grep -n -A2 '^\[build-system\]' pyproject.toml; ls -A; cat .python-version   (in <scratch>/init.XXXXXX)
 15:[build-system]
 16-requires = ["uv_build>=0.13.7,<0.14.0"]
 17-build-backend = "uv_build"
+.python-version
+pyproject.toml
+README.md
+src
+3.12
 
 ### 7. [tool.uv.build-backend] module-name: the export without it
 
-$ pyproject.toml without module-name; uv build --wheel --offline --no-cache -o <scratch>/wheels
+$ pyproject.toml without module-name; uv build --wheel --offline --no-cache -o <scratch>/wheels.XXXXXX
 Building wheel...
-error: Failed to build `<scratch>/pb`
+error: Failed to build `<scratch>/pb.XXXXXX`
   cause: Expected a Python module at: src/patchbay_core/__init__.py
 exit=2
+
+### 8. uv run with and without --locked, against a stale lockfile; pre-commit through --locked
+A fresh export, committed in a scratch git repository so git diff shows what each command writes;
+PRE_COMMIT_HOME is a scratch directory beside it. The ruff pin is edited and uv.lock left, as a spec that
+forgets uv lock would.
+
+$ sed -i '' 's/"ruff==0.17.4"/"ruff==0.17.3"/' pyproject.toml
+
+$ uv run --locked pre-commit --version
+error: The lockfile at `uv.lock` needs to be updated, but `--locked` was provided.
+
+hint: To update the lockfile, run `uv lock`.
+exit=1
+
+$ git diff --stat -- uv.lock
+(end of diff)
+
+$ uv run pre-commit --version
+   Building patchbay-core @ file://<scratch>/pb.XXXXXX
+      Built patchbay-core @ file://<scratch>/pb.XXXXXX
+pre-commit 4.7.0
+exit=0
+
+$ git diff --stat -- uv.lock; git diff -- uv.lock | grep -E '^[-+](version|    \{ name = "ruff")' | head -4
+ uv.lock | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
+-    { name = "ruff", specifier = "==0.17.4" },
++    { name = "ruff", specifier = "==0.17.3" },
+-version = "0.17.4"
++version = "0.17.3"
+
+$ git checkout -- pyproject.toml uv.lock && uv sync --locked -q
+exit=0
+
+$ uv run --locked pre-commit install
+pre-commit installed at .git/hooks/pre-commit
+exit=0
+
+$ uv run --locked pre-commit run --all-files
+ruff check --fix (uv run --locked; the gate's ruff and rules).......................Passed
+ruff format (uv run --locked; the gate's ruff and rules)............................Passed
+exit=0
+
+$ git status --short; ls .git/hooks/pre-commit   (the tree unchanged; the hook written under .git)
+(end of status)
+.git/hooks/pre-commit
+
+### 9. pytest's --strict-config and a key pytest does not know
+
+$ uv run --locked pytest -p no:cacheprovider -o bogus_key=1 --collect-only -q   (addopts carries --strict-config)
+ERROR: Unknown config option: bogus_key
+exit=4
+
+$ uv run --locked pytest -p no:cacheprovider -o 'addopts=-q --strict-markers' -o bogus_key=1 --collect-only -q   (the flag dropped)
+  <scratch>/pb.XXXXXX/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1636: PytestConfigWarning: Unknown config option: bogus_key
+exit=0

@@ -26,13 +26,14 @@ cites them and does not restate them.
   own. **pre-commit runs the hooks at commit**, and no gate step runs it. Verified against the
   `[dependency-groups] dev` section of `pyproject.toml`, whose comment beside each pin names its
   job, and the comment over `[tool.ruff]`.
-- **The gate's tools and the hooks run as `uv run --locked <tool>`**, so each is the version
-  `uv.lock` resolves, with the one rule set in `pyproject.toml`: the gate's steps in
-  `scripts/gate.sh`, the hook entries in `.pre-commit-config.yaml`. The exception is the two
-  commands that run pre-commit itself, which a person types and the gate never runs:
-  `uv run pre-commit install`, once, to install the git hook, and `uv run pre-commit run
-  --all-files`, to run the hooks without it, the hooks inside still running under `--locked`. The
-  project's `README.md` and the header of `.pre-commit-config.yaml` name both.
+- **Every tool runs as `uv run --locked <tool>`**, so each is the version `uv.lock` resolves, with
+  the one rule set in `pyproject.toml`, and a lockfile that no longer matches a pin fails the
+  command. Plain `uv run` re-locks instead: with a pin edited and `uv lock` not run, it rewrites
+  `uv.lock` to the new pin and runs (probed). This holds of the gate's steps in `scripts/gate.sh`,
+  the hook entries in `.pre-commit-config.yaml`, and the two commands a person runs for the hooks,
+  `uv run --locked pre-commit install` and `uv run --locked pre-commit run --all-files`, which the
+  project's `README.md` and the header of `.pre-commit-config.yaml` name. There is no exception.
+  Verified against those three files and the probes.
 
 ## pyproject.toml is the only config file
 
@@ -40,28 +41,38 @@ cites them and does not restate them.
   `setup.py`, `setup.cfg`, `requirements*.txt`, `tox.ini`, `.flake8`, `mypy.ini`, `pytest.ini` or
   `.ruff.toml`. Verified against the header of `pyproject.toml`, which says so, and the tracked
   files.
-- **The one exception is `.pre-commit-config.yaml`**, because pre-commit cannot read its hooks from
-  `pyproject.toml`. It registers hooks and configures no tool: ruff's version is `uv.lock`'s and
-  its rules are `[tool.ruff]`'s. Verified against the header of `.pre-commit-config.yaml`, which
-  says so.
-- **`.python-version` and `uv.lock` configure no tool**: the first names the interpreter (below),
-  the second is the resolution of what `pyproject.toml` requires. Verified against both files.
+- **Two exceptions sit beside it, each for a reason.** `.pre-commit-config.yaml`, because
+  pre-commit cannot read its hooks from `pyproject.toml`: it registers hooks and configures no
+  tool, ruff's version being `uv.lock`'s and its rules `[tool.ruff]`'s, as its header says.
+  `.python-version`, the interpreter uv chooses and fetches, which `uv sync` reads and `uv init`
+  writes: it holds the floor (below) and nothing else. Verified against both files, the project's
+  `README.md`, which says `uv sync` reads `.python-version`, and the probes.
+- **`uv.lock` configures nothing**: it is the resolution of what `pyproject.toml` requires.
+  Verified against `uv.lock`.
 
 ## The build
 
 - **`[build-system]` is `requires = ["uv_build>=X.Y.Z,<X.(Y+1).0"]` with
-  `build-backend = "uv_build"`**, the range `uv init` writes, its lower bound the uv that
-  `[tool.uv] required-version` pins. uv builds the package with the backend bundled in uv itself:
-  `uv build` and the editable build `uv sync` makes. A range that does not contain the running uv
-  is only a warning, `does not contain the current uv version`, and the build still succeeds
-  (probed with uv 0.13.7). So nothing fails when the range and the pin part, and the floor is held
-  by reading `pyproject.toml`: the spec that moves `required-version` past the range moves the range
-  with it, and since `[tool.uv]` is a gate file that spec is the gate's. The upper bound stays,
-  since uv_build follows uv's versioning policy and uv's documentation gives the bound as what
-  keeps the package building as new versions are released; a frontend other than uv, such as
-  `python -m build`, always uses the uv_build package, a release the range admits. Not a literal
-  `==`: the range is what `uv init` writes and what patchbay ships. Verified against
-  `pyproject.toml` (patchbay: `uv_build>=0.13.7,<0.14.0` beside `required-version = "==0.13.7"`).
+  `build-backend = "uv_build"`, the range `uv init` writes, and the range contains the uv that
+  `[tool.uv] required-version` pins.** uv then builds the package with the backend bundled in
+  itself, in `uv build` and in the editable build `uv sync` makes. A bump of `required-version`
+  inside the range changes nothing; a bump past its upper bound moves the range in the same spec,
+  which is the gate's, since `[tool.uv]` is a gate file. Verified against `pyproject.toml`
+  (patchbay: `uv_build>=0.13.7,<0.14.0` beside `required-version = "==0.13.7"`).
+- **Outside the range, uv builds another way, and nothing fails online.** uv 0.13.7 uses its
+  bundled backend when the range contains the running uv or a version its source declares
+  compatible (`0.9.30`, `0.10.12`, `0.11.33`, `0.12.24`), the second with a warning, `does not
+  contain the current uv version`. For any other range, and for a `==` that is not the running uv,
+  it builds through PEP 517 with a uv_build package from the index: online that build succeeds,
+  offline it fails. So the range is held by reading `pyproject.toml` in the spec that moves the
+  pin, not by the gate. Verified against uv's source at `0.13.7` (`check_direct_build`) and the
+  probes, offline and online, of `uv build` and `uv sync`.
+- **The upper bound stays, and the pin is not a literal `==`.** uv_build follows uv's versioning
+  policy, and uv's documentation gives the upper bound as what keeps the package building as new
+  versions are released; a frontend other than uv, such as `python -m build`, always uses the
+  uv_build package, a release the range admits. A `==` builds through PEP 517 from the index as
+  soon as it is not the running uv, and the range is what `uv init` writes and what patchbay ships.
+  Verified against `pyproject.toml` and the probes.
 - **`[tool.uv.build-backend] module-name` names the import package when it is not the distribution
   name.** Without it uv_build looks for the module the distribution name gives and the build fails:
   patchbay's distribution is `patchbay-core`, its import `patchbay`, and without the key uv_build
@@ -78,9 +89,12 @@ cites them and does not restate them.
 - **The floor is stated in four places, with one value**: `requires-python = ">=3.12"` in
   `[project]`, `.python-version` (`3.12`), `target-version = "py312"` in `[tool.ruff]` and
   `python_version = "3.12"` in `[tool.mypy]`. The two tool keys are stated, so a rule set never
-  silently follows a raised floor. The floor is raised in one spec that changes all four, and since
-  two of them are `[tool.*]` sections, that spec is the gate's. Verified against `pyproject.toml`
-  and `.python-version`.
+  silently follows a raised floor. Verified against `pyproject.toml` and `.python-version`.
+- **The floor is the family's**: every patchbay package states 3.12. Raising it is a change to this
+  standard first, a pull request to `patchbay-standards`. Each project then raises it in the gate
+  spec that follows the sync bringing that change in, changing all four places together, since two
+  of them are `[tool.*]` sections. Verified against `pyproject.toml` and `.python-version`, which
+  state the value this standard gives.
 - **The code is written for the floor and nothing below it.** Under `select = ["ALL"]` and that
   `target-version`, ruff refuses a version branch for an interpreter below the floor (UP036) and an
   import from `typing_extensions` of a name `typing` has at the floor (UP035). A backport of a
@@ -106,26 +120,31 @@ cites them and does not restate them.
 
 - **`[tool.ruff]` states `target-version`, the floor, and `line-length = 100`**: wide enough that
   a typed signature or a pydantic field with its description stays on one line, narrow enough to
-  read in a split editor and a GitHub diff. Verified against `pyproject.toml`.
+  read in a split editor and a GitHub diff. The width is the family's, as the floor is: changed
+  here first, then in each project's gate spec after the sync that brings it in. Verified against
+  `pyproject.toml`.
 - **`[tool.ruff.lint]` selects every rule, `select = ["ALL"]`, and the ignore list is what the
-  tree taught.** Run `ALL` over the tree; where a rule is right, fix the code; ignore a rule only
-  where it is wrong for the tree, with one comment per rule saying why. Nothing is listed from
-  memory: a rule the tree has not tripped is not ignored (patchbay's run tripped neither ISC001
-  nor PLR2004, and it lists neither). Verified against `[tool.ruff.lint]` in `pyproject.toml` and
-  its comment.
-- **patchbay's run tripped six, each ignored for a reason that holds of any patchbay package**, so
-  a package lists each of them when its own run trips it:
-  - `D203` and `D213`: ruff reports D203 and D211, and D212 and D213, as incompatible and drops
-    one of each pair itself; the ignore makes the choice explicit, no blank line before a class
-    docstring and a multi-line docstring's summary on its first line.
-  - `COM812`: ruff reports that it conflicts with the formatter, which owns trailing commas.
-  - `CPY001`: the license is the repository's `LICENSE`, and a copyright header in every file is
-    noise every diff pays for.
-  - Under `"tests/**"` in `[tool.ruff.lint.per-file-ignores]`, `S101`, since `assert` is how a
-    pytest test states its expectation, and `INP001`, since `tests/` is a tree pytest collects
-    from `testpaths`, not a package, and has no `__init__.py`.
+  tree and ruff taught.** Run `ALL` over the tree with the list empty. A rule the tree trips is
+  fixed in the code where the rule is right, and ignored only where it is wrong for the tree. A
+  conflict ruff warns of, between two rules or between a rule and the formatter, is ignored too,
+  so the choice is the project's and written down rather than ruff's and silent. One comment per
+  entry says why. Nothing is listed from memory: a rule the tree has not tripped and ruff has not
+  warned of is not ignored (patchbay's run gave neither ISC001 nor PLR2004, and it lists neither).
+  Verified against `[tool.ruff.lint]` in `pyproject.toml`, its comment, and the probes.
+- **patchbay's list has six entries, each for a reason that holds of any patchbay package**, and a
+  package lists each when its own run gives it:
+  - Conflicts ruff warns of. `D203` and `D213`: `ruff check` and `ruff format` warn that D203 and
+    D211, and D212 and D213, are incompatible, and drop D203 and D213 themselves; the ignore makes
+    the choice explicit, no blank line before a class docstring and a multi-line docstring's
+    summary on its first line. `COM812`: `ruff format` warns that it conflicts with the formatter,
+    which owns trailing commas.
+  - Findings the tree trips. `CPY001`, on every file: the license is the repository's `LICENSE`,
+    and a copyright header in every file is noise every diff pays for. Under `"tests/**"` in
+    `[tool.ruff.lint.per-file-ignores]`, `S101`, since `assert` is how a pytest test states its
+    expectation, and `INP001`, since `tests/` is a tree pytest collects from `testpaths`, not a
+    package, and has no `__init__.py`.
 
-  Verified against `pyproject.toml`.
+  Verified against `pyproject.toml` and the probes.
 - **A suppression on one line names its code, `# noqa: <code>`, never a blanket `# noqa`.** Under
   `ALL`, PGH004 refuses a blanket `# noqa` even where it suppresses a finding, and RUF100 refuses a
   `# noqa` whose code suppresses nothing. A suppression loosens the rule for that line and is
@@ -151,8 +170,8 @@ cites them and does not restate them.
 - **`[tool.pytest.ini_options]` is `testpaths = ["tests"]` and
   `addopts = "-q --strict-markers --strict-config"`**: `-q` because a person reads the gate's
   transcript, `--strict-markers` so an unregistered marker, a typo, fails rather than silently
-  selecting nothing, and `--strict-config` so a key pytest does not know fails the run, as the
-  gate standard asks of a rule set. Verified against `pyproject.toml`.
+  selecting nothing, and `--strict-config` so a key pytest does not know fails the run rather than
+  being ignored with a warning. Verified against `pyproject.toml` and the probes.
 - **Every marker is registered under `markers` with its meaning**: patchbay's `integration`,
   "needs a running instrument; not selected by the gate until a spec says so". Verified against
   `pyproject.toml`.
@@ -174,16 +193,16 @@ cites them and does not restate them.
   against `.pre-commit-config.yaml` and `pyproject.toml`.
 - **The hooks run ruff and nothing else, never mypy or pytest**: a hook is for what a commit can
   fix in a second, and the gate is the check. The person committing installs the git hook once,
-  with `uv run pre-commit install`. Verified against `.pre-commit-config.yaml` and the project's
-  `README.md`.
+  with `uv run --locked pre-commit install`. Verified against `.pre-commit-config.yaml` and the
+  project's `README.md`.
 
 ## The gate's tool steps
 
-- **After the gate's first step and before the drift check, the gate runs one step per tool, in
-  this order: `ruff format --check .`, `ruff check .`, `mypy`, `pytest`.** Format before lint, so
-  a formatting failure is reported before a lint finding the formatter would have changed; lint
-  before types, since it is faster and its findings cheaper; tests last among the tools, since a
-  type error usually explains a failing test. hypothesis runs inside `pytest`, and pre-commit in no
+- **After the gate's first step and before `scripts/sync-standards.sh --check`, the gate runs one
+  step per tool, in this order: `ruff format --check .`, `ruff check .`, `mypy`, `pytest`.**
+  Format before lint, so a formatting failure is reported before a lint finding the formatter would
+  have changed; lint before types, since it is faster and its findings cheaper; tests last among
+  the tools, since a type error usually explains a failing test. hypothesis runs inside `pytest`, and pre-commit in no
   step. Each tool runs as `uv run --locked <tool>`, and the first tool's step opens with
   `uv sync --locked`, both `verification-gate.md`'s. Verified against `scripts/gate.sh`
   (patchbay: steps 2 to 5 of six).

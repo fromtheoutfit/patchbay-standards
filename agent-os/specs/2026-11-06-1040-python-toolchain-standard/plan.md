@@ -198,3 +198,28 @@ Then stop and print `git status --short`. In the hand-over:
 
 Nothing is staged, committed or pushed, and no PR is opened. After that, save a feedback memory:
 a base standard keeps to its topic, and layout and test-writing rules wait for their own standard.
+
+## Revision after the review of PR 16
+
+The owner reviewed PR 16 at `f3fdbf4` (hosted `gate` run 42249866406, success) in a PR comment of
+11 findings. Shaped in plan mode on 2026-11-06; each finding was checked against ruff 0.17.4 and
+uv 0.13.7 on a scratch export of patchbay `73a583a`, and against uv's source at its `0.13.7` tag
+where the documentation and a probe disagreed (`verification/patchbay-evidence.txt`, sections 4–9).
+
+| # | Finding | Disposition |
+|---|---------|-------------|
+| 1 | D203, D213 and COM812 are warnings, not findings the tree "trips" | Fixed: the list has conflicts ruff warns of (D203/D211 and D212/D213 from `ruff check` and `ruff format`, COM812 from `ruff format`) and findings the tree trips (CPY001; S101, INP001 under `tests/**`); the method covers both |
+| 2 | A `required-version` bump inside the minor leaves the floor behind the pin | Fixed (owner): the range contains the pinned uv; a bump past the upper bound moves it in that gate spec |
+| 3 | `--strict-config` cites a gate-standard rule that does not exist | Fixed: its own reason, probed (section 9); the gate standard's overgeneral sentence proposed; patchbay's comment to patchbay#7 |
+| 4 | "Bundled whatever the range says" rests on offline probes | Fixed, for another reason: uv's source (`COMPATIBLE_VERSIONS`) and five range cases offline and online, for `uv build` and `uv sync` (section 5); the first probe's range held `0.12.24` |
+| 5 | CPY001 may be preview-only, so its ignore does nothing | Answered by a probe: stable since 0.16.0, three findings under `ALL` with the selection reset (section 4); the entry stays |
+| 6 | Hard-coded 3.12 and 100 conflict with "raised in one spec" in a project | Fixed (owner, family-wide): the values stay; changing one is a change here first, then each project's gate spec after its sync |
+| 7 | The `pre-commit` exception drops `--locked`, and plain `uv run` rewrites a stale `uv.lock` | Fixed: no exception, `uv run --locked pre-commit install` and `run --all-files`; probed (section 8); patchbay's README and hook header to patchbay#7 |
+| 8 | `.python-version` does configure uv | Fixed: the second named exception, with `uv init` writing it (section 6) and the README's line |
+| 9 | Step 5a "(always included)" and the template contradict the body; Step 5b may propose the tier | Fixed in `shape-spec.md`, outside the gate task |
+| 10 | "the drift check" is undefined | Fixed: `scripts/sync-standards.sh --check` |
+| 11 | The CHANGELOG entry repeats the standard | Fixed: a short entry; the `index.yml` description tightened and corrected |
+
+GitHub, no attribution: #15's body edited to the corrected case and a wider rule (owner); a comment on
+fromtheoutfit/patchbay#7 for findings 3 and 7 (owner); PR 16's body rewritten to the revised
+standard. The gate is the last act; no gate file changes, so no negative test is rerun.

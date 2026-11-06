@@ -1,37 +1,8 @@
-Gate run 2026-11-06 on branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config, the last act before hand-over of the spec of issue #4 (base/python/toolchain.md), rerun after
-shape.md recorded the proposal as filed as #15. Two transcripts.
-
-=== 1. scripts/gate.sh on the tree as handed over. base/python/toolchain.md is new and not yet staged (staging is the
-owner's, base/process/ownership.md), and scripts/check-index.sh reads git ls-files, so step 3 reports that one file by name.
+Gate run 2026-11-06 on branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config, the last act before hand-over of the spec of issue #4 (base/python/toolchain.md),
+revised after the review of PR 16. One transcript: base/python/toolchain.md is tracked since the owner's commit f3fdbf4, so
+step 3 reads it on the tree. The spec folder, which no step reads, holds the revision's other edits.
 
 $ scripts/gate.sh
-
-== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
-ok   scripts/check-index.sh
-ok   scripts/gate-negative-tests.sh
-ok   scripts/gate.sh
-ok   scripts/sync-standards.sh
-
-== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
-ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
-ok   no findings in 7 file(s)
-
-== 3/3  index.yml lists exactly the tracked files under base/
-FAIL  under base/ but not tracked (git add it, or keep it out of base/):
-        base/python/toolchain.md
-FAIL  in index.yml but not tracked under base/:
-        python/toolchain
-FAIL  step 3/3: index.yml and the tracked files under base/ disagree, or the index symlink is wrong (see above)
-exit=1
-
-=== 2. The same scripts/gate.sh on a temporary copy of the tree outside the repository, with every file git-added,
-base/python/toolchain.md among them (the mk pattern of scripts/gate-negative-tests.sh): what the tree's run becomes after
-the owner's git add.
-
-$ git ls-files base/python   (in <scratch>/gate-copy)
-base/python/toolchain.md
-
-$ scripts/gate.sh   (in <scratch>/gate-copy)
 
 == 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
 ok   scripts/check-index.sh

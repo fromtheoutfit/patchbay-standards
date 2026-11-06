@@ -103,7 +103,7 @@ Standards come in two kinds, and the difference matters here and again in the ga
 - **Project standards**, a consuming project's own files outside `base/`, belong to that project
   and change in its retrospective.
 
-#### Step 5a: Core Architecture (always included)
+#### Step 5a: Core Architecture (always included in a consuming project)
 
 The standards that apply to every spec in every consuming project, included there without asking,
 with their full content in `standards.md`:
@@ -122,7 +122,9 @@ Read `agent-os/standards/index.yml` to identify standards relevant to the featur
 (the core tier above applies to consuming projects, not here). Its `base:` section is this
 repository's own `index.yml`, keyed by path relative to `base/` without the `.md`;
 `agent-os/standards/base` resolves to `base/`, so `base/process/standards-retrospective` is
-`base/process/standards-retrospective.md`.
+`base/process/standards-retrospective.md`. Leave the Step 5a standards out of the list:
+`python/toolchain` is in the index, but here it does not apply, and in a consuming project Step 5a
+already includes it.
 
 Use AskUserQuestion to confirm:
 
@@ -304,7 +306,7 @@ does not apply here (Step 5a).
 
 ## Standards Applied
 
-**Core (always applied):**
+**Core (Step 5a, consuming projects):**
 - `base/python/toolchain` — not applied here: no package (Step 5a)
 
 **Feature-specific:**
