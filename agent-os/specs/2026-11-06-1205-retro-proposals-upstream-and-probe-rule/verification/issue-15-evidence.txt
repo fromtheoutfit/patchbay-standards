@@ -1,0 +1,226 @@
+Evidence for the probe rule of issue #15 (base/process/standards-retrospective.md, "Verify against the
+code, not against the spec"), 2026-11-06, on branch feature/13-retrospective-present-base-proposals-to-the-owner-and-file-the-approved-ones-as-an-issue-before-the-spec-completes of patchbay-standards.
+Every line is read with git show from main, or from f3fdbf4 (PR 16 first round, an ancestor of main),
+never from the working tree. E is agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt;
+E3 is agent-os/specs/2026-11-06-0721-gate-spec-3-seven-base-proposals/verification/patchbay-evidence.txt.
+
+### 1. The commits read
+
+$ git rev-parse main; git rev-parse f3fdbf4; git merge-base --is-ancestor f3fdbf4 main && echo 'f3fdbf4 is an ancestor of main'
+0b1d0dc9930ccf3b443f770438756840fbfbaff0
+f3fdbf4107fc21ab0057e11ddfb2c03c1b01bdfa
+f3fdbf4 is an ancestor of main
+exit=0
+
+### 2. Where a probe and the documentation disagree, the source at the pinned version decides (E, section 5)
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '303,309p'
+### 5. uv_build: which backend uv 0.13.7 builds with, by [build-system] range
+uv's documentation says uv builds with the backend bundled in it "if its version is compatible with the
+uv_build requirement" (https://docs.astral.sh/uv/concepts/build-backend/). Its source at the 0.13.7 tag
+says what compatible means: the range contains the running uv or one of COMPATIBLE_VERSIONS, and no ==
+pin names another version; otherwise uv builds through PEP 517 with a uv_build package from the index.
+The first round of this spec probed only a range that held one of COMPATIBLE_VERSIONS (0.12.24), and
+read its result as 'whatever the range says'; the cases below are chosen to tell the claims apart.
+exit=0
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '311,327p'
+$ gh api repos/astral-sh/uv/git/ref/tags/0.13.7 --jq .object.sha
+316c827e058c16b71d5c507a20729c2995a7bcce
+
+$ gh api -H 'Accept: application/vnd.github.raw' 'repos/astral-sh/uv/contents/crates/uv-build-backend/src/metadata.rs?ref=0.13.7' | grep -nE '<COMPATIBLE_VERSIONS, the range test, the == test>'
+40:const COMPATIBLE_VERSIONS: &[&str] = &["0.9.30", "0.10.12", "0.11.33", "0.12.24"];
+139:    IncompatibleRange(VersionSpecifiers),
+141:    VersionMismatch(Version),
+249:/// Active exact pins in the backend requirement and constraints must match the running uv version.
+258:pub fn check_direct_build(
+330:            if !compatible.iter().any(|version| specifier.contains(version)) =>
+332:            return Err(DirectBuildIncompatibility::IncompatibleRange(
+352:                *specifier.operator() == Operator::Equal && !specifier.contains(&uv_version)
+355:            return Err(DirectBuildIncompatibility::VersionMismatch(
+
+$ gh api -H 'Accept: application/vnd.github.raw' 'repos/astral-sh/uv/contents/crates/uv-build-commands/src/lib.rs?ref=0.13.7' | grep -nE 'Not using .uv_build. direct build|Using bundled'
+752:                    "Not using `uv_build` direct build for `{}` because {}",
+763:            "Using bundled `uv_build` backend for `{}`",
+exit=0
+
+### 3. Cases chosen to tell the claims apart (E, section 5): five ranges, uv build and uv sync, offline then online
+(grep numbers lines of the window: line n is line 328+n of E)
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '329,451p' | grep -nE '^-- requires|DEBUG (Using bundled|Not using|Performing direct|Selecting)|^warning: .build_system|^error:|^exit='
+1:-- requires = ["uv_build>=0.13.7,<0.14.0"]: the shipped range, containing the running uv
+4:DEBUG Using bundled `uv_build` backend for `.`
+6:exit=0
+9:DEBUG Using bundled `uv_build` backend for `.`
+11:exit=0
+14:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+15:exit=0
+18:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+19:exit=0
+21:-- requires = ["uv_build>=0.12.0,<0.13.0"]: outside the running uv, holding 0.12.24 of COMPATIBLE_VERSIONS
+24:DEBUG Using bundled `uv_build` backend for `.`
+25:warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+27:exit=0
+30:DEBUG Using bundled `uv_build` backend for `.`
+31:warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+33:exit=0
+36:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+37:warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+38:exit=0
+41:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+42:warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+43:exit=0
+45:-- requires = ["uv_build>=0.8.0,<0.9.0"]: outside the running uv and every COMPATIBLE_VERSIONS entry
+48:DEBUG Not using `uv_build` direct build for `.` because `uv_build>=0.8.0, <0.9.0` is not a known compatible range
+49:error: Failed to build `<scratch>/pb.XXXXXX`
+52:exit=2
+55:DEBUG Not using `uv_build` direct build for `.` because `uv_build>=0.8.0, <0.9.0` is not a known compatible range
+56:DEBUG Selecting: uv-build==0.8.24 [compatible] (uv_build-0.8.24-py3-none-macosx_11_0_arm64.whl)
+62:exit=0
+65:error: Failed to build `patchbay-core @ file://<scratch>/pb.XXXXXX`
+67:exit=1
+70:DEBUG Selecting: uv-build==0.8.24 [compatible] (uv_build-0.8.24-py3-none-macosx_11_0_arm64.whl)
+72:exit=0
+74:-- requires = ["uv_build==0.13.6"]: a literal pin that is not the running uv
+77:DEBUG Not using `uv_build` direct build for `.` because `uv_build==0.13.6` is not a known compatible range
+78:error: Failed to build `<scratch>/pb.XXXXXX`
+82:exit=2
+85:DEBUG Not using `uv_build` direct build for `.` because `uv_build==0.13.6` is not a known compatible range
+86:DEBUG Selecting: uv-build==0.13.6 [compatible] (uv_build-0.13.6-py3-none-macosx_11_0_arm64.whl)
+92:exit=0
+95:error: Failed to build `patchbay-core @ file://<scratch>/pb.XXXXXX`
+97:exit=1
+100:DEBUG Selecting: uv-build==0.13.6 [compatible] (uv_build-0.13.6-py3-none-macosx_11_0_arm64.whl)
+102:exit=0
+104:-- requires = ["uv_build==0.13.7"]: a literal pin that is the running uv
+107:DEBUG Using bundled `uv_build` backend for `.`
+109:exit=0
+112:DEBUG Using bundled `uv_build` backend for `.`
+114:exit=0
+117:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+118:exit=0
+121:DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb.XXXXXX
+122:exit=0
+exit=0
+
+### 4. The first round: the cases it ran could not tell the claims apart (f3fdbf4)
+
+$ git show f3fdbf4:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '229,233p'
+### 5. uv_build: what the [build-system] range changes under uv 0.13.7
+uv documents that it builds with the backend bundled in it "if its version is compatible with
+the uv_build requirement" and otherwise uses a compatible uv_build package
+(https://docs.astral.sh/uv/concepts/build-backend/). Under uv 0.13.7, offline and with no cache,
+both uv build and the editable build of uv sync build with the bundled backend whatever the range
+exit=0
+
+$ git show f3fdbf4:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | grep -nE '^\$ requires'
+236:$ requires = ["uv_build>=0.13.7,<0.14.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+245:$ requires = ["uv_build>=0.12.0,<0.13.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+256:$ requires = ["uv_build==0.13.7"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+exit=0
+
+$ git show f3fdbf4:base/python/toolchain.md | sed -n '53,58p'
+  `build-backend = "uv_build"`**, the range `uv init` writes, its lower bound the uv that
+  `[tool.uv] required-version` pins. uv builds the package with the backend bundled in uv itself:
+  `uv build` and the editable build `uv sync` makes. A range that does not contain the running uv
+  is only a warning, `does not contain the current uv version`, and the build still succeeds
+  (probed with uv 0.13.7). So nothing fails when the range and the pin part, and the floor is held
+  by reading `pyproject.toml`: the spec that moves `required-version` past the range moves the range
+exit=0
+
+### 5. A setup shown to have done what it claims before its result is read (E, section 4)
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '241,267p'
+What select = ["ALL"] reports on the tree with the ignore list emptied. The emptying has to reset the
+selection in the same command-line layer: an override of lint.ignore alone does not re-enable a rule the
+file ignores (the settings lines below), so the reset is shown before its result is read.
+
+$ uv run --locked ruff check --no-cache --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             not enabled
+  missing-trailing-comma               not enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+
+$ uv run --locked ruff check --no-cache --config 'lint.ignore = []' --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             not enabled
+  missing-trailing-comma               not enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+
+$ uv run --locked ruff check --no-cache --config 'lint.select = ["ALL"]' --config 'lint.ignore = []' --config 'lint.per-file-ignores = {}' --show-settings src/patchbay/__init__.py | <is each rule in linter.rules.enabled?>
+  missing-copyright-notice             enabled
+  missing-trailing-comma               enabled
+  incorrect-blank-line-before-class    not enabled
+  multi-line-summary-second-line       not enabled
+  assert                               enabled
+  implicit-namespace-package           enabled
+exit=0
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '269,286p' | grep -E 'CPY001|^Found|^exit='
+src/patchbay/__init__.py:1:1: CPY001 Missing copyright notice at top of file
+tests/unit/test_package.py:1:1: CPY001 Missing copyright notice at top of file
+tests/unit/test_version.py:1:1: CPY001 Missing copyright notice at top of file
+Found 13 errors.
+exit=1
+exit=0
+
+### 6. An earlier probe of the method: uv's required-version refusal (E3, section 6)
+
+$ git show main:agent-os/specs/2026-11-06-0721-gate-spec-3-seven-base-proposals/verification/patchbay-evidence.txt | sed -n '198,201p;210,247p'
+## 6. uv's required-version, probed (added after the review of PR 14, finding 6)
+
+A scratch project outside the repository whose pyproject.toml requires a uv that is not running; each command run
+in its directory, with its first lines and its exit status. "Pinned" and "CI" are worded from this.
+required-version = "==0.1.0"
+$ uv --version
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+exit=0
+$ uv self version
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+exit=0
+$ uv tool list
+No tools installed
+exit=0
+$ uvx --from pymarkdownlnt==0.9.41 pymarkdown version
+0.9.41
+exit=0
+$ uv lock
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv sync --locked
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv sync
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv run --locked true
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv version
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv pip list
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv cache dir
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv python list --only-installed
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+
+exit=0
+
+### 7. A spec that changes such a rule reruns the probe (E, header)
+
+$ git show main:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '1,2p'; git show f3fdbf4:agent-os/specs/2026-11-06-1040-python-toolchain-standard/verification/patchbay-evidence.txt | sed -n '1,2p'
+patchbay evidence for base/python/toolchain.md, 2026-11-06, regenerated after the review of PR 16, on
+branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config of patchbay-standards.
+patchbay evidence for base/python/toolchain.md, 2026-11-06, written on branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config of
+patchbay-standards. Every patchbay file is read from origin/main with git show, never from the
+exit=0
+

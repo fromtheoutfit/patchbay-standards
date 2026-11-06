@@ -216,9 +216,9 @@ by step 1, not run by the gate.
 manifest to read it from, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and
 no cache, there being no lockfile to key one on; a local run uses the uv on `PATH`. Every spec
 folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that built the gate
-holds its six negative tests as recorded, the spec that last changed the harness (issue #12) holds
-the current transcripts, j's included, and the gate spec (issue #3) holds the hosted runs that
-proved the workflow, by id.
+holds its six negative tests as recorded, the spec that last changed the harness (the revision
+after the review of PR 18, issues #13 and #15) holds the current transcripts, j's included, and
+the gate spec (issue #3) holds the hosted runs that proved the workflow, by id.
 
 `scripts/gate.sh` here and in a consuming project share one skeleton: the `cd` and usage checks,
 the `step`, `fail`, `listed` and `present` helpers, step 1 with its root guard, and the closing

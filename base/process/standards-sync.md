@@ -26,6 +26,13 @@ resolves to its top. The four:
   the next sync runs it. The sync that delivers a change to the script is run by the copy before
   it: a fix to the sync applies from the next sync on.
 
+Nothing else is written, `.claude/commands/` included. A step a base standard asks the gate task
+of the project's `shape-spec.md` to carry, as "Base proposals go to the owner, then upstream" in
+`base/process/standards-retrospective.md` does, is made by the project, with its `shape.md`
+template line, in its own gate spec after the sync that brings the standard in: the gate task
+text is a gate file, which changes only in the gate's own spec
+(`base/process/verification-gate.md`).
+
 It reads from the commit's tree, never the working tree: each file is read raw with `git cat-file`,
 so an uncommitted edit in the checkout cannot be synced, neither a standard nor the script itself,
 and neither can the checkout's line-ending settings or attributes. Every precondition is checked
@@ -55,9 +62,11 @@ so an ignored `.DS_Store` is never drift. A pinned commit the checkout does not 
 precondition (exit 2), not drift: fetch it. The check is a step of the project's gate.
 
 No entry in the `base:` section and no file under `base/` is edited by hand. A description the
-project disagrees with, a rule it would change, a standard it lacks, is changed in
-`patchbay-standards` by a pull request there and taken when the project moves its pin; the
-proposal shape is `base/process/standards-retrospective.md`'s.
+project disagrees with, a rule it would change, a standard it lacks, is a proposal in the
+project's retrospective: the owner sends it upstream as an issue on `patchbay-standards`, that
+issue's spec lands it there as a pull request, and the project takes it when it moves its pin. The
+route is `base/process/standards-retrospective.md`'s, "Base proposals go to the owner, then
+upstream".
 
 ## Pinned, not tracking
 

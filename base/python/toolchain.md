@@ -91,10 +91,11 @@ cites them and does not restate them.
   `python_version = "3.12"` in `[tool.mypy]`. The two tool keys are stated, so a rule set never
   silently follows a raised floor. Verified against `pyproject.toml` and `.python-version`.
 - **The floor is the family's**: every patchbay package states 3.12. Raising it is a change to this
-  standard first, a pull request to `patchbay-standards`. Each project then raises it in the gate
-  spec that follows the sync bringing that change in, changing all four places together, since two
-  of them are `[tool.*]` sections. Verified against `pyproject.toml` and `.python-version`, which
-  state the value this standard gives.
+  standard first, landed in `patchbay-standards` by its own spec; from a project it starts as a
+  proposal its retrospective sends upstream (`base/process/standards-retrospective.md`). Each
+  project then raises it in the gate spec that follows the sync bringing that change in, changing
+  all four places together, since two of them are `[tool.*]` sections. Verified against
+  `pyproject.toml` and `.python-version`, which state the value this standard gives.
 - **The code is written for the floor and nothing below it.** Under `select = ["ALL"]` and that
   `target-version`, ruff refuses a version branch for an interpreter below the floor (UP036) and an
   import from `typing_extensions` of a name `typing` has at the floor (UP035). A backport of a
