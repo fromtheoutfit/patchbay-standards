@@ -62,3 +62,40 @@ branch and is not consulted.
   the retrospective, transcripts with the date and branch on line 1); the fifth spec's
   `verification/gate-negative-tests.txt`, whose 114 `exit=` lines are the expected statuses the
   rewritten `run` calls assert.
+
+## Added for the revision after the review of PR 11 (2026-11-05)
+
+### The owner's review of PR 11
+
+- **Location:** the comment on pull request 11 (`IC_kwDOVh8HmM8AAAABjddnnw`), 2026-11-05, "Review
+  findings"; read with `gh pr view 11 --json comments`.
+- **Relevance:** The ten findings this revision addresses, none verified when posted. Dispositions
+  in `plan.md` under "Revision after the review of PR 11", decisions in `shape.md`'s "Revision after
+  review".
+
+### `scripts/check-index.sh`'s root guard
+
+- **Location:** `scripts/check-index.sh`, lines 26–31.
+- **Relevance:** The model for finding 1: `root=$(pwd -P)`, and `git rev-parse --show-toplevel`
+  must succeed and equal it, or the script fails by name. `gate.sh` step 1 takes the same guard, so
+  a copy without `.git` inside another repository is refused at step 1, not listed against the
+  outer repository.
+
+### The fifth spec's revision record
+
+- **Location:** `agent-os/specs/2026-11-05-1441-sync-script-and-standards-sync/plan.md` ("Revision
+  after the review of PR 9") and its `shape.md` ("Revision after review").
+- **Relevance:** The shape of a review round in the same spec folder: the owner's choices named, a
+  disposition table, every transcript rerun, Results, Docs, Version and the retrospective rewritten
+  from the revised diff; `old_file` showing a bug as it was at the PR's first head.
+
+### patchbay's gate and harness at `origin/main`
+
+- **Location:** `../patchbay`, `origin/main` (`0916b55`): `scripts/gate.sh` and
+  `scripts/gate-negative-tests.sh` (the fixture: `git clone -q "$SIBLING" "$NEG/patchbay-standards"`,
+  and the header comment "which carries every branch and so the pinned commit").
+- **Relevance:** Step 1 there is this repository's step 1 as the first round shipped it, so
+  findings 1, 9 and 10 hold there too and are patchbay's to take after its next sync (the issue
+  opened in Task 6). Its harness runs only `sync-standards.sh --check` against the clone, which
+  reads the pin from `.version`; finding 5's corrected sentence is written from that and from a
+  scratch experiment on a local clone.

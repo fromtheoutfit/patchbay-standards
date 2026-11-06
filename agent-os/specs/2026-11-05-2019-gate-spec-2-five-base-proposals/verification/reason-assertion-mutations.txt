@@ -1,0 +1,52 @@
+The reason assertion (finding 2 of the PR 11 review), run 2026-11-05 on branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate. Each mutation below is a copy of the tree as
+git lists it (tracked plus untracked-not-ignored), made in a scratch directory outside the repository, with one guard of
+scripts/gate.sh step 1 deleted; tests w and y are then run from that copy. Every case still exits 1, the status it expects, so a
+harness asserting the status alone (the first round's) would pass it; the reason assertion marks it UNEXPECTED and the harness
+exits 1. Nothing here is a gate step or part of the harness; it is the evidence that the assertion discriminates.
+
+### mutation: symlink
+$ sed -i '' '/is a symlink to nothing"; fi/d' scripts/gate.sh   (in the copy)
+47d46
+<   if [ -L "$2" ] && [ ! -e "$2" ]; then fail "$1" "$2 is a symlink to nothing"; fi
+$ scripts/gate-negative-tests.sh w y   (in the copy; the UNEXPECTED runs, each with the three lines above it, and the count)
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+FAIL  step 1/3: scripts/dangling.sh is tracked but missing from the disk
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: scripts/dangling.sh is a symlink to nothing)
+13 runs, 1 unexpected
+harness exit=1
+
+### mutation: missing
+$ sed -i '' '/is tracked but missing from the disk"$/d' scripts/gate.sh   (in the copy)
+48d47
+<   [ -e "$2" ] || fail "$1" "$2 is tracked but missing from the disk"
+$ scripts/gate-negative-tests.sh w y   (in the copy; the UNEXPECTED runs, each with the three lines above it, and the count)
+ok   scripts/check-index.sh
+bash: scripts/gate-negative-tests.sh: No such file or directory
+FAIL  step 1/3: scripts/gate-negative-tests.sh does not parse
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: scripts/gate-negative-tests.sh is tracked but missing from the disk)
+--
+
+Unexpected Error(AssertionError): 
+FAIL  step 2/3: pymarkdown reported findings, or could not run (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  step 2/3: base/process/ownership.md is tracked but missing from the disk)
+13 runs, 2 unexpected
+harness exit=1
+
+### mutation: root
+$ sed -i '' '/^top=\$(git rev-parse/,/^  fail 1\/3 "not a git work tree rooted/d' scripts/gate.sh   (in the copy)
+53,54d52
+< top=$(git rev-parse --show-toplevel 2>/dev/null) && [ "$top" = "$root" ] ||
+<   fail 1/3 "not a git work tree rooted at $root; the gate lists files with git ls-files"
+$ scripts/gate-negative-tests.sh w y   (in the copy; the UNEXPECTED runs, each with the three lines above it, and the count)
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+fatal: not a git repository (or any of the parent directories): .git
+FAIL  step 1/3: git lists no file under scripts/
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: not a git work tree rooted at <copy w>; the gate lists files with git ls-files)
+--
+== 3/3  index.yml lists exactly the tracked files under base/
+FAIL  not a git work tree rooted at <copy wo>/copy (the files under base/ are read with git ls-files)
+FAIL  step 3/3: index.yml and the tracked files under base/ disagree, or the index symlink is wrong (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: not a git work tree rooted at <copy wo>/copy; the gate lists files with git ls-files)
+13 runs, 2 unexpected
+harness exit=1

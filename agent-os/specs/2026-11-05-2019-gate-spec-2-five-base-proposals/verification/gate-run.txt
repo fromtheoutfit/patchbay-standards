@@ -1,6 +1,6 @@
-Gate run 2026-11-05 on branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate, the last act before hand-over of the spec of issue #10 (gate spec 2): scripts/gate.sh aligned with patchbay's,
-the harness asserting every status, the five rules in verification-gate.md and standards-sync.md, the CHANGELOG. Every input is tracked but the
-spec folder, which no step reads.
+Gate run 2026-11-05 on branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate, the last act before hand-over of the spec of issue #10 (gate spec 2), in its revision after the
+review of PR 11: step 1's root guard and one-call listing, step 2's git list, the harness asserting every failing run's reason, the two
+standards, the index, the docs and the CHANGELOG. Every input is tracked but the spec folder, which no step reads.
 
 $ scripts/gate.sh
 
@@ -10,8 +10,8 @@ ok   scripts/gate-negative-tests.sh
 ok   scripts/gate.sh
 ok   scripts/sync-standards.sh
 
-== 2/3  pymarkdown 0.9.41 over base/ and README.md (rules in .pymarkdown.yaml)
-ok   no findings
+== 2/3  pymarkdown 0.9.41 over the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   no findings in 6 file(s)
 
 == 3/3  index.yml lists exactly the tracked files under base/
 ok   index.yml and the tracked files under base/ agree (5 standard(s))

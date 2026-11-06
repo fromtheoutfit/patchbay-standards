@@ -224,3 +224,174 @@ branch on line 1; then `git status --short`; stop.
   `base/process/standards-sync.md`, `index.yml`, `CHANGELOG.md`, `CLAUDE.md`,
   `.claude/commands/agent-os/shape-spec.md`.
 - `awk 'length>100'` over the edited standards, `CLAUDE.md` and `CHANGELOG.md`: none.
+
+# Revision after the review of PR 11 (2026-11-05)
+
+Shaped in plan mode with `/agent-os:shape-spec`. The first round's plan (issue #10) is the spec
+folder's `plan.md`; this plan is the revision and is appended there by Task 1. Spec folder:
+`agent-os/specs/2026-11-05-2019-gate-spec-2-five-base-proposals/` (same branch, same folder, as the
+fifth spec did for PR 9).
+
+## Context
+
+PR 11 (head `a5f88ae`, hosted gate run 42145529273 success) carries the sixth spec. The owner's
+review comment lists 10 findings, none verified yet: three in the gate scripts (step 1's work-tree
+guard accepts a copy without `.git` inside another repository; test w asserts only exit 1, so it
+passes with the guards it names deleted; setup steps inside cases are unguarded), five where the
+docs disagree with the scripts (step 2 walks the disk against the listing rule; the fixture clone
+does not carry every branch; the `gate.sh` header cites the wrong rule; the two `gate.sh` differ
+in a fourth way; the test count reads as 15), and two minor (a failing `cd` exits 1 with no `FAIL`
+line, and a broken symlink is reported as missing; step 1 lists twice with a redundant `-c`). Also
+found while reading: `verification/gate-negative-tests.txt`'s header has an empty date and branch
+("run  on branch  by").
+
+Owner's answers: all 10 plus the header bug, same spec folder; visuals none; references are the
+PR 9 revision, `check-index.sh`'s root guard and patchbay at `origin/main` (`0916b55`); standards
+are all five under `base/process`.
+
+## Decisions (owner's, this round)
+
+- **Every failing run asserts its reason** (finding 2). `run <case> <status> [<text>] <cmd...>`:
+  when the status is not 0, a fixed-string line the output must contain is required; a run
+  missing it is `UNEXPECTED` like a wrong status. Applies to a–n, e, f, w, x, y, i, j and o–v's
+  1 and 2 exits. Base harness rule says so.
+- **Step 2 takes git's list; the rule admits a tool that honours `.gitignore`** (finding 4). Rule
+  wording per owner: a step reads the files git lists, by passing git's list or by a tool that
+  reads `.gitignore` itself and is given no path git ignores. (The owner wrote "no untracked
+  path"; read as "no path git ignores", since an untracked, not-ignored file must be seen. The
+  owner confirms at plan approval.) pymarkdown does not read `.gitignore`, so step 2 here passes
+  the list. New test y.
+- **The `gate.sh` sameness sentence becomes a rule, and a patchbay issue is opened** (finding 7).
+  The rule: one skeleton, differing only in step lists, pins and paths spelled from each root.
+  `gate-sh-diff.txt` is regenerated and names the skeleton hunks patchbay still has to take. The
+  CHANGELOG `base/` lines say so. An issue is opened in `fromtheoutfit/patchbay` for its next gate
+  spec, with no AI attribution.
+- **The fixture sentence is corrected to the truth** (finding 5). A local clone shares the sibling's
+  object store, so it holds the pin whenever the sibling does, whichever ref reaches it. `--check`
+  reads the pin from `.version`, never a branch or `origin/HEAD`. patchbay's harness needs no
+  change.
+
+## Dispositions
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Step 1 guard accepts a work tree whose top is elsewhere | Fix: `root=$(pwd -P)`; `top=$(git rev-parse --show-toplevel)` must equal it, else `fail 1/3 "not a git work tree rooted at $root; ..."` (check-index.sh's guard). Test w: copy without `.git` inside an outer repo, plus the `a5f88ae` script shown passing step 1 and caught only at 3/3. |
+| 2 | w asserts only exit 1 | Owner: every failing run names its reason line (Decisions). |
+| 3 | Unguarded setup inside cases | Fix: every command in a case that is not `run`/`check`/`note`/`hdr` ends in `\|\| die "<case>: <what>"` (a, b, c1–c3, d, g, h, i, k, l, m, n, w, o–v, `old_file`'s `chmod`, `layout`). |
+| 4 | Step 2 walks the disk | Owner: git's list for step 2; rule wording (Decisions). Test y. |
+| 5 | Fixture "carries every branch" | Owner: correct to the shipped truth, verified by experiment. |
+| 6 | Header cites check-index.sh's rule | Fix: cite `base/process/verification-gate.md`, "One script". |
+| 7 | Fourth difference between the two `gate.sh` | Owner: skeleton rule + regenerated diff + patchbay issue. Finding 6's fix makes the header line a path spelled from each root, which the rule allows. |
+| 8 | Count "a to n except j, w and x" | Fix: "eighteen for the gate's scripts (a to n but j, c as c1 to c3, and w, x and y)". |
+| 9 | `cd` failure exits 1 unnamed; broken symlink called missing | Fix: `cd … \|\| { echo "gate: cannot enter the repository root …" >&2; exit 2; }`, since no step ran (contract: 2 = not run as the gate). A symlink to nothing fails by name (`is a symlink to nothing`) before the missing check. Test x (via `bash -c "<script>" <nowhere>/scripts/gate.sh`) and w (tracked dangling symlink). |
+| 10 | Two `ls-files`, redundant `-c` | Fix: one `git ls-files -z --cached --others --exclude-standard -- scripts \| LC_ALL=C sort -z`; the standard says "-z, or `core.quotePath=false` where a list is read by line" (check-index.sh). |
+| 11 | Transcript header lost date and branch | Fix in the rerun: header written with the date and branch expanded. |
+
+## Task 1: Records first
+
+- `plan.md`: append this plan as `# Revision after the review of PR 11 (2026-11-05)`.
+- `shape.md`: `## Revision after review (2026-11-05)` after Decisions, in the fifth spec's form:
+  the review's size, the owner's four choices, and the decisions that reverse the first round's
+  ("the two `gate.sh` read the same apart from their step lists" is now a rule patchbay takes
+  later). Results, Docs, Version and the retrospective are rewritten at the end.
+- `references.md`: `## Added for the revision after the review of PR 11`, covering the review
+  comment (IC_kwDOVh8HmM8AAAABjddnnw), `check-index.sh:26-31`, the PR 9 revision record, and
+  patchbay's harness fixture at `0916b55`.
+- `standards.md`: append `verification-gate.md` and `standards-sync.md` as they read at `a5f88ae`,
+  this round's starting text.
+
+## Task 2: `scripts/gate.sh`
+
+- Guard the `cd` (exit 2, named). The usage check is unchanged.
+- Step 1: root guard (finding 1), symlink-to-nothing and missing-file checks, then the one-call
+  listing (finding 10).
+- Step 2: build `md=()` from `git ls-files -z --cached --others --exclude-standard -- base
+  README.md | LC_ALL=C sort -z`, keeping `*.md` and checking each path present (named `fail
+  2/3`). An empty list is `fail 2/3 "git lists no Markdown file under base/ or README.md"`. Then
+  `pymarkdown --strict-config --config .pymarkdown.yaml scan "${md[@]}"` with no `--recurse`. The
+  banner says "as git lists them".
+- Header: the step paragraphs, the exit contract with the `cd` case, and the listing rule cited at
+  the standard (finding 6). Run it under `/bin/bash` 3.2 as well as the PATH bash.
+
+## Task 3: `scripts/gate-negative-tests.sh`
+
+- `check <want> <got> [<text> <file>]` and `run` as decided. Output goes to a file, is printed
+  through the existing `sed`, and the text is matched with `grep -F` on what was printed.
+- Every expected line is copied from the run's recorded output in the first round's
+  `verification/gate-negative-tests.txt` (the `FAIL`/refusal line, with its path where printed),
+  never invented. i's two direct captures and j's `replay` pass their text to `check`.
+- Guard setup (finding 3).
+- w gains: a tracked `scripts/dangling.sh` → nowhere ("is a symlink to nothing"), the outer-repo
+  case and its `a5f88ae` demonstration. The `.git`-removed case now expects "not a git work tree
+  rooted at".
+- x gains the `cd` case (exit 2, "cannot enter").
+- New y (step 2 lists with git):
+  - `base/process/draft.md` with a lint finding, ignored through the copy's `.gitignore`: the gate
+    is green, and the `a5f88ae` script fails `2/3` on it.
+  - The same file force-added: fails at `step 2/3`.
+  - A tracked standard deleted from the disk: fails `2/3` naming it.
+- Header: usage line and test list with y, the run signature, and the assert-the-reason sentence.
+
+## Task 4: Standards and index, from the shipped files
+
+- `base/process/verification-gate.md`:
+  - "One script": the `cd` exit 2. The listing rule rewritten per owner (work-tree top is the
+    root; git's list in one `-z` call or a `.gitignore`-reading tool given no ignored path; each
+    path present; a symlink to nothing named; a nested copy fails the first listing step by name).
+  - Harness bullet: a run expecting a failure names its reason line as well as its status.
+  - "In this repository": step 1's guard, step 2's list (test y), the count (finding 8), and the
+    skeleton rule (finding 7).
+  - "In a consuming project": the project's `gate.sh` shares that skeleton.
+- `base/process/standards-sync.md` "In a consuming project": the fixture sentence (finding 5),
+  first verified by a scratch experiment: a sibling whose pin only `refs/remotes/origin/main`
+  reaches; a local `git clone` then holds it (`cat-file -e`) while a `--no-local` clone does not.
+- `index.yml`: `process/verification-gate` description "asserts its status" → "asserts its status
+  and its reason"; recheck the listing phrase; no `: ` or ` #`.
+
+## Task 5: Docs
+
+- `CLAUDE.md` (Specs section) and `.claude/commands/agent-os/shape-spec.md` (gate task step 2, the
+  template's Verification Gate paragraph): pymarkdown over the Markdown files under `base/` and
+  `README.md` as git lists them; the exit contract with the `cd` case.
+- `CHANGELOG.md` `[Unreleased]`: revise the sixth spec's Added entry. Its "now read the same apart
+  from their step lists" becomes the skeleton rule and patchbay's follow-up. Add one sentence
+  naming the PR 11 review and the `base/` lines it changed. Lines ≤ 100.
+- `README.md` has no gate-step text; confirm it still reads true.
+
+## Task 6: patchbay issue
+
+Open the issue with `gh issue create -R fromtheoutfit/patchbay` before the final gate run, so its
+number is in `shape.md` before the run. No AI attribution and no session link. The body covers:
+
+- PR 11's base changes, which patchbay takes after syncing to the merge: the root guard, the `cd`
+  exit 2, the symlink-to-nothing check, the one-call listing, and the harness asserting every
+  failing run's reason with guarded setup.
+- patchbay's harness comment "carries every branch", which is wrong the same way.
+- Whether each toolchain step meets the listing rule as worded.
+
+Record the number in `shape.md`.
+
+## Task 7: Verification gate (final)
+
+1. Negative tests, after the last edit to either gate file:
+   - The default set → `verification/gate-negative-tests.txt`, with the header's date and branch
+     filled in (item 11). Expect 0 unexpected.
+   - `j` → `verification/ci-negative-test.txt`, with the hosted run 42145529273 (success, on
+     `a5f88ae`) recorded at its end.
+2. `verification/gate-sh-diff.txt` regenerated against patchbay's `origin/main`, with the sha
+   named. The header names the skeleton hunks patchbay takes.
+3. `scripts/gate.sh` exit 0 on the tree → `verification/gate-run.txt` (date and branch on the first
+   line), the last act.
+4. **Docs**, **Version**, then the **standards retrospective**, rewritten in `shape.md` from the
+   revised diff against `main`. Base edits here are feature work. The fifth spec's open proposal
+   stays open. Anything the round taught is listed separately.
+5. Stop and print `git status --short`. No stage, commit, push or PR edit. The hand-over message
+   carries a suggested PR-body addendum for the owner.
+
+## Files
+
+Changed: `scripts/gate.sh`, `scripts/gate-negative-tests.sh`, `base/process/verification-gate.md`,
+`base/process/standards-sync.md`, `index.yml`, `CLAUDE.md`, `.claude/commands/agent-os/shape-spec.md`,
+`CHANGELOG.md`, and the spec folder (`plan.md`, `shape.md`, `references.md`, `standards.md`,
+`verification/*`). Out of scope: `scripts/check-index.sh` (its broken-symlink message is noted, not
+changed), `scripts/sync-standards.sh`, `.github/workflows/gate.yml`, and patchbay's files.

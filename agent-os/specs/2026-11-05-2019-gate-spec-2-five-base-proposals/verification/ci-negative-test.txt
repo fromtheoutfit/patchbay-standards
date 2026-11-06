@@ -1,6 +1,6 @@
-CI replay (test j of scripts/gate-negative-tests.sh), run  on branch , after the last edit to scripts/gate.sh and the
-harness in this spec (issue #10). The workflow is unchanged since the fourth spec; this spec reruns j because both gate files changed.
-The hosted run on the pull request is recorded at the end by the owner once it exists.
+CI replay (test j of scripts/gate-negative-tests.sh), run 2026-11-05 on branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate, after the last edit to scripts/gate.sh and the
+harness in this spec (issue #10), in its revision after the review of PR 11. The workflow is unchanged since the fourth spec; j reruns
+because both gate files changed, and j2 now asserts the reason as well as the status. The hosted runs on the pull request are recorded at the end.
 
 $ scripts/gate-negative-tests.sh j
 
@@ -22,8 +22,8 @@ ok   scripts/gate-negative-tests.sh
 ok   scripts/gate.sh
 ok   scripts/sync-standards.sh
 
-== 2/3  pymarkdown 0.9.41 over base/ and README.md (rules in .pymarkdown.yaml)
-ok   no findings
+== 2/3  pymarkdown 0.9.41 over the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   no findings in 6 file(s)
 
 == 3/3  index.yml lists exactly the tracked files under base/
 ok   index.yml and the tracked files under base/ agree (5 standard(s))
@@ -51,3 +51,9 @@ exit=1
 
 2 runs, 0 unexpected
 harness exit=0
+
+Hosted runs of .github/workflows/gate.yml on pull request 11, read 2026-11-05 with
+$ gh run list --workflow gate --branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate
+run 42145529273  pull_request  head a5f88ae  2026-11-06T01:41:42Z  conclusion: success
+a5f88ae is the first round's head. The revision's head does not exist until the owner commits and pushes it; its run is the
+owner's to read back and record here.

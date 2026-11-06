@@ -564,3 +564,325 @@ This standard is synced in as `agent-os/standards/base/process/standards-index.m
 sections beside it; its retrospective keeps its own sections in step, and proposes base entries to
 `patchbay-standards`.
 
+
+---
+
+# Revision after the review of PR 11: the two edited standards as they read at `a5f88ae`
+
+The revision starts from the first round's shipped text, not the snapshot above: the two standards
+this spec edits as feature work, as they read at `a5f88ae` (PR 11's first head), read with
+`git show a5f88ae:<path>`. `shape.md`'s "Revision after review" and its rewritten Standards
+Retrospective say what changed from here. The other three standards are unchanged since `b3fc2fe`
+and read as above.
+
+## process/verification-gate (at `a5f88ae`)
+
+# Verification Gate
+
+The gate is the definition of done in every patchbay repository. It is the final task of every spec,
+included without asking, whether or not `/agent-os:shape-spec` shaped the work, and a spec is not
+complete until every step of it passes. A spec with a red step, a skipped step or an unrecorded
+retrospective is unfinished work, however small the change; a one-file fix is exactly the kind of
+work that quietly invents a pattern, so the gate runs on it too.
+
+This standard fixes the shape of the gate: what every repository's gate does and in what order.
+The runnable step list is each repository's own, named in its `scripts/gate.sh` and in the gate
+task of its `shape-spec.md`; this standard names no step and no tool. The standard that names a
+repository's steps is cited here when it ships.
+
+## One script
+
+- **`scripts/gate.sh` runs every runnable step, in a fixed order, as one command**, and exits 1
+  at the first step that fails, after a line on stderr naming the step and its reason,
+  `FAIL  step N/M: <reason>`, whatever status the tool returned. Later steps do not run: a failing
+  step 1 is reported before step 2 has a chance to pass, so a green run means every step ran and
+  every step passed. The script takes no argument; any argument is usage, the usage line on stderr
+  and exit 2 with no step run. A transcript or a wrapper then has three statuses to tell apart: 0,
+  every step passed; 1, a step failed and is named; 2, the script was not run as the gate.
+- **Every step reports by name.** Each step prints a numbered banner, and what passed is named
+  (`ok   <what>`) or what failed is named with its reason and the offending path; a bare exit code
+  is not a report. The script ends by naming the step that follows it, so a reader of the
+  transcript knows the run was not the whole gate.
+- **A step that reads files from the tree lists them with git**: the tracked files plus the
+  untracked ones git does not ignore, paths unquoted (`core.quotePath=false`), each checked present
+  on the disk. An ignored stray such as `.DS_Store` is never seen, a file a spec adds before it is
+  staged is, and a tracked file missing from the disk fails the step by name; `find` sees the stray
+  and knows nothing of `.gitignore`. A tree that is not a git work tree fails the step by name, not
+  with a bare exit.
+- **The script runs from the repository root** wherever it is invoked from, and assumes nothing
+  the repository does not already provide.
+
+## Pinned
+
+- **A tool's version is pinned in the script**, in one named variable per tool, with the date it
+  was published beside it. The pinned tool is run through a runner that executes it without
+  installing it into the project, and the runner is one the repository already assumes. Nothing
+  else is installed to run the gate. A pin is bumped deliberately, in the gate's own spec, and
+  the gate rerun.
+- **A rule set lives in a versioned config file**, at the repository root, named in the script;
+  a config the tool cannot parse fails the step. A key the tool does not know is not refused, so
+  the spec that adds or changes the config shows a changed value applied, in a negative test. The
+  file's header says which step reads it and that it changes only in the gate's own spec.
+
+## The fixed order
+
+The runnable steps come first, in the order the script runs them. Three judgment steps follow, in
+this order, and nothing in the script runs them; the script's closing line names them, and the gate
+task of `shape-spec.md` lists them after the runnable steps:
+
+- **Docs**: the documentation the change touches reads true after it. The README, the repository's
+  `CLAUDE.md`, the header comments and pointers in the files changed, and every standard that names
+  them are read against the shipped change, and what was checked is recorded in the spec's
+  `shape.md`.
+- **Version**: the change is recorded under `[Unreleased]` in `CHANGELOG.md`, and the version is
+  bumped where a repository has one. Recorded in `shape.md`.
+- **The standards retrospective**, per `base/process/standards-retrospective.md`: the four
+  questions answered against the diff, the answer recorded in the spec's `shape.md` under
+  `## Standards Retrospective`. "No changes" is valid; silence is not. It is always last.
+
+A spec whose `shape.md` records the green run but not the three judgment steps has not finished the
+gate.
+
+## A failing step is fixed at its cause
+
+- **The cause is fixed and the whole gate rerun from step 1.** A fix that lets the step pass
+  without fixing what it reported is not a fix. Skipping the step, loosening the rule set,
+  excluding the file it named or editing the script to pass each change a gate file, which the
+  section below forbids inside a spec; a suppression comment placed in the file the step named
+  loosens the rule for that file alone and is reviewed as the loosening it is.
+- **A step that cannot pass on the shipped tree is a defect in the tree**, not a reason to bypass
+  the step. The first spec in `patchbay-standards` added the one blank line `README.md` lacked
+  after its heading rather than exclude the file; that is the whole of the rule.
+
+## Every step that can fail is proven to fail
+
+- **A step is shown to discriminate by a negative test**: a copy of the tree, broken in one way,
+  that must fail that step with the named reason and the expected exit status, with the steps after
+  it never reached. A step that has never been seen to fail is not known to check anything.
+- **The spec that adds or changes a step ships its negative test**, and keeps the transcript in
+  that spec's `verification/` folder. The tests are a script in the repository beside the gate's,
+  not run by the gate, so a rerun is the same test. They run on a temporary copy outside the
+  tree, never on the tree itself, and are rerun whenever the gate's files change.
+- **The harness proves itself as it goes.** Its scratch directory comes from `mktemp -d` under a
+  hard failure, is refused when empty or when it lies at or under the repository, and only then is
+  the trap that removes it set, so a harness whose `mktemp` failed can remove nothing in the tree.
+  A setup step that fails stops the harness by name (exit 2) rather than letting a case fail for
+  the wrong reason. Every run names the status it expects and prints the one it got; a mismatch is
+  marked `UNEXPECTED`, and the harness exits 1 at the end naming the counts, so a transcript's
+  last line says whether every case behaved and a case that passed when it should have failed is
+  never read as a pass.
+- **Every spec keeps its green run** as `verification/gate-run.txt` in its spec folder, so the
+  claim "gate green" has the transcript beside it. The first line of the transcript gives the date
+  and the branch the run was made on, and the run is the last thing done before the work is
+  handed over: an edit after the run is not covered by it. A transcript recorded before this rule
+  stays as it was recorded.
+
+## CI
+
+- **The gate's workflow runs the same script and nothing else.** One workflow for the gate, one
+  job, on every pull request and every push to the default branch: check out the repository,
+  install the runner the script already assumes, run `scripts/gate.sh`. No linter, formatter,
+  matrix or check is configured in it; a step the script does not run is not a gate step, and a
+  check CI runs that the script does not is a gate a developer cannot run. A repository may have
+  other workflows for other work; this rule is about the gate's. The judgment steps are never run
+  by a machine.
+- **Every action is pinned to a commit**, the full SHA in `uses:` with the tag it was taken from
+  in a comment beside it, and the runner's own version is pinned through the action's input, so CI
+  runs what the gate was proven with. The image is a named release, not `latest`. The job has a
+  timeout, keeps no credential in the checkout and caches nothing, so it has no moving part beyond
+  the script. A pin is bumped deliberately, in the gate's own spec, and the workflow rerun.
+- **The workflow fails when the script fails**, because the script is one `run` step and a `run`
+  step that exits non-zero fails the job. Before any push, the spec that adds or changes the
+  workflow replays the job's `run` steps, read from the workflow file, on a copy of the tree with
+  one script broken, and shows the job stops at that step with its exit status. That proves the
+  job's control flow on the toolchain at hand, not the hosted run: the hosted run on the pull
+  request is the proof of the workflow itself, and the spec records its run id and conclusion in
+  `verification/` once it exists. What the script does on the hosted toolchain is the script's
+  own portability, proven by its negative tests.
+
+## The gate's own files change only in their own spec
+
+- **The gate script, every script it runs, the rule-set config, the CI workflow and the gate task
+  text in `shape-spec.md` are never changed as a side effect of a spec whose feature is something
+  else**, and never from inside a retrospective. A gate that rewrites its own terms during the
+  process it governs is what this rule exists to prevent.
+- **A change to the gate is its own spec**, whose feature is the gate: on its own branch, with the
+  owner, carrying the negative test for every step it adds or changes. A finding against a gate
+  file made during some other spec is recorded in that spec's retrospective as a proposal and
+  waits for the gate's spec.
+
+## In this repository
+
+The runnable steps are three: every shell script under `scripts/` parses, the standards under
+`base/` and `README.md` lint clean against the pinned rule set, and `index.yml` lists exactly the
+tracked files under `base/`. `scripts/gate.sh` carries the exit contract above (tests e, f and x)
+and names the tool, its pin and its config. Step 1 lists `scripts/` with git as the rule above
+says and parses a file ending in `.sh` or starting with a bash shebang; any other file fails the
+step by name, since only shell scripts live under `scripts/` (test w).
+`scripts/check-index.sh` is the third step: it runs only in a git work tree, reads the tracked
+list with `git ls-files`, refuses an untracked file under `base/` and a tracked one missing from
+the disk, sorts every list after its last transform and checks both sorted before `comm`, and
+holds `agent-os/standards/index.yml` to be a symlink to `../../index.yml`.
+`scripts/gate-negative-tests.sh` holds every negative test, seventeen for the gate's scripts (a to
+n except j, w and x), eight for `scripts/sync-standards.sh` (o to v,
+`base/process/standards-sync.md`) and the CI replay (j), in the harness shape above, and is parsed
+by step 1, not run by the gate. `.github/workflows/gate.yml` is the
+gate's workflow, pinned to `actions/checkout` v7.0.1 and `astral-sh/setup-uv` v10.3.3 by commit and
+to uv 0.13.7, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and no cache.
+Every spec folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that
+built the gate holds its six negative tests as recorded, the spec that last changed the harness
+(issue #10) holds the current transcripts, j's included, and the gate spec (issue #3) holds the
+hosted runs that proved the workflow, by id. `scripts/gate.sh` here and in a consuming project read
+the same apart from their step lists, the pins those steps need and the standard paths each spells
+from its root; the spec of issue #10 holds the diff in its `verification/`.
+
+## In a consuming project
+
+This standard is synced in as `agent-os/standards/base/process/verification-gate.md`. The
+project's `scripts/gate.sh` runs its own step list in this shape, with the exit contract above and
+the same first step: every shell script under `scripts/` parsed as git lists them, a file ending
+in `.sh` or starting with a bash shebang, any other file refused by name. Its `shape-spec.md` lists
+those steps in the gate task, followed by Docs, Version and the standards retrospective; its gate
+workflow runs the script and nothing else; its `CLAUDE.md` names the script as the definition of
+done. `scripts/sync-standards.sh --check` is one of its steps, and that script is a gate file the
+sync itself replaces from the pinned commit, never a hand edit; its gate workflow checks
+`patchbay-standards` out beside the project under the workspace, at the commit in
+`agent-os/standards/base/.version` by the pin step `base/process/standards-sync.md` names, and its
+negative tests stand the sibling up by the fixture named there.
+
+---
+
+## process/standards-sync (at `a5f88ae`)
+
+# Standards Sync
+
+`base/` is written here and read everywhere: a consuming project holds a copy of it as
+`agent-os/standards/base/`, beside its own standards, and the `base:` section of its
+`agent-os/standards/index.yml` is the root `index.yml` of this repository. This standard fixes how
+that copy is made and kept: `scripts/sync-standards.sh`, run from the project's root, and the
+invariant it holds.
+
+## What the sync writes, and nothing else
+
+`scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]`, run from the project's
+root, writes four things at one commit of that checkout: the one `<ref>` resolves to, by default
+the checkout's `origin/HEAD`, origin's default branch, so a bare sync pins a pushed, merged commit.
+`<path>` defaults to `../patchbay-standards`, the sibling checkout, and a path inside a checkout
+resolves to its top. The four:
+
+- **`agent-os/standards/base/`**, replaced whole with `base/` as committed, so a file removed here
+  is removed there.
+- **`agent-os/standards/base/.version`**, the commit as forty hex digits and a newline: the one
+  file under a project's `base/` that is not a standard.
+- **The `base:` section of `agent-os/standards/index.yml`**, replaced with the `base:` section of
+  the root `index.yml` at that commit, byte for byte. Every other line of the project's index is
+  left as it was, in place and in order.
+- **`scripts/sync-standards.sh`**, the project's copy, replaced with the script at that same commit
+  as the last thing the sync writes, so the project carries the script at its pinned commit and
+  the next sync runs it. The sync that delivers a change to the script is run by the copy before
+  it: a fix to the sync applies from the next sync on.
+
+It reads from the commit's tree, never the working tree: each file is read raw with `git cat-file`,
+so an uncommitted edit in the checkout cannot be synced, neither a standard nor the script itself,
+and neither can the checkout's line-ending settings or attributes. Every precondition is checked
+first, and `base/`, `.version` and the new index are built in a temporary directory and swapped in
+only then: a refusal leaves the project as it was. What it did is reported on stderr (each file
+added, removed or changed, the old and new commit, what the index and the script did) and as one
+JSON object on stdout after the last write, for a wrapper to read. Exit 0 is a sync whose result
+it compared against the export and found equal; 1 is a result that did not match; 2 is usage or a
+precondition, each named: a bad flag or two mode flags, a directory that is not the top of a git
+work tree, `<path>` not a patchbay-standards checkout, no `origin/HEAD` to default the ref to,
+`<ref>` not a commit, no parseable `base:` section in the project's index without `--init` or in
+the commit's `index.yml`, a path under `base/` that is not a regular file or holds a control
+character. An explicit `<ref>` whose commit is not on origin's default branch is synced with a
+`WARN` line naming it: a commit not pushed or not merged can be rebased or abandoned, leaving the
+pin at nothing.
+
+## The invariant
+
+**`agent-os/standards/base/`, less `.version`, and the `base:` section of the project's index are
+byte-identical to `base/` and the root `index.yml` of `patchbay-standards` at the commit in
+`.version`**, and the project's `scripts/sync-standards.sh` is the script at that commit.
+`scripts/sync-standards.sh --check [<path>]` holds it: it exports the pinned commit from the
+checkout and names every file missing, extra or changed, whether the `base:` section differs and
+whether the script does, exit 1 on any of them, writing nothing. The project's files are the
+tracked ones plus the untracked ones git does not ignore, as `scripts/check-index.sh` reads them,
+so an ignored `.DS_Store` is never drift. A pinned commit the checkout does not have is a
+precondition (exit 2), not drift: fetch it. The check is a step of the project's gate.
+
+No entry in the `base:` section and no file under `base/` is edited by hand. A description the
+project disagrees with, a rule it would change, a standard it lacks, is changed in
+`patchbay-standards` by a pull request there and taken when the project moves its pin; the
+proposal shape is `base/process/standards-retrospective.md`'s.
+
+## Pinned, not tracking
+
+A project pins one commit and stays on it until it decides otherwise. The default ref is origin's
+default branch, so a bare sync moves to what is merged, never to whatever branch the checkout
+happens to be on. Syncing forward is deliberate: read this repository's `CHANGELOG.md` from the
+pinned commit to the target first, since the `base/` lines of each entry are what the sync will
+bring in; run the sync; read what it reports; commit the result in its own change set, titled
+`chore: sync base standards to <sha>`. That commit changes nothing but `agent-os/standards/base/`,
+`.version`, the `base:` section and `scripts/sync-standards.sh`. Work the new standards ask of the
+project's own files is its own spec, after.
+
+## The index
+
+The `base:` section is the line `base:` with nothing after the colon, and every line after it that
+is indented, blank or a column-0 comment, up to the last indented line: a trailing blank or comment
+line and the next column-0 key are the project's, and a trailing comment in the root `index.yml`
+stays here. The sync replaces that span and nothing else, so the project's own sections, its
+header comment, its blank lines and the comments it keeps beside its keys come through byte for
+byte; test r in `scripts/gate-negative-tests.sh` holds that against an index built by hand, a
+section on line 1 included.
+
+- **`--index-only [<path>]`** regenerates the section alone, from the commit in `.version`, and
+  touches no file under `base/` and not the script. It is the regeneration that is safe to run on
+  a synced index: a hand-edited entry is drift to `--check` and is repaired by it (test s). The
+  stock `/agent-os:index-standards` rewrites the whole file and is not run on a synced index, as
+  `base/process/standards-index.md` says.
+- **`--init`** creates the section for a project syncing for the first time, before the first
+  column-0 key other than `root:` that sorts after `base` (above the column-0 comment lines
+  directly over that key, which stay with it) or at the end, with one blank line on each side, and
+  creates the file when there is none. That is the one place the sync normalizes: the blank lines
+  directly above the insertion collapse to the one, and a missing final newline is added. Without
+  `--init` a missing section is refused; a `base:` line that is not a parseable section (a second
+  `base:` line, or content after the colon) is refused either way.
+
+## In this repository
+
+`scripts/sync-standards.sh` lives here and is run from a consuming project; here
+`agent-os/standards/base` is a symlink and the script refuses to run (exit 2, test u). It is a
+gate file in every project, so it changes only in its own spec here, carrying its negative tests:
+o to v in `scripts/gate-negative-tests.sh`, each on a scratch checkout whose `HEAD` and
+`origin/main` hold the working tree's files beside a scratch Agent OS project with its own index
+sections and standards, the sync run from the project with the sibling checkout as the default
+path and its `origin/main` as the default ref. Gate step 1 parses the script.
+
+## In a consuming project
+
+This standard is synced in as `agent-os/standards/base/process/standards-sync.md`. The project's
+checkout of `patchbay-standards` sits beside it as `../patchbay-standards`. The first sync is run
+from the checkout's copy, `../patchbay-standards/scripts/sync-standards.sh --init`, which installs
+`scripts/sync-standards.sh`; every later sync and check runs the project's copy.
+`scripts/sync-standards.sh --check` is a step of the project's `scripts/gate.sh`. The project's
+gate workflow checks both repositories out under the workspace, since `actions/checkout` writes
+nowhere else: the project into a subdirectory and `patchbay-standards` beside it, at the commit in
+`agent-os/standards/base/.version`, each action pinned as the gate standard directs, and runs
+`scripts/gate.sh` with the project's directory as the working directory. The pin is read by a
+`run` step with an `id`, which writes the file's forty digits to `GITHUB_OUTPUT` as `sha`, and the
+second checkout takes `steps.<id>.outputs.sha` as its `ref`, with `repository` and `path` set and
+no `fetch-depth`: the default depth fetches that one commit, whatever branch it is on. Checking the
+default branch out with full history instead fails the moment a pinned commit is squashed or
+deleted from it, and fails only in CI. The hosted run then compares against the real thing at the
+pinned commit, and does not go red when `main` moves here.
+
+The project's negative tests (`base/process/verification-gate.md`, "Every step that can fail is
+proven to fail") stand the sibling up once per run: one `git clone` of `../patchbay-standards`
+into the scratch directory, which carries every branch and so the pinned commit, and each case
+laid out as `<case>/patchbay` with `<case>/patchbay-standards` a symlink to that clone, so the
+script's default path resolves in the copy as it does in the tree and `../patchbay-standards`
+itself is never written. The missing-sibling case removes the symlink; the drift cases edit the
+copy under `<case>/patchbay`. The CI replay runs the workflow's `run` steps with the scratch
+directory as the workspace, each from its `working-directory`, and prints what the pin step wrote
+beside the commit in `.version`.

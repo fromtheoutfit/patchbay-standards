@@ -188,9 +188,10 @@ Create `agent-os/specs/{folder-name}/` with:
 Run the full verification gate, in order. The spec is not complete until every step passes:
 
 1. `bash -n` on every shell script under `scripts/` as git lists them (tracked or untracked, not
-   ignored) — every script must parse; any other file there fails the step by name
+   ignored), at a work-tree top that is the repository root — every script must parse; any other
+   file there fails the step by name
 2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`)
-   over `base/` and `README.md` — must report no findings
+   over the `.md` files under `base/` and `README.md` as git lists them — must report no findings
 3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every
    file has an entry, no entry lacks a file, nothing under `base/` is untracked or missing from
    the disk, and `agent-os/standards/index.yml` is a symlink to it
@@ -208,7 +209,8 @@ Run the full verification gate, in order. The spec is not complete until every s
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
 
 `scripts/gate.sh` runs steps 1–3 as one command, exit 1 at the first failing step after a `FAIL`
-line naming it, exit 2 on usage. Steps 4–6 are judgment, in that order, recorded
+line naming it, exit 2 on usage or when it cannot enter the repository root. Steps 4–6 are
+judgment, in that order, recorded
 in `shape.md`; the retrospective is always last.
 
 If any step fails, fix the underlying issue (do not bypass) and rerun before marking the
@@ -300,7 +302,8 @@ None yet; see Step 5a. The first base standards will fill this tier.
 ## Verification Gate
 
 Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every shell script under
-`scripts/` as git lists them, `pymarkdown` over `base/` and `README.md`, and
+`scripts/` as git lists them, `pymarkdown` over the `.md` files under `base/` and `README.md` as
+git lists them, and
 `scripts/check-index.sh` — and the three judgment steps are recorded, in this order: Docs,
 Version, then the standards retrospective below.
 

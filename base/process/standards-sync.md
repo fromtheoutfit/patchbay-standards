@@ -123,10 +123,14 @@ pinned commit, and does not go red when `main` moves here.
 
 The project's negative tests (`base/process/verification-gate.md`, "Every step that can fail is
 proven to fail") stand the sibling up once per run: one `git clone` of `../patchbay-standards`
-into the scratch directory, which carries every branch and so the pinned commit, and each case
-laid out as `<case>/patchbay` with `<case>/patchbay-standards` a symlink to that clone, so the
-script's default path resolves in the copy as it does in the tree and `../patchbay-standards`
-itself is never written. The missing-sibling case removes the symlink; the drift cases edit the
-copy under `<case>/patchbay`. The CI replay runs the workflow's `run` steps with the scratch
-directory as the workspace, each from its `working-directory`, and prints what the pin step wrote
-beside the commit in `.version`.
+into the scratch directory, a local clone, which shares the sibling's objects and so holds the
+pinned commit whenever the sibling does, whichever of its refs reaches it. A `--no-local` or
+`file://` clone copies only what the sibling's local branches and tags reach, and loses a pin that
+only a remote-tracking ref reaches. The clone's branches are the sibling's local ones and its
+`origin/HEAD` is the branch the sibling has checked out, neither of which the drift check reads,
+since it takes the pin from `.version`. Each case is laid out as `<case>/patchbay` with
+`<case>/patchbay-standards` a symlink to that clone, so the script's default path resolves in the
+copy as it does in the tree and `../patchbay-standards` itself is never written. The
+missing-sibling case removes the symlink; the drift cases edit the copy under `<case>/patchbay`.
+The CI replay runs the workflow's `run` steps with the scratch directory as the workspace, each
+from its `working-directory`, and prints what the pin step wrote beside the commit in `.version`.

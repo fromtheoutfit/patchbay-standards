@@ -18,18 +18,25 @@ repository's steps is cited here when it ships.
   `FAIL  step N/M: <reason>`, whatever status the tool returned. Later steps do not run: a failing
   step 1 is reported before step 2 has a chance to pass, so a green run means every step ran and
   every step passed. The script takes no argument; any argument is usage, the usage line on stderr
-  and exit 2 with no step run. A transcript or a wrapper then has three statuses to tell apart: 0,
+  and exit 2 with no step run, and a script that cannot enter the repository root says so on
+  stderr and exits 2 likewise. A transcript or a wrapper then has three statuses to tell apart: 0,
   every step passed; 1, a step failed and is named; 2, the script was not run as the gate.
 - **Every step reports by name.** Each step prints a numbered banner, and what passed is named
   (`ok   <what>`) or what failed is named with its reason and the offending path; a bare exit code
   is not a report. The script ends by naming the step that follows it, so a reader of the
   transcript knows the run was not the whole gate.
-- **A step that reads files from the tree lists them with git**: the tracked files plus the
-  untracked ones git does not ignore, paths unquoted (`core.quotePath=false`), each checked present
-  on the disk. An ignored stray such as `.DS_Store` is never seen, a file a spec adds before it is
-  staged is, and a tracked file missing from the disk fails the step by name; `find` sees the stray
-  and knows nothing of `.gitignore`. A tree that is not a git work tree fails the step by name, not
-  with a bare exit.
+- **A step that reads files from the tree reads the files git lists**: the tracked files plus the
+  untracked ones git does not ignore, at the top of a git work tree that is the repository root.
+  Either it reads git's list, `git ls-files --cached --others --exclude-standard`, one call for
+  both sets unless the step treats them apart, `-z` keeping paths verbatim (a list read by line
+  takes `core.quotePath=false`), and checks each path on the disk; or it runs a tool that reads
+  `.gitignore` itself and is given no path git ignores. An ignored stray such as `.DS_Store` is
+  never seen, a file a spec adds before it is staged is, and a listed path missing from the disk,
+  or a symlink to nothing, fails the step by name. `find`, and a tool that walks a directory
+  without reading `.gitignore`, see the stray, so a local run and CI's clean checkout can
+  disagree. A tree whose work-tree top is not the repository root, a copy without `.git` inside
+  another repository's work tree included, fails the first step that lists by name: never listed
+  against the outer repository, never a bare exit.
 - **The script runs from the repository root** wherever it is invoked from, and assumes nothing
   the repository does not already provide.
 
@@ -88,10 +95,13 @@ gate.
   hard failure, is refused when empty or when it lies at or under the repository, and only then is
   the trap that removes it set, so a harness whose `mktemp` failed can remove nothing in the tree.
   A setup step that fails stops the harness by name (exit 2) rather than letting a case fail for
-  the wrong reason. Every run names the status it expects and prints the one it got; a mismatch is
-  marked `UNEXPECTED`, and the harness exits 1 at the end naming the counts, so a transcript's
-  last line says whether every case behaved and a case that passed when it should have failed is
-  never read as a pass.
+  the wrong reason. Every run names the status it expects and prints the one it got, and a run
+  that expects a failure also names the reason its output must hold, the failing line with its
+  path where one is printed: a script that gives one status for several reasons cannot otherwise
+  be told apart from itself with the guard under test deleted. A mismatch of either is marked
+  `UNEXPECTED`, and the harness exits 1 at the end naming the counts, so a transcript's last line
+  says whether every case behaved and a case that passed when it should have failed, or failed for
+  another reason, is never read as a pass.
 - **Every spec keeps its green run** as `verification/gate-run.txt` in its spec folder, so the
   claim "gate green" has the transcript beside it. The first line of the transcript gives the date
   and the branch the run was made on, and the run is the last thing done before the work is
@@ -134,39 +144,49 @@ gate.
 
 ## In this repository
 
-The runnable steps are three: every shell script under `scripts/` parses, the standards under
+The runnable steps are three: every shell script under `scripts/` parses, the Markdown files under
 `base/` and `README.md` lint clean against the pinned rule set, and `index.yml` lists exactly the
 tracked files under `base/`. `scripts/gate.sh` carries the exit contract above (tests e, f and x)
-and names the tool, its pin and its config. Step 1 lists `scripts/` with git as the rule above
-says and parses a file ending in `.sh` or starting with a bash shebang; any other file fails the
-step by name, since only shell scripts live under `scripts/` (test w).
-`scripts/check-index.sh` is the third step: it runs only in a git work tree, reads the tracked
-list with `git ls-files`, refuses an untracked file under `base/` and a tracked one missing from
-the disk, sorts every list after its last transform and checks both sorted before `comm`, and
-holds `agent-os/standards/index.yml` to be a symlink to `../../index.yml`.
-`scripts/gate-negative-tests.sh` holds every negative test, seventeen for the gate's scripts (a to
-n except j, w and x), eight for `scripts/sync-standards.sh` (o to v,
-`base/process/standards-sync.md`) and the CI replay (j), in the harness shape above, and is parsed
-by step 1, not run by the gate. `.github/workflows/gate.yml` is the
-gate's workflow, pinned to `actions/checkout` v7.0.1 and `astral-sh/setup-uv` v10.3.3 by commit and
-to uv 0.13.7, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and no cache.
-Every spec folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that
-built the gate holds its six negative tests as recorded, the spec that last changed the harness
-(issue #10) holds the current transcripts, j's included, and the gate spec (issue #3) holds the
-hosted runs that proved the workflow, by id. `scripts/gate.sh` here and in a consuming project read
-the same apart from their step lists, the pins those steps need and the standard paths each spells
-from its root; the spec of issue #10 holds the diff in its `verification/`.
+and names the tool, its pin and its config. Steps 1 and 2 read the files git lists as the rule
+above says. Step 1 first refuses a tree whose work-tree top is not the repository root, then
+parses a file ending in `.sh` or starting with a bash shebang; any other file fails the step by
+name, since only shell scripts live under `scripts/` (test w). Step 2 passes pymarkdown the `.md`
+files of its list, since pymarkdown walks a directory without reading `.gitignore` (test y).
+`scripts/check-index.sh` is the third step: it runs only in a git work tree whose top is the
+repository root, reads the tracked list with `git ls-files`, refuses an untracked file under
+`base/` and a tracked one missing from the disk, sorts every list after its last transform and
+checks both sorted before `comm`, and holds `agent-os/standards/index.yml` to be a symlink to
+`../../index.yml`. `scripts/gate-negative-tests.sh` holds every negative test, eighteen for the
+gate's scripts (a to n but j, with c as c1 to c3, and w, x and y), eight for
+`scripts/sync-standards.sh` (o to v, `base/process/standards-sync.md`) and the CI replay (j), in
+the harness shape above, and is parsed by step 1, not run by the gate.
+`.github/workflows/gate.yml` is the gate's workflow, pinned to `actions/checkout` v7.0.1 and
+`astral-sh/setup-uv` v10.3.3 by commit and to uv 0.13.7, on `ubuntu-24.04` with a ten-minute
+timeout, no persisted credential and no cache. Every spec folder under `agent-os/specs/` holds its
+`verification/gate-run.txt`; the spec that built the gate holds its six negative tests as recorded,
+the spec that last changed the harness (issue #10) holds the current transcripts, j's included, and
+the gate spec (issue #3) holds the hosted runs that proved the workflow, by id.
+
+`scripts/gate.sh` here and in a consuming project share one skeleton: the `cd` and usage checks,
+the `step`, `fail`, `listed` and `present` helpers, step 1 with its root guard, and the closing
+line. They differ only in their step lists, the pins those steps need and the paths each spells
+from its root. A spec that changes the skeleton here records the `diff -u` against a consuming
+project's `scripts/gate.sh` in its `verification/`, and the project takes the change in its own
+gate spec after the sync that brings this standard in; the spec of issue #10 holds the current
+diff.
 
 ## In a consuming project
 
 This standard is synced in as `agent-os/standards/base/process/verification-gate.md`. The
-project's `scripts/gate.sh` runs its own step list in this shape, with the exit contract above and
-the same first step: every shell script under `scripts/` parsed as git lists them, a file ending
-in `.sh` or starting with a bash shebang, any other file refused by name. Its `shape-spec.md` lists
-those steps in the gate task, followed by Docs, Version and the standards retrospective; its gate
-workflow runs the script and nothing else; its `CLAUDE.md` names the script as the definition of
-done. `scripts/sync-standards.sh --check` is one of its steps, and that script is a gate file the
-sync itself replaces from the pinned commit, never a hand edit; its gate workflow checks
-`patchbay-standards` out beside the project under the workspace, at the commit in
+project's `scripts/gate.sh` runs its own step list on the skeleton above, with the exit contract
+and the same first step: the work-tree top refused unless it is the root, then every shell script
+under `scripts/` parsed as git lists them, a file ending in `.sh` or starting with a bash shebang,
+any other file refused by name. Every later step that reads files from the tree reads the files
+git lists, by git's list or by a tool that honours `.gitignore` and is given no path git ignores.
+Its `shape-spec.md` lists those steps in the gate task, followed by Docs, Version and the standards
+retrospective; its gate workflow runs the script and nothing else; its `CLAUDE.md` names the script
+as the definition of done. `scripts/sync-standards.sh --check` is one of its steps, and that
+script is a gate file the sync itself replaces from the pinned commit, never a hand edit; its gate
+workflow checks `patchbay-standards` out beside the project under the workspace, at the commit in
 `agent-os/standards/base/.version` by the pin step `base/process/standards-sync.md` names, and its
 negative tests stand the sibling up by the fixture named there.
