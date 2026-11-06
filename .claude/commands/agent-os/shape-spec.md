@@ -103,24 +103,34 @@ Standards come in two kinds, and the difference matters here and again in the ga
 - **Project standards**, a consuming project's own files outside `base/`, belong to that project
   and change in its retrospective.
 
-#### Step 5a: Core Architecture (always included)
+#### Step 5a: Core Architecture (always included in a consuming project)
 
-*Empty for now.* The first base standards will fill this tier: the standards that apply to every
-spec in every patchbay repository, included without asking, with their full content in
-`standards.md`. Until then, record "none yet; see Step 5a" under a "Core Architecture" heading in
-`shape.md`, so the gap stays visible rather than silently reading as "nothing applies".
+The standards that apply to every spec in every consuming project, included there without asking,
+with their full content in `standards.md`:
+
+- **`base/python/toolchain`** — one tool per job in a uv Python package, `pyproject.toml` the only
+  config file, and the order of the gate's tool steps.
+
+**This tier applies to consuming projects.** This repository has no package, so
+`base/python/toolchain` does not apply here: a spec shaped here records it under the "Core
+Architecture" heading of `shape.md` as not applying, and does not copy it into `standards.md`. A
+consuming project's own `shape-spec.md` lists the tier in its Step 5a and includes it.
 
 #### Step 5b: Feature-Specific Standards
 
 Read `agent-os/standards/index.yml` to identify standards relevant to the feature being built
-(in addition to the core tier above, once it exists). Its `base:` section is this repository's own
-`index.yml`, keyed by path relative to `base/` without the `.md`; `agent-os/standards/base` resolves
-to `base/`, so `base/process/standards-retrospective` is `base/process/standards-retrospective.md`.
+(the core tier above applies to consuming projects, not here). Its `base:` section is this
+repository's own `index.yml`, keyed by path relative to `base/` without the `.md`;
+`agent-os/standards/base` resolves to `base/`, so `base/process/standards-retrospective` is
+`base/process/standards-retrospective.md`. Leave the Step 5a standards out of the list:
+`python/toolchain` is in the index, but here it does not apply, and in a consuming project Step 5a
+already includes it.
 
 Use AskUserQuestion to confirm:
 
 ```
-The core architecture tier (Step 5a) is empty for now; nothing is included without asking.
+The core architecture tier (Step 5a) holds base/python/toolchain, which applies to consuming
+projects; this repository has no package, so here nothing is included without asking.
 
 These standards may apply:
 
@@ -276,7 +286,8 @@ The shape.md file should capture:
 
 ## Core Architecture (Non-Negotiable)
 
-None yet; see Step 5a. The first base standards will fill this tier.
+`base/python/toolchain` — applies to consuming projects; this repository has no package, so it
+does not apply here (Step 5a).
 
 ## Scope
 
@@ -295,8 +306,8 @@ None yet; see Step 5a. The first base standards will fill this tier.
 
 ## Standards Applied
 
-**Core (always applied):**
-- none yet (Step 5a)
+**Core (Step 5a, consuming projects):**
+- `base/python/toolchain` — not applied here: no package (Step 5a)
 
 **Feature-specific:**
 - {folder/standard} — [why it applies]
