@@ -11,6 +11,24 @@ bring in.
 
 ### Added
 
+- Tenth spec, `agent-os/specs/2026-11-06-1244-revision-after-pr-18-review/`: the owner's review of
+  PR 18 (the ninth spec, issues #13 and #15), twelve findings, each re-checked against `1e88c77`
+  and answered in the spec's `plan.md`. A gate spec as well, since the gate task text and the
+  harness change. Follow-ups: #17's body and a comment there (proposal 5's harness half landed here;
+  finding 7's analysis for proposal 4); #19, its retrospective's one proposal, approved by the
+  owner; and the section name in the comment on fromtheoutfit/patchbay#7.
+  - `base/process/standards-retrospective.md`: a question to the owner carries at most three
+    proposals and a "None of these" option, four questions to a call. An issue is a gate spec when
+    any proposal it carries needs a gate file changed, and says which. When the pull request opens,
+    whoever writes its body names the issue, adds the pull request to the issue's "Depends on"
+    line and checks every path the issue cites at its head. The `Proposals sent upstream:` line
+    has four forms, a declined proposal named by its file and a short name, not its place.
+  - `base/process/standards-sync.md`: the `.claude/commands/` rule is one paragraph in "What the
+    sync writes, and nothing else", with its reason corrected (the sync writes only its four
+    things; the gate task is a gate file, which changes in the gate's own spec), and the paragraph
+    at the end of "In a consuming project" is gone. A project's change to a base standard goes
+    upstream by the retrospective's route, not "by a pull request there".
+
 - Ninth spec, `agent-os/specs/2026-11-06-1205-retro-proposals-upstream-and-probe-rule/` (issues
   #13 and #15, one spec because both edit `base/process/standards-retrospective.md`), a gate spec
   as well, since the gate task text in `shape-spec.md` is a gate file. Its retrospective is the
@@ -32,9 +50,10 @@ bring in.
     A proposal neither filed nor declined fails the gate. "Who owns which standard" routes a
     proposal that way, and "Recording the answer" gains the `Proposals sent upstream:` line and
     the outcome at the end of each entry.
-  - `base/process/standards-sync.md` "In a consuming project": the sync writes nothing under
-    `.claude/commands/`. A gate-task step that a base change asks for, the present-and-file step
-    the first, is made in the project's own gate spec after the sync, with its template line.
+  - `base/process/standards-sync.md`: the sync writes nothing under `.claude/commands/`. A
+    gate-task step that a base change asks for, the present-and-file step the first, is made in
+    the project's own gate spec after the sync, with its template line. Placed at the end of "In a
+    consuming project", and moved into "What the sync writes, and nothing else" by the tenth spec.
 
 - Eighth spec, `agent-os/specs/2026-11-06-1040-python-toolchain-standard/` (issue #4):
   `base/python/toolchain.md`, the first standard about Python packages, written from patchbay's
@@ -247,6 +266,23 @@ bring in.
 
 ### Changed
 
+- `.claude/commands/agent-os/shape-spec.md` (review of PR 18): gate step 6 records
+  `Proposals sent upstream:` always, `none` when there is no proposal, and splits the proposals
+  three to a question with "None of these"; the template's line shows its four forms.
+- `CLAUDE.md` (review of PR 18): the retrospective records `Proposals sent upstream:` either way.
+- `scripts/gate-negative-tests.sh` (review of PR 18): `only <entry>...` holds the entries a run
+  lists under its FAIL lines to exactly those named, where `says()` finds the named lines in order
+  and nothing more. g's second case and both of k's "alone" cases use it.
+  `verification/only-assertion-mutations.txt` shows it catch g's old fixture and an extra entry
+  beside k's, which `says()` passed. The header says so.
+- `base/process/verification-gate.md` (review of PR 18): the harness pointer names the tenth spec.
+- `base/python/toolchain.md` (review of PR 18): raising the floor lands in `patchbay-standards` by
+  its own spec, from a project a proposal its retrospective sends upstream, not "a pull request".
+- `index.yml` (review of PR 18): `process/standards-retrospective` adds the pull-request link and
+  the declined proposal named.
+- The ninth spec's `verification/gate-negative-tests.txt` ends on its green run; the first run,
+  `139 runs, 1 unexpected`, is `verification/gate-negative-tests-first-run.txt`, and the pointers
+  to it in that spec's `shape.md` and #17 follow.
 - `.claude/commands/agent-os/shape-spec.md` (issues #13 and #15):
   - Gate step 6 gains the present-and-file step.
   - The `shape.md` template gains `Proposals sent upstream:` under `## Standards Retrospective`,

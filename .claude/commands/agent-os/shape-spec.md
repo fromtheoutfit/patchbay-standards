@@ -220,13 +220,15 @@ Run the full verification gate, in order. The spec is not complete until every s
    a base standard. List those edits separately from the feature's when reporting, so they
    can be committed apart from it. If the spec taught nothing, record
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
-   When the retrospective records a base proposal, before the spec reports done (the standard's
+   Always record `Proposals sent upstream:` in `shape.md`, `none` when the retrospective
+   recorded no base proposal. When it records one, before the spec reports done (the standard's
    "Base proposals go to the owner, then upstream"): present every proposal to the owner with
    AskUserQuestion, multi-select, each in one or two sentences with the shipped file and test it
-   is verified against, "none" an answer; file the approved ones as one issue on
+   is verified against, at most three to a question, each question ending with a "None of
+   these" option, four questions to a call; file the approved ones as one issue on
    `patchbay-standards` with `gh`, no AI attribution, and write its number beside each; mark
-   each declined one `declined by owner, <date>`; record `Proposals sent upstream:` in
-   `shape.md`. A proposal neither filed nor marked declined fails the gate.
+   each declined one `declined by owner, <date>`. A proposal neither filed nor marked declined
+   fails the gate.
 
 `scripts/gate.sh` runs steps 1–3 as one command, exit 1 at the first failing step after a `FAIL`
 line naming it, exit 2 on usage or when it cannot enter the repository root. Steps 4–6 are
@@ -353,10 +355,16 @@ that verifies it:
   is a symlink to it; a consuming project edits its own sections of its project index]
 - **Deviation, not a standard change:** [what we did differently and why it stays a one-off]
 
-Either way, then the one line that says where the base proposals went (`none` when there are
-none):
+Either way, then the one line that says where the base proposals went, in one of four forms, a
+declined proposal named by its file and a short name, never by its place in the list:
 
-Proposals sent upstream: {fromtheoutfit/patchbay-standards#N} | none | declined: {…}
+Proposals sent upstream: none
+Proposals sent upstream: {fromtheoutfit/patchbay-standards#N}
+Proposals sent upstream: {fromtheoutfit/patchbay-standards#N}; declined: {`base/…` (short name)}
+Proposals sent upstream: declined: {`base/…` (short name)}, {…}
+
+(`none` when no proposal was recorded; the issue alone when all were filed; the issue and the
+declined ones when some were declined; the declined ones alone when every one was.)
 
 ### Standards retrospective (proposed, base)
 

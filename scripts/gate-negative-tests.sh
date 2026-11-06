@@ -10,13 +10,15 @@
 # guard from its absence. A reason holding gate.sh's FAIL  step N/M line also holds the run to no
 # step banner past step N, and one that is gate.sh's usage or cd line to none at all, so the steps
 # after a failure are checked as never reached, not assumed; a passing run may name lines its output
-# must hold too. A mismatch of any of these is marked UNEXPECTED and the harness exits 1 at the
-# end naming the count, so the transcript's last line says whether every case behaved. Every
-# setup step (a command that builds a case's state) stops the harness by name when it fails
-# (exit 2) rather than letting a case fail for the wrong reason. Nothing in the tree is touched:
-# the scratch directory is refused unless mktemp made it, outside this repository. The transcript
-# of a run is kept in the spec's verification/ folder as gate-negative-tests.txt (every test but
-# j) and ci-negative-test.txt (j, the CI replay).
+# must hold too. The reason is found line by line, in order, and says nothing of what else was printed,
+# so a case that says a step names an entry alone follows its run with only, which holds the entries
+# listed under the run's FAIL lines to exactly those it names. A mismatch of any of these is marked
+# UNEXPECTED and the harness exits 1 at the end naming the count, so the transcript's last line says
+# whether every case behaved. Every setup step (a command that builds a case's state) stops the
+# harness by name when it fails (exit 2) rather than letting a case fail for the wrong reason.
+# Nothing in the tree is touched: the scratch directory is refused unless mktemp made it, outside
+# this repository. The transcript of a run is kept in the spec's verification/ folder as
+# gate-negative-tests.txt (every test but j) and ci-negative-test.txt (j, the CI replay).
 #
 # Tests o to v are scripts/sync-standards.sh's (base/process/standards-sync.md), a gate file in
 # every consuming project: each builds a scratch patchbay-standards checkout whose HEAD commit holds
@@ -100,6 +102,16 @@ run() {  # run <name> <expected status> [<expected text, when the status is not 
   ( cd "$NEG/$c" && "$@" ) > "$NEG/run.raw" 2>&1; got=$?
   shown "$NEG/run.raw"
   check "$want" "$got" "$text" "$NEG/run.out"
+}
+only() {  # only <entry>...: after run, the entries listed under its FAIL lines (each indented eight spaces) are exactly these, in order; a mismatch is UNEXPECTED, an assertion on that run, not another run
+  local want got
+  want=$(printf '        %s\n' "$@")
+  got=$(grep '^        ' "$NEG/run.out")
+  if [ "$got" = "$want" ]; then
+    echo "only=$*"
+  else
+    echo "only=$*  UNEXPECTED (listed: $(printf '%s\n' "$got" | sed 's/^ *//' | paste -sd ' ' -))"; unexpected=$((unexpected + 1))
+  fi
 }
 hdr() { printf '\n### %s\n' "$1"; }
 note() { printf -- '-- %s\n' "$1"; }
@@ -226,6 +238,7 @@ g) hdr "g (comm collation: C-sorted lists with process/B's entry missing, under 
    fi
    note "shipped script, same environment (must name process/B alone):"
    run g 1 $'FAIL  tracked under base/ but not in index.yml:\n        process/B' env -u LC_ALL LANG=en_US.UTF-8 scripts/check-index.sh
+   only process/B
    printf 'base:\n  process/B:\n    description: one\n  process/a_z:\n    description: two\n  process/ab:\n    description: three\n' > "$NEG/g/index.yml" || die "g: index, all three"
    note "shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):"
    run g 0 env -u LC_ALL LANG=en_US.UTF-8 scripts/check-index.sh ;;
@@ -281,6 +294,7 @@ k) hdr "k (a key that is a prefix of another, testing and testing-fakes: the str
    printf '# Z\n\nA standard.\n' > "$NEG/k/base/process/zeta.md" || die "k: zeta.md"; git -C "$NEG/k" add -A || die "k: git add zeta"
    note "zeta.md tracked beside them with no entry (must fail naming process/zeta alone):"
    run k 1 $'FAIL  tracked under base/ but not in index.yml:\n        process/zeta' scripts/check-index.sh
+   only process/zeta
    if old_file k cf1bdf0 scripts/check-index.sh; then
      note "the script at cf1bdf0 (PR 7's first head), BSD comm: testing misreported as both missing and stale:"
      run k 1 $'FAIL  tracked under base/ but not in index.yml:\n        process/testing\n        process/zeta\nFAIL  in index.yml but not tracked under base/:\n        process/testing' scripts/check-index-cf1bdf0.sh
@@ -290,6 +304,7 @@ k) hdr "k (a key that is a prefix of another, testing and testing-fakes: the str
        run k 0 env PATH="$NEG/gnu:$PATH" scripts/check-index-cf1bdf0.sh
        note "shipped script with GNU comm first on PATH (must fail naming process/zeta alone):"
        run k 1 $'FAIL  tracked under base/ but not in index.yml:\n        process/zeta' env PATH="$NEG/gnu:$PATH" scripts/check-index.sh
+       only process/zeta
      fi
    fi ;;
 l) hdr "l (a non-ASCII path, base/process/café.md, tracked and indexed; must pass)"

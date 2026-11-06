@@ -1,0 +1,769 @@
+Negative tests of the gate, run 2026-11-06 on branch feature/13-retrospective-present-base-proposals-to-the-owner-and-file-the-approved-ones-as-an-issue-before-the-spec-completes by scripts/gate-negative-tests.sh (every test but j),
+after the last edit to the gate's files in this spec, the revision after the review of PR 18: the gate task text in
+.claude/commands/agent-os/shape-spec.md (step 6: Proposals sent upstream: always, three proposals and "None of these" a question)
+and the harness (only, after g's second case and k's two "alone" cases, with its header sentence). New lines: only=process/B in g,
+only=process/zeta twice in k. The first rerun after those edits ended "139 runs, 5 unexpected" (j: 1): every case that runs the
+gate on a clean copy failed step 2 on MD013 at base/python/toolchain.md:97, 133 columns, a line this spec's Docs edit had joined.
+The line was rewrapped and the whole suite rerun; that run's output was not kept. Every case below is as the ninth spec recorded
+it, with the three only lines added.
+
+$ scripts/gate-negative-tests.sh
+
+### a (tracked file under base/ with no index entry; check-index.sh must fail)
+FAIL  tracked under base/ but not in index.yml:
+        process/orphan
+exit=1
+
+### b (index entry with no file; check-index.sh must fail)
+FAIL  in index.yml but not tracked under base/:
+        python/nothing-here
+exit=1
+
+### c1 (agent-os/standards/index.yml a regular file byte-identical to index.yml; check-index.sh must fail)
+-- cmp shows the bytes match (exit 0), so a byte comparison would have passed:
+exit=0
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a regular file)
+exit=1
+
+### c2 (agent-os/standards/index.yml a symlink to another file; check-index.sh must fail)
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a symlink to ../../README.md)
+exit=1
+
+### c3 (agent-os/standards/index.yml a directory; check-index.sh must fail and say so)
+FAIL  agent-os/standards/index.yml is not a symlink to ../../index.yml (found: a directory)
+exit=1
+
+### d (tracked non-.md file under base/; check-index.sh must fail)
+FAIL  not a standard (only .md files belong under base/):
+        base/notes.txt
+exit=1
+
+### e (lint finding: gate.sh must install the pin, then stop at step 2 on the finding with the FAIL line, exit 1, and never print 3/3)
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+<copy e>/base/process/bad.md:1:1: MD022: Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below] (blanks-around-headings,blanks-around-headers)
+<copy e>/base/process/bad.md:2:51: MD009: Trailing spaces [Expected: 0 or 2; Actual: 1] (no-trailing-spaces)
+FAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)
+exit=1
+
+### f (unparsable script: gate.sh must stop at step 1 naming it, exit 1, and never print 2/3)
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+scripts/broken.sh: line 3: syntax error: unexpected end of file
+FAIL  step 1/3: scripts/broken.sh does not parse
+exit=1
+
+### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
+-- the script at aaacc57 (before issue #3), LANG=en_US.UTF-8 and LC_ALL unset: the bug, every entry reported missing and the indexed ones stale:
+FAIL  under base/ but not in index.yml:
+        process/B
+        process/a_z
+        process/ab
+FAIL  in index.yml but not under base/:
+        process/a_z
+        process/ab
+exit=1
+-- shipped script, same environment (must name process/B alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/B
+exit=1
+only=process/B
+-- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
+ok   index.yml and the tracked files under base/ agree (3 standard(s))
+exit=0
+
+### h (tracked files are git ls-files: an ignored stray passes, an untracked standard is refused)
+-- untracked, ignored base/.DS_Store present (must pass):
+A  base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+A  base/python/toolchain.md
+!! base/.DS_Store
+exit=0
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+exit=0
+-- untracked base/process/new.md with no index entry (must fail: under base/ but not tracked):
+A  base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+A  base/python/toolchain.md
+?? base/process/new.md
+exit=0
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
+exit=1
+-- the same file with its index entry (must fail: not tracked, and the entry has no tracked file):
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/process/new.md
+FAIL  in index.yml but not tracked under base/:
+        process/new
+exit=1
+
+### i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, exit 1, 3/3 never reached; a misspelled key is not refused; a value pymarkdown cannot use, and a file YAML cannot parse, each fail step 2 by name)
+8:    line_length: 60
+9:    heading_line_length: 60
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+FAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)
+   ... 653 MD013 findings, Expected: 60, the first three:
+README.md:3:1: MD013: Line length [Expected: 60, Actual: 109] (line-length)
+base/process/ownership.md:3:1: MD013: Line length [Expected: 60, Actual: 93] (line-length)
+base/process/ownership.md:4:1: MD013: Line length [Expected: 60, Actual: 87] (line-length)
+exit=1
+-- the same copy with the key misspelled (line_lenght: 60): --strict-config does not refuse an unknown key, so the default 80 applies with no config error; in this tree, wrapped at 100, that still fails step 2 (Expected: 80), so the misspelling cannot pass here silently:
+8:    line_lenght: 60
+9:    heading_line_length: 60
+   ... 594 MD013 findings, Expected: 80, the first one:
+README.md:3:1: MD013: Line length [Expected: 80, Actual: 109] (line-length)
+exit=1
+-- the key spelled right again with a value pymarkdown cannot use, line_length: wide (valid YAML; --strict-config refuses it, so step 2 must fail naming the property, exit 1):
+8:    line_length: wide
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+
+
+BadPluginError encountered while configuring plugins:
+The value for property 'plugins.md013.line_length' must be of type 'int'.
+FAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)
+exit=1
+-- line_length back at 120 and a stray [ appended, a file YAML cannot parse (step 2 must fail naming the file, exit 1; pymarkdown's traceback is elided from the print, not from the check):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+WARNING:pymarkdown.main:Specified configuration file '<copy i>/.pymarkdown.yaml' is not a valid YAML file: while scanning a simple key
+  in "<copy i>/.pymarkdown.yaml", line 12, column 1
+could not find expected ':'
+  in "<copy i>/.pymarkdown.yaml", line 13, column 1.
+   ... the traceback, 37 lines, elided
+yaml.scanner.ScannerError: while scanning a simple key
+  in "<copy i>/.pymarkdown.yaml", line 12, column 1
+could not find expected ':'
+  in "<copy i>/.pymarkdown.yaml", line 13, column 1
+
+
+Specified configuration file '<copy i>/.pymarkdown.yaml' is not a valid YAML file: while scanning a simple key
+  in "<copy i>/.pymarkdown.yaml", line 12, column 1
+could not find expected ':'
+  in "<copy i>/.pymarkdown.yaml", line 13, column 1.
+FAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)
+exit=1
+
+### k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)
+-- both indexed (must pass):
+ok   index.yml and the tracked files under base/ agree (8 standard(s))
+exit=0
+-- zeta.md tracked beside them with no entry (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+only=process/zeta
+-- the script at cf1bdf0 (PR 7's first head), BSD comm: testing misreported as both missing and stale:
+FAIL  tracked under base/ but not in index.yml:
+        process/testing
+        process/zeta
+FAIL  in index.yml but not tracked under base/:
+        process/testing
+exit=1
+-- the same script with GNU comm first on PATH (the ubuntu runner): comm exits 1 on unsorted input, the script reads that as nothing missing, and zeta passes unindexed (the bug, exit 0):
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+ok   index.yml and base/ agree (9 standard(s))
+exit=0
+-- shipped script with GNU comm first on PATH (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/zeta
+exit=1
+only=process/zeta
+
+### l (a non-ASCII path, base/process/café.md, tracked and indexed; must pass)
+ok   index.yml and the tracked files under base/ agree (7 standard(s))
+exit=0
+-- the script at cf1bdf0 read the path C-quoted and refused it:
+FAIL  not a standard (only .md files belong under base/):
+        "base/process/caf\303\251.md"
+FAIL  in index.yml but not tracked under base/:
+        process/café
+exit=1
+
+### m (a copy that is not a git work tree; check-index.sh must fail by name, not with a bare exit)
+FAIL  not a git work tree rooted at <copy m> (the files under base/ are read with git ls-files)
+exit=1
+
+### n (a tracked standard deleted from disk, deletion not staged; check-index.sh must fail)
+AD base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+A  base/python/toolchain.md
+exit=0
+FAIL  tracked but missing on disk (stage the deletion, or restore the file):
+        base/process/ownership.md
+exit=1
+
+### w (step 1 lists files with git: an ignored scripts/.DS_Store passes; a tracked scripts/notes.txt is refused by name; a tracked script deleted from the disk, and a tracked symlink to nothing, are each refused by name; a copy that is not a git work tree, and the same copy inside another repository's work tree, are each refused by name)
+-- untracked, ignored scripts/.DS_Store present (must pass, exit 0; the gate never lists it):
+A  scripts/check-index.sh
+A  scripts/gate-negative-tests.sh
+A  scripts/gate.sh
+A  scripts/sync-standards.sh
+!! scripts/.DS_Store
+exit=0
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
+-- scripts/notes.txt tracked, neither .sh nor a bash shebang (must fail at step 1 naming it, exit 1, 2/3 never printed):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+FAIL  step 1/3: scripts/notes.txt is not a shell script; only shell scripts live under scripts/
+exit=1
+-- scripts/gate-negative-tests.sh tracked but deleted from the disk, deletion not staged (must fail at step 1 naming it, exit 1):
+A  scripts/check-index.sh
+AD scripts/gate-negative-tests.sh
+A  scripts/gate.sh
+A  scripts/sync-standards.sh
+exit=0
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+FAIL  step 1/3: scripts/gate-negative-tests.sh is tracked but missing from the disk
+exit=1
+-- scripts/dangling.sh tracked, a symlink to nothing (must fail at step 1 naming it as one, not as missing from the disk, exit 1):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+FAIL  step 1/3: scripts/dangling.sh is a symlink to nothing
+exit=1
+-- the copy's .git removed (must fail at step 1 by name, exit 1):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+FAIL  step 1/3: not a git work tree rooted at <copy w>; the gate lists files with git ls-files
+exit=1
+-- the same copy, still without .git, inside another repository's work tree (<copy wo>, nothing tracked there): git's work-tree top is the outer repository, not the copy:
+<copy wo>
+exit=0
+-- the shipped script on it (must fail at step 1 by name, exit 1, no file listed against the outer repository):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+FAIL  step 1/3: not a git work tree rooted at <copy wo>/copy; the gate lists files with git ls-files
+exit=1
+-- the script at a5f88ae (PR 11's first head) on the same: step 1 lists the copy's files as the outer repository's untracked ones and passes; only check-index.sh's own guard, at step 3, stops it (the bug):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-a5f88ae.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md (rules in .pymarkdown.yaml)
+ok   no findings
+
+== 3/3  index.yml lists exactly the tracked files under base/
+FAIL  not a git work tree rooted at <copy wo>/copy (the files under base/ are read with git ls-files)
+FAIL  step 3/3: index.yml and the tracked files under base/ disagree, or the index symlink is wrong (see above)
+exit=1
+
+### x (not run as the gate: --help and a stray argument each exit 2 with the usage line and run no step; a script that cannot enter the repository root exits 2 saying so; the clean copy exits 0)
+-- clean copy (must pass, exit 0):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
+-- --help (exit 2, no step banner):
+usage: scripts/gate.sh   (no arguments; exits 1 at the first failing step, 2 on usage)
+exit=2
+-- a stray argument (exit 2):
+usage: scripts/gate.sh   (no arguments; exits 1 at the first failing step, 2 on usage)
+exit=2
+-- the copy's gate.sh run as bash -c with $0 under a directory that does not exist, so its cd to the repository root fails (exit 2 saying so, no step banner):
+<copy x>/nowhere/scripts/gate.sh: line 42: cd: <copy x>/nowhere/scripts/..: No such file or directory
+gate: cannot enter the repository root, <copy x>/nowhere/scripts/..; not run as the gate
+exit=2
+
+### y (step 2 lists with git: an ignored base/process/draft.md with a lint finding is never linted; the same file tracked is; a tracked standard deleted from the disk is refused by name)
+-- base/process/draft.md, with two findings, ignored through the copy's .gitignore (must pass, exit 0; step 2 never lints it, step 3 never sees it):
+A  base/process/ownership.md
+A  base/process/standards-index.md
+A  base/process/standards-retrospective.md
+A  base/process/standards-sync.md
+A  base/process/verification-gate.md
+A  base/python/toolchain.md
+!! base/process/draft.md
+exit=0
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
+-- the script at a5f88ae (PR 11's first head) on the same: pymarkdown --recurse walks the disk, lints the ignored draft and fails step 2 (the bug):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-a5f88ae.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md (rules in .pymarkdown.yaml)
+<copy y>/base/process/draft.md:1:1: MD022: Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below] (blanks-around-headings,blanks-around-headers)
+<copy y>/base/process/draft.md:2:51: MD009: Trailing spaces [Expected: 0 or 2; Actual: 1] (no-trailing-spaces)
+FAIL  step 2/3: pymarkdown reported findings, or could not run (see above)
+exit=1
+-- the same file force-added, tracked (must fail at step 2 on its findings, exit 1, 3/3 never printed):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+<copy y>/base/process/draft.md:1:1: MD022: Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below] (blanks-around-headings,blanks-around-headers)
+<copy y>/base/process/draft.md:2:51: MD009: Trailing spaces [Expected: 0 or 2; Actual: 1] (no-trailing-spaces)
+FAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)
+exit=1
+-- base/process/ownership.md tracked but deleted from the disk, deletion not staged (must fail at step 2 naming it, exit 1, before pymarkdown runs):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+FAIL  step 2/3: base/process/ownership.md is tracked but missing from the disk
+exit=1
+
+### z (step 2 installs the pinned pymarkdown as itself: the clean copy shows the install's ok line before the lint's; uvx missing from PATH is refused by name; a pin naming a version never published fails as the install, pymarkdown never linting, 3/3 never printed)
+-- clean copy (must pass, exit 0, the install's ok line before the lint's):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
+-- PATH=/usr/bin:/bin, where git and bash are and uvx is not (step 1 must pass, then step 2 must fail naming uvx, exit 1):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+FAIL  step 2/3: uvx is not on PATH; step 2 runs the pinned pymarkdown through it
+exit=1
+-- the copy's pin set to 0.9.999, a version never published (step 2 must fail as the install, exit 1, pymarkdown never linting, 3/3 never printed; why uvx refused it is uv's to say, and is not asserted):
+52:PYMARKDOWN_VERSION=0.9.999
+exit=0
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.999, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+error: No solution found when resolving tool dependencies
+  cause: Because there is no version of pymarkdownlnt==0.9.999 and you require pymarkdownlnt==0.9.999, we can conclude that your requirements are unsatisfiable.
+FAIL  step 2/3: uvx could not install pymarkdownlnt==0.9.999, the pinned version, or pymarkdown would not start (see above)
+exit=1
+
+### o (first sync of a consuming project: refused without --init; the sibling default; --init pins origin/main, not HEAD, creates the base: section and installs the script; an explicit ref off origin/main is warned about; a path inside the checkout resolves to its top)
+-- no base: section and no --init (must fail, exit 2, nothing written):
+FAIL  agent-os/standards/index.yml has no base: section; a first sync passes --init to create it
+exit=2
+exit=0
+-- no sibling checkout: the same project copied elsewhere, --init from the checkout's copy (must fail naming ../patchbay-standards, exit 2):
+FAIL  ../patchbay-standards is not a git checkout; pass the path to a patchbay-standards checkout
+exit=2
+-- the checkout's HEAD one empty commit ahead of origin/main; --init from the sibling checkout, the default path and ref (must pass and pin origin/main):
+sync base standards: none -> 39095505779e92e89c32094fc6442aa91a23152e  (<copy o>/patchbay-standards, ref origin/main)
+  added    process/ownership.md
+  added    process/standards-index.md
+  added    process/standards-retrospective.md
+  added    process/standards-sync.md
+  added    process/verification-gate.md
+  added    python/toolchain.md
+  index    base: section created (6 entries)
+  script   scripts/sync-standards.sh installed
+{"mode":"sync","upstream":"<copy o>/patchbay-standards","ref":"origin/main","old":null,"new":"39095505779e92e89c32094fc6442aa91a23152e","added":["process/ownership.md","process/standards-index.md","process/standards-retrospective.md","process/standards-sync.md","process/verification-gate.md","python/toolchain.md"],"removed":[],"changed":[],"index":"created","script":"installed"}
+ok   synced to 39095505779e92e89c32094fc6442aa91a23152e
+exit=0
+-- the pinned commit is origin/main, not HEAD:
+39095505779e92e89c32094fc6442aa91a23152e
+exit=0
+39095505779e92e89c32094fc6442aa91a23152e
+a4706b4b18c768ee3a7488b50b9778c7dd89ca63
+exit=0
+-- the index is the hand-built expected one, own sections byte for byte (cmp must pass); base/ is the commit's base/ plus .version; the script is the commit's:
+exit=0
+exit=0
+exit=0
+ M agent-os/standards/index.yml
+?? agent-os/standards/base/
+?? scripts/
+exit=0
+-- an explicit ref, HEAD, not on origin/main (must pass with a WARN line naming the commit, and pin HEAD):
+WARN  a4706b4b18c768ee3a7488b50b9778c7dd89ca63 is not on origin/main: a commit not pushed or not merged can be rebased or abandoned, leaving the pin at nothing
+sync base standards: 39095505779e92e89c32094fc6442aa91a23152e -> a4706b4b18c768ee3a7488b50b9778c7dd89ca63  (<copy o>/patchbay-standards, ref HEAD)
+  index    base: section unchanged (6 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy o>/patchbay-standards","ref":"HEAD","old":"39095505779e92e89c32094fc6442aa91a23152e","new":"a4706b4b18c768ee3a7488b50b9778c7dd89ca63","added":[],"removed":[],"changed":[],"index":"unchanged","script":"unchanged"}
+ok   synced to a4706b4b18c768ee3a7488b50b9778c7dd89ca63
+exit=0
+a4706b4b18c768ee3a7488b50b9778c7dd89ca63
+exit=0
+-- a path inside the checkout, ../patchbay-standards/base, resolves to its top (must pass):
+check base standards against a4706b4b18c768ee3a7488b50b9778c7dd89ca63  (<copy o>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy o>/patchbay-standards","commit":"a4706b4b18c768ee3a7488b50b9778c7dd89ca63","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at a4706b4b18c768ee3a7488b50b9778c7dd89ca63
+exit=0
+
+### p (a working-tree edit in the checkout is not synced; a committed, pushed addition is)
+ M base/process/ownership.md
+exit=0
+-- sync with the edit uncommitted (must pass with nothing added, removed or changed; the project's file stays the committed bytes):
+sync base standards: c35aa500785e7893444747dbf37c06bc6a1b96ee -> c35aa500785e7893444747dbf37c06bc6a1b96ee  (<copy p>/patchbay-standards, ref origin/main)
+  index    base: section unchanged (6 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy p>/patchbay-standards","ref":"origin/main","old":"c35aa500785e7893444747dbf37c06bc6a1b96ee","new":"c35aa500785e7893444747dbf37c06bc6a1b96ee","added":[],"removed":[],"changed":[],"index":"unchanged","script":"unchanged"}
+ok   synced to c35aa500785e7893444747dbf37c06bc6a1b96ee
+exit=0
+exit=0
+exit=0
+-- the edit committed and pushed together with base/process/new.md and its entry (must pass: new.md added, ownership.md changed, index replaced with 7 entries, the upstream index's count, which the project's section must then hold):
+sync base standards: c35aa500785e7893444747dbf37c06bc6a1b96ee -> bcedc83bd1f9086f93dd0728fc9babf5f0228734  (<copy p>/patchbay-standards, ref origin/main)
+  added    process/new.md
+  changed  process/ownership.md
+  index    base: section replaced (7 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy p>/patchbay-standards","ref":"origin/main","old":"c35aa500785e7893444747dbf37c06bc6a1b96ee","new":"bcedc83bd1f9086f93dd0728fc9babf5f0228734","added":["process/new.md"],"removed":[],"changed":["process/ownership.md"],"index":"replaced","script":"unchanged"}
+ok   synced to bcedc83bd1f9086f93dd0728fc9babf5f0228734
+exit=0
+7:  process/new:
+exit=0
+7
+exit=0
+ M agent-os/standards/base/.version
+ M agent-os/standards/base/process/ownership.md
+ M agent-os/standards/index.yml
+?? agent-os/standards/base/process/new.md
+exit=0
+
+### q (a file removed upstream is removed here, with its entry)
+-- sync to the removing commit (must pass: ownership.md removed, index replaced with 5 entries, the upstream index's count, the file gone):
+sync base standards: 8d27a5ba65de1217203a21d7c3c5d9a9ad2df026 -> 6e27c8cdd97d089cec9e8e502abc6f4088b1b26c  (<copy q>/patchbay-standards, ref origin/main)
+  removed  process/ownership.md
+  index    base: section replaced (5 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy q>/patchbay-standards","ref":"origin/main","old":"8d27a5ba65de1217203a21d7c3c5d9a9ad2df026","new":"6e27c8cdd97d089cec9e8e502abc6f4088b1b26c","added":[],"removed":["process/ownership.md"],"changed":[],"index":"replaced","script":"unchanged"}
+ok   synced to 6e27c8cdd97d089cec9e8e502abc6f4088b1b26c
+exit=0
+standards-index.md
+standards-retrospective.md
+standards-sync.md
+verification-gate.md
+exit=0
+5
+exit=0
+0
+exit=1
+ M agent-os/standards/base/.version
+ D agent-os/standards/base/process/ownership.md
+ M agent-os/standards/index.yml
+exit=0
+
+### r (own sections survive byte for byte: after --init, a second sync and --index-only; the section goes where the stock ordering puts it, comments staying with their key, at line 1 included; a missing index is created and its line-1 section replaced and regenerated; the trailing comment of the upstream index stays upstream)
+-- the upstream index.yml ends with a blank line and a comment, committed and pushed; the section ends at its last indented line, so every expected file below is built by the oracle without them:
+    description: One tool per job in a uv Python package, configured only in pyproject.toml with .pre-commit-config.yaml and .python-version the two files beside it, uv_build in the range uv init writes containing the pinned uv, every tool run through uv run --locked, the family's 3.12 floor and 100-column width, ruff ALL ignoring only what the tree trips wrongly and the conflicts ruff warns of, coded noqa only, mypy strict over src and tests, strict pytest, ruff-only local hooks, and the gate's tool steps in the order format, lint, types, tests; pins, locking and CI stay the gate standard's
+
+# end of the base index
+exit=0
+-- mk_project's index (a header comment, root:, a comment, testing:, a trailing comment) after --init, after a second sync, after --index-only; each cmp against the hand-built file must pass:
+exit=0
+exit=0
+exit=0
+exit=0
+exit=0
+exit=0
+-- an index with api: and zed: and no root: (base: goes between them, under api's trailing blank lines collapsed to one, above zed's comment):
+exit=0
+exit=0
+-- an index with api: alone (base: is appended after one blank line):
+exit=0
+exit=0
+-- an index whose first line is testing: (base: goes on line 1, one blank line, then testing:):
+exit=0
+exit=0
+-- the same with a comment on line 1 directly above testing: (the comment stays with its key; base: goes on line 1):
+exit=0
+exit=0
+-- no index file at all (--init creates one holding the section alone, on line 1):
+exit=0
+exit=0
+-- a description reworded upstream, committed and pushed; the script at 3d3e111 (PR 9's first head) syncing it into this line-1 index: BSD head -n 0 exits 1 and the project is left half-synced, .version at the new commit and the index at the old:
+head: illegal line count -- 0
+exit=1
+ M agent-os/standards/base/.version
+exit=0
+-- the shipped script on the same (must pass: the line-1 section replaced, cmp against the new section must pass):
+sync base standards: 5b774cae85a3b067f48283e4903b438e707c45b7 -> 08fc7e9bde8af30e7a935a3860e822f49122e175  (<copy r>/patchbay-standards, ref origin/main)
+  index    base: section replaced (6 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy r>/patchbay-standards","ref":"origin/main","old":"5b774cae85a3b067f48283e4903b438e707c45b7","new":"08fc7e9bde8af30e7a935a3860e822f49122e175","added":[],"removed":[],"changed":[],"index":"replaced","script":"unchanged"}
+ok   synced to 08fc7e9bde8af30e7a935a3860e822f49122e175
+exit=0
+exit=0
+-- a hand edit to the line-1 section, then --index-only (must pass and repair it):
+regenerate the base: section of agent-os/standards/index.yml from 08fc7e9bde8af30e7a935a3860e822f49122e175  (<copy r>/patchbay-standards)
+  index    base: section replaced (6 entries)
+{"mode":"index-only","upstream":"<copy r>/patchbay-standards","commit":"08fc7e9bde8af30e7a935a3860e822f49122e175","index":"replaced"}
+exit=0
+exit=0
+  python/toolchain:
+    description: One tool per job in a uv Python package, configured only in pyproject.toml with .pre-commit-config.yaml and .python-version the two files beside it, uv_build in the range uv init writes containing the pinned uv, every tool run through uv run --locked, the family's 3.12 floor and 100-column width, ruff ALL ignoring only what the tree trips wrongly and the conflicts ruff warns of, coded noqa only, mypy strict over src and tests, strict pytest, ruff-only local hooks, and the gate's tool steps in the order format, lint, types, tests; pins, locking and CI stay the gate standard's
+exit=0
+
+### s (a hand-edited base: entry is drift; --index-only repairs the section and touches nothing else)
+ agent-os/standards/index.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+exit=0
+-- --check (must fail: index differs, exit 1):
+check base standards against 1c400d1456323faaff830110a1ab51f5f6241723  (<copy s>/patchbay-standards)
+  index    base: section differs
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy s>/patchbay-standards","commit":"1c400d1456323faaff830110a1ab51f5f6241723","missing":[],"extra":[],"changed":[],"index":"differs","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 1c400d1456323faaff830110a1ab51f5f6241723 (see above)
+exit=1
+-- --index-only (must pass: section replaced), then --check (must pass) and git status (must be empty: nothing but the section was written):
+regenerate the base: section of agent-os/standards/index.yml from 1c400d1456323faaff830110a1ab51f5f6241723  (<copy s>/patchbay-standards)
+  index    base: section replaced (6 entries)
+{"mode":"index-only","upstream":"<copy s>/patchbay-standards","commit":"1c400d1456323faaff830110a1ab51f5f6241723","index":"replaced"}
+exit=0
+check base standards against 1c400d1456323faaff830110a1ab51f5f6241723  (<copy s>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy s>/patchbay-standards","commit":"1c400d1456323faaff830110a1ab51f5f6241723","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 1c400d1456323faaff830110a1ab51f5f6241723
+exit=0
+exit=0
+
+### t (the drift check passes after a sync and fails on a one-byte edit, an extra file, a missing file; an ignored stray is not drift; a ref or a missing .version is a usage error)
+-- clean (must pass):
+check base standards against 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085  (<copy t>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085
+exit=0
+-- one byte appended to process/ownership.md (must fail naming it, exit 1):
+check base standards against 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085  (<copy t>/patchbay-standards)
+  changed  process/ownership.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085","missing":[],"extra":[],"changed":["process/ownership.md"],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085 (see above)
+exit=1
+-- an extra file under base/, untracked (must fail: extra):
+check base standards against 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085  (<copy t>/patchbay-standards)
+  extra    process/extra.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085","missing":[],"extra":["process/extra.md"],"changed":[],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085 (see above)
+exit=1
+-- a tracked file deleted from disk (must fail: missing):
+check base standards against 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085  (<copy t>/patchbay-standards)
+  missing  process/standards-index.md
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085","missing":["process/standards-index.md"],"extra":[],"changed":[],"index":"identical","script":"matches","ok":false}
+FAIL  drift from patchbay-standards at 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085 (see above)
+exit=1
+-- an ignored .DS_Store under base/ (must pass):
+!! agent-os/standards/base/.DS_Store
+exit=0
+check base standards against 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085  (<copy t>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy t>/patchbay-standards","commit":"2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 2e4c66b3e0b4950f0a3bab80ea4e334e5abbb085
+exit=0
+-- --check with a ref (usage, exit 2):
+usage: scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]
+       scripts/sync-standards.sh --index-only [<path-to-patchbay-standards>]
+       scripts/sync-standards.sh --check [<path-to-patchbay-standards>]
+Run from the consuming project's root. <path> defaults to ../patchbay-standards; <ref> to its origin/HEAD.
+FAIL  --check takes no ref; it reads the commit in agent-os/standards/base/.version
+exit=2
+-- --check with no .version (exit 2):
+FAIL  agent-os/standards/base/.version is missing; nothing is pinned (run a sync first)
+exit=2
+-- --check with a pinned commit the checkout does not have (exit 2):
+FAIL  pinned commit 0123456789abcdef0123456789abcdef01234567 is not in <copy t>/patchbay-standards (fetch it)
+exit=2
+exit=0
+
+### u (refusals, each exit 2 by name and nothing written: inside patchbay-standards itself, not at a work-tree root, a plain directory or another repository as the path, a ref that is not a commit, an unknown flag, two mode flags, a commit whose index.yml has no parseable base: section, no origin/HEAD to default to, a second base: line in the project's index)
+-- run inside the checkout itself, where agent-os/standards/base is a symlink:
+FAIL  agent-os/standards/base is a symlink: this is patchbay-standards itself, not a consuming project
+exit=2
+-- run from a folder below the project's root:
+FAIL  run from the consuming project's root, the top of its git work tree (here: <copy u>/project/agent-os)
+exit=2
+-- a plain directory as the path:
+FAIL  ../plain is not a git checkout; pass the path to a patchbay-standards checkout
+exit=2
+-- a git checkout that is not patchbay-standards (the project itself):
+FAIL  <copy u>/project is not a patchbay-standards checkout at c3b94edf05c6dddea6d267b2c8abc78954255fb9: base is missing from that commit
+exit=2
+-- a ref that is not a commit:
+FAIL  no-such-ref is not a commit in <copy u>/patchbay-standards
+exit=2
+-- an unknown flag:
+usage: scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]
+       scripts/sync-standards.sh --index-only [<path-to-patchbay-standards>]
+       scripts/sync-standards.sh --check [<path-to-patchbay-standards>]
+Run from the consuming project's root. <path> defaults to ../patchbay-standards; <ref> to its origin/HEAD.
+FAIL  unknown flag --frobnicate
+exit=2
+-- two mode flags:
+usage: scripts/sync-standards.sh [--init] [<path-to-patchbay-standards> [<ref>]]
+       scripts/sync-standards.sh --index-only [<path-to-patchbay-standards>]
+       scripts/sync-standards.sh --check [<path-to-patchbay-standards>]
+Run from the consuming project's root. <path> defaults to ../patchbay-standards; <ref> to its origin/HEAD.
+FAIL  one mode per run: --check and --index-only both given
+exit=2
+-- a commit whose index.yml is base: {} (the checkout's HEAD, not pushed): refused before anything is written, so git status stays empty:
+WARN  d4463b97e9b243d6ce94056883bf5f024aee32b6 is not on origin/main: a commit not pushed or not merged can be rebased or abandoned, leaving the pin at nothing
+FAIL  index.yml at d4463b97e9b243d6ce94056883bf5f024aee32b6 has no parseable base: section (state: unparseable); nothing written
+exit=2
+exit=0
+-- no origin/HEAD in the checkout and no ref given:
+FAIL  no default ref: <copy u>/patchbay-standards has no origin/HEAD (pass a ref, or set it: git -C ../patchbay-standards remote set-head origin --auto)
+exit=2
+-- a second base: line appended to the project's index (not a parseable section), even with --init:
+FAIL  agent-os/standards/index.yml has a base: line that is not a parseable section (a second base: line, or content after the colon)
+exit=2
+FAIL  agent-os/standards/index.yml has a base: line that is not a parseable section (a second base: line, or content after the colon)
+exit=2
+ M agent-os/standards/index.yml
+exit=0
+
+### v (the script copies itself from the synced commit as the last thing it writes; a working-tree edit to it is not copied)
+-- the change uncommitted, sync (must pass; the project's script unchanged):
+sync base standards: bba84403423b38e00a2b59f5f5d7049b30addef8 -> bba84403423b38e00a2b59f5f5d7049b30addef8  (<copy v>/patchbay-standards, ref origin/main)
+  index    base: section unchanged (6 entries)
+  script   scripts/sync-standards.sh unchanged
+{"mode":"sync","upstream":"<copy v>/patchbay-standards","ref":"origin/main","old":"bba84403423b38e00a2b59f5f5d7049b30addef8","new":"bba84403423b38e00a2b59f5f5d7049b30addef8","added":[],"removed":[],"changed":[],"index":"unchanged","script":"unchanged"}
+ok   synced to bba84403423b38e00a2b59f5f5d7049b30addef8
+exit=0
+exit=0
+-- the change committed and pushed, sync (must pass, exit 0 with the JSON printed after the copy; the project's script updated to the commit's bytes, cmp must pass):
+sync base standards: bba84403423b38e00a2b59f5f5d7049b30addef8 -> 86c25b3a19b85ba4a44574c7df8efa32d7bbf551  (<copy v>/patchbay-standards, ref origin/main)
+  index    base: section unchanged (6 entries)
+  script   scripts/sync-standards.sh updated
+{"mode":"sync","upstream":"<copy v>/patchbay-standards","ref":"origin/main","old":"bba84403423b38e00a2b59f5f5d7049b30addef8","new":"86c25b3a19b85ba4a44574c7df8efa32d7bbf551","added":[],"removed":[],"changed":[],"index":"unchanged","script":"updated"}
+ok   synced to 86c25b3a19b85ba4a44574c7df8efa32d7bbf551
+exit=0
+exit=0
+# a later change to the script
+exit=0
+ M agent-os/standards/base/.version
+ M scripts/sync-standards.sh
+exit=0
+-- and the drift check against the new commit (must pass):
+check base standards against 86c25b3a19b85ba4a44574c7df8efa32d7bbf551  (<copy v>/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<copy v>/patchbay-standards","commit":"86c25b3a19b85ba4a44574c7df8efa32d7bbf551","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 86c25b3a19b85ba4a44574c7df8efa32d7bbf551
+exit=0
+
+139 runs, 0 unexpected
+harness exit=0

@@ -59,7 +59,8 @@ prohibition is on attribution markers, not on citing the work.
 - The retrospective is the gate's last step: check what the spec taught against the standards,
   add the pattern it invented, correct what it proved stale, keep `index.yml` in step — or
   record `Standards retrospective: no changes` in the spec's `shape.md`. "No changes" is valid;
-  silence is not. Full rules, including the four diff-checkable questions, live at
+  silence is not. Either way it records `Proposals sent upstream:`, `none` when there is no base
+  proposal. Full rules, including the four diff-checkable questions, live at
   `base/process/standards-retrospective.md`.
 - **This applies to any spec-sized change, whether or not the command shaped it.** A
   one-file fix is exactly the kind of work that quietly invents a pattern.

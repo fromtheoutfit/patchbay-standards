@@ -109,7 +109,8 @@ behaves is verified by running it, not by its documentation"), in one spec.
   - g now empties its copy's `base/` whole and recreates `base/process/`, a one-line change to
     `scripts/gate-negative-tests.sh` as this gate spec's feature work. The whole harness and j
     were rerun after it: `139 runs, 0 unexpected` and `2 runs, 0 unexpected`.
-  - The first run's g section is kept at the end of `verification/gate-negative-tests.txt`.
+  - The first run is kept whole in `verification/gate-negative-tests-first-run.txt` (split out of
+    `gate-negative-tests.txt` after the review of PR 18, finding 5).
 - **`verification-gate.md`'s harness pointer moves to this spec.** "In this repository" said "the
   spec that last changed the harness (issue #12) holds the current transcripts, j's included".
   This spec changed the harness, so it now names issues #13 and #15. The third spec updated the
@@ -194,8 +195,8 @@ Version, then the standards retrospective below.
 - Two gate files changed: the gate task text in `shape-spec.md` (step 6) and test g of
   `scripts/gate-negative-tests.sh`.
   - So `scripts/gate-negative-tests.sh` (every test but j) was rerun after the last of them:
-    `139 runs, 0 unexpected`, harness exit 0, in `verification/gate-negative-tests.txt`, which
-    also keeps the first run's g section, `139 runs, 1 unexpected`.
+    `139 runs, 0 unexpected`, harness exit 0, in `verification/gate-negative-tests.txt`; the
+    first run, `139 runs, 1 unexpected`, is `verification/gate-negative-tests-first-run.txt`.
   - The CI replay j is `2 runs, 0 unexpected`, in `verification/ci-negative-test.txt`.
   - The hosted run of this branch's pull request is the owner's to record there after the push.
 - `verification/issue-15-evidence.txt` holds the lines on `main` the probe rule rests on.
@@ -316,14 +317,16 @@ This spec's own:
 - `base/process/verification-gate.md` — "Every step that can fail is proven to fail": a case whose
   expectation depends on what a copied directory holds sets the whole of that directory. Test g
   removed only `base/process/*.md` and went stale when issue #4 added `base/python/`. Verified
-  against `scripts/gate-negative-tests.sh` test g as fixed here, and
-  `verification/gate-negative-tests.txt`: the first run's g section, `exit=1  UNEXPECTED
-  (expected 0)` and `139 runs, 1 unexpected`, then `139 runs, 0 unexpected` after the fix.
+  against `scripts/gate-negative-tests.sh` test g as fixed here,
+  `verification/gate-negative-tests-first-run.txt` (g's section, `exit=1  UNEXPECTED (expected
+  0)`, and `139 runs, 1 unexpected`) and `verification/gate-negative-tests.txt`
+  (`139 runs, 0 unexpected` after the fix).
   Proposed, not applied; filed as fromtheoutfit/patchbay-standards#17 (proposal 4).
 - `base/process/verification-gate.md` — the harness bullet: a case whose reason is the whole of
   what a step must report asserts that nothing else is reported. `says()` checks the named lines in
   order and nothing more, so the stale g's "must name process/B alone" passed with
-  `python/toolchain` beside `process/B`. Verified against the first run's g section, second case
+  `python/toolchain` beside `process/B`. Verified against the first run's g section
+  (`verification/gate-negative-tests-first-run.txt`), second case
   (exit 1, not `UNEXPECTED`), and `says()` as shipped. Proposed, not applied; filed as
   fromtheoutfit/patchbay-standards#17 (proposal 5).
 

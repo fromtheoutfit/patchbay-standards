@@ -113,21 +113,31 @@ standard on its own.
 A retrospective that records one or more entries under
 `### Standards retrospective (proposed, base)` is not complete until the owner has seen them. The
 agent presents every proposal, each in one or two sentences with the shipped file and the test it
-is verified against, and asks which to send upstream: AskUserQuestion, multi-select, with "none"
-an answer. Then, before the spec reports done:
+is verified against, and asks which to send upstream: AskUserQuestion, multi-select. A question
+holds at most four options, so it carries at most three proposals and ends with a "None of these"
+option. A call holds at most four questions, so twelve proposals; more take another call. Then,
+before the spec reports done:
 
 - **The approved proposals become one issue on `patchbay-standards`**, created with
   `gh issue create --repo fromtheoutfit/patchbay-standards` from the project's checkout, with no
-  AI attribution (`base/process/ownership.md`). Its title names it a gate spec or a standards
-  spec. It has one section per proposal with its verification pointer, a "Depends on" line
-  naming the repository and branch that hold the evidence, and the pull request once the owner
-  opens one, and it ends with the rules its spec is held to, as
+  AI attribution (`base/process/ownership.md`). It has one section per proposal with its
+  verification pointer, a "Depends on" line naming the repository and branch that hold the
+  evidence, and it ends with the rules its spec is held to, as
   `fromtheoutfit/patchbay-standards#12` does. The issue's number is written in `shape.md` beside
   each proposal it carries.
+- **Its title names it a gate spec when any proposal it carries needs a gate file changed**
+  (`base/process/verification-gate.md`), and a standards spec otherwise. A gate spec's issue says
+  which proposals touch gate files, and its standards proposals land with it in the same spec.
 - **A declined proposal stays in `shape.md`**, marked `declined by owner, <date>`, so the record
   says it was seen.
 - **A proposal neither filed nor marked declined is a gate failure for the spec.** The step is
   judgment, like the rest of the retrospective; no machine runs it.
+
+The issue is filed while the evidence it cites is still uncommitted work on the branch, since an
+agent never pushes (`base/process/ownership.md`); the owner's push puts it there. When the pull
+request opens, whoever writes its body, the owner or an agent asked to, names the issue in the
+body, adds the pull request to the issue's "Depends on" line, and checks that every path the issue
+cites exists at the pull request's head.
 
 Writing the issue is the agent's work; which proposals it carries is the owner's call. The rule
 holds in `patchbay-standards` too: a proposal recorded here becomes an issue here, and the spec
@@ -175,7 +185,8 @@ or
 - **Deviation, not a standard change:** the dry-run flag skips the version check. One-off;
   nothing reads the version on that path.
 
-Proposals sent upstream: fromtheoutfit/patchbay-standards#<N>; declined: the second.
+Proposals sent upstream: fromtheoutfit/patchbay-standards#<N>; declined:
+`base/process/verification-gate.md` (<its short name>).
 
 ### Standards retrospective (proposed, base)
 
@@ -187,9 +198,16 @@ Proposals sent upstream: fromtheoutfit/patchbay-standards#<N>; declined: the sec
 
 The `(proposed, base)` list appears only when the spec taught a base standard something; it
 holds proposals and never a local edit. Each entry ends with the issue it was filed in or
-`declined by owner, <date>`. The `Proposals sent upstream:` line is always there: it names the
-issue, or `none` when the retrospective recorded no proposal, and lists the declined ones after
-`declined:`.
+`declined by owner, <date>`. The `Proposals sent upstream:` line is always there, in one of four
+forms:
+
+- `none`, when the retrospective recorded no proposal;
+- the issue, when every proposal was filed in it;
+- the issue, then `; declined:` and the declined ones, when some were declined;
+- `declined:` and the declined ones, with no issue, when every one was declined.
+
+A declined proposal is named by its file and a short name, never by its place in the list, which
+a later edit can reorder.
 
 ## Git
 

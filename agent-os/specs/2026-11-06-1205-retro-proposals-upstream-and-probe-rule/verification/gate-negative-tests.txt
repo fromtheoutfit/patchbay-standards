@@ -3,7 +3,8 @@ after the last edit to the gate's files in this spec (issues #13 and #15): the g
 (step 6 gains the present-and-file step) and test g of the harness. No script the gate runs, no pin, no rule set and no workflow
 changed. The first run after the gate-task edit ended "139 runs, 1 unexpected": test g removed only base/process/*.md from its copy
 and wrote an index of three process/ entries, so since issue #4 added base/python/toolchain.md the copy also held python/toolchain
-and g's "all three indexed" case exited 1 (its section from that run is at the end). The toolchain spec changed no gate file and
+and g's "all three indexed" case exited 1 (that run is gate-negative-tests-first-run.txt beside this file, split out of this one
+after the review of PR 18). The toolchain spec changed no gate file and
 did not rerun the tests, so g had been stale on main since PR 16. g now empties its copy's base/ whole and recreates base/process/,
 so the copy holds exactly B, a_z and ab whatever base/ holds; the run below is after that fix, every case as the third spec
 (issue #12) recorded it.
@@ -765,28 +766,3 @@ exit=0
 
 139 runs, 0 unexpected
 harness exit=0
-
--- The first run, before g was fixed: test g's section and the last two lines.
-### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
--- the script at aaacc57 (before issue #3), LANG=en_US.UTF-8 and LC_ALL unset: the bug, every entry reported missing and the indexed ones stale:
-FAIL  under base/ but not in index.yml:
-        process/B
-        process/a_z
-        process/ab
-        python/toolchain
-FAIL  in index.yml but not under base/:
-        process/a_z
-        process/ab
-exit=1
--- shipped script, same environment (must name process/B alone):
-FAIL  tracked under base/ but not in index.yml:
-        process/B
-        python/toolchain
-exit=1
--- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
-FAIL  tracked under base/ but not in index.yml:
-        python/toolchain
-exit=1  UNEXPECTED (expected 0)
-
-139 runs, 1 unexpected
-harness exit=1

@@ -1,0 +1,77 @@
+The only assertion (finding 6 of the PR 18 review), run 2026-11-06 on branch feature/13-retrospective-present-base-proposals-to-the-owner-and-file-the-approved-ones-as-an-issue-before-the-spec-completes.
+Each mutation is a fresh copy of the tree as git lists it (tracked plus untracked-not-ignored), made in a scratch directory
+outside the repository and not a git repository itself, so g's and k's runs of scripts from history are skipped; the named
+test is then run from that copy. Nothing here is a gate step or part of the harness; it is the evidence that only discriminates
+where the reason assertion, says(), does not.
+
+### M1. g's fixture as it was before the ninth spec (rm base/process/*.md only), with only
+
+$ sed -i '' 's#rm -r "\$NEG/g/base" || die "g: rm"; mkdir -p "\$NEG/g/base/process" || die "g: mkdir"#rm "\$NEG/g/base/process/"*.md || die "g: rm"#' scripts/gate-negative-tests.sh && grep -n 'mk g;' scripts/gate-negative-tests.sh   (in the copy)
+231:   mk g; rm "$NEG/g/base/process/"*.md || die "g: rm"
+exit=0
+
+$ scripts/gate-negative-tests.sh g   (in the copy)
+
+### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
+-- commit aaacc57 is not in this clone; its scripts/check-index.sh is not shown
+-- shipped script, same environment (must name process/B alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/B
+        python/toolchain
+exit=1
+only=process/B  UNEXPECTED (listed: process/B python/toolchain)
+-- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
+FAIL  tracked under base/ but not in index.yml:
+        python/toolchain
+exit=1  UNEXPECTED (expected 0)
+
+2 runs, 2 unexpected
+exit=1
+
+### M2. The same fixture with only removed from g: the first run of the ninth spec, case 2 passing
+
+$ sed -i '' 's#rm -r "\$NEG/g/base" || die "g: rm"; mkdir -p "\$NEG/g/base/process" || die "g: mkdir"#rm "\$NEG/g/base/process/"*.md || die "g: rm"#' scripts/gate-negative-tests.sh && sed -i '' '/^   only process\/B$/d' scripts/gate-negative-tests.sh && ! grep -n 'only process/B' scripts/gate-negative-tests.sh && grep -n 'mk g;' scripts/gate-negative-tests.sh   (in the copy)
+231:   mk g; rm "$NEG/g/base/process/"*.md || die "g: rm"
+exit=0
+
+$ scripts/gate-negative-tests.sh g   (in the copy)
+
+### g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)
+-- commit aaacc57 is not in this clone; its scripts/check-index.sh is not shown
+-- shipped script, same environment (must name process/B alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/B
+        python/toolchain
+exit=1
+-- shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):
+FAIL  tracked under base/ but not in index.yml:
+        python/toolchain
+exit=1  UNEXPECTED (expected 0)
+
+2 runs, 1 unexpected
+exit=1
+
+### M3. k with a second unindexed standard, process/eta, beside zeta: says() still passes, only does not
+
+$ sed -i '' 's#^   printf .\# Z.*zeta.md" || die "k: zeta.md"; #&printf "\# E\\\\n\\\\nA standard.\\\\n" > "\$NEG/k/base/process/eta.md" || die "k: eta.md"; #' scripts/gate-negative-tests.sh && grep -n 'eta.md' scripts/gate-negative-tests.sh   (in the copy)
+294:   printf '# Z\n\nA standard.\n' > "$NEG/k/base/process/zeta.md" || die "k: zeta.md"; printf "# E\\n\\nA standard.\\n" > "$NEG/k/base/process/eta.md" || die "k: eta.md"; git -C "$NEG/k" add -A || die "k: git add zeta"
+295:   note "zeta.md tracked beside them with no entry (must fail naming process/zeta alone):"
+exit=0
+
+$ scripts/gate-negative-tests.sh k   (in the copy)
+
+### k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)
+-- both indexed (must pass):
+ok   index.yml and the tracked files under base/ agree (8 standard(s))
+exit=0
+-- zeta.md tracked beside them with no entry (must fail naming process/zeta alone):
+FAIL  tracked under base/ but not in index.yml:
+        process/eta
+        process/zeta
+exit=1
+only=process/zeta  UNEXPECTED (listed: process/eta process/zeta)
+-- commit cf1bdf0 is not in this clone; its scripts/check-index.sh is not shown
+
+2 runs, 1 unexpected
+exit=1
+
