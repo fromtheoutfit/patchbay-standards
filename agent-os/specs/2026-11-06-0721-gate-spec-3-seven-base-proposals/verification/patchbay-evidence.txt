@@ -194,3 +194,63 @@ $ git -C ../patchbay show origin/main:agent-os/specs/2026-11-05-2057-toolchain-r
 520:exit=1
 30 runs, 0 unexpected
 harness exit=0
+
+## 6. uv's required-version, probed (added after the review of PR 14, finding 6)
+
+A scratch project outside the repository whose pyproject.toml requires a uv that is not running; each command run
+in its directory, with its first lines and its exit status. "Pinned" and "CI" are worded from this.
+$ cat pyproject.toml
+[project]
+name = "probe"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+required-version = "==0.1.0"
+$ uv --version
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+exit=0
+$ uv self version
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+exit=0
+$ uv tool list
+No tools installed
+exit=0
+$ uvx --from pymarkdownlnt==0.9.41 pymarkdown version
+0.9.41
+exit=0
+$ uv lock
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv sync --locked
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv sync
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv run --locked true
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv version
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv pip list
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv cache dir
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+$ uv python list --only-installed
+error: Required uv version `==0.1.0` does not match the running version `0.13.7`
+exit=2
+
+## 7. patchbay's CLAUDE.md, the gate's own files (added after the review of PR 14, finding 1)
+
+$ git -C ../patchbay show origin/main:CLAUDE.md | sed -n 83,88p
+- The gate's own files — `scripts/gate.sh`, `scripts/gate-negative-tests.sh`,
+  `scripts/sync-standards.sh` (replaced only by the sync), the `[tool.*]` sections of
+  `pyproject.toml` (the rule set and `[tool.uv]`'s uv pin; its `[project]` and
+  `[dependency-groups]` sections are the package's and change in any spec),
+  `.github/workflows/gate.yml` and the gate task in `.claude/commands/agent-os/shape-spec.md` —
+  change only in a spec whose feature is the gate, never as a side effect of another spec or from

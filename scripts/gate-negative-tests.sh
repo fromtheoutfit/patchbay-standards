@@ -7,7 +7,10 @@
 # names the status it expects, and a run that expects a failure also names the reason its output
 # must hold, the FAIL or refusal line with its path where one is printed: gate.sh, check-index.sh
 # and sync-standards.sh each give one status for several reasons, so a status alone cannot tell a
-# guard from its absence. A mismatch of either is marked UNEXPECTED and the harness exits 1 at the
+# guard from its absence. A reason holding gate.sh's FAIL  step N/M line also holds the run to no
+# step banner past step N, and one that is gate.sh's usage or cd line to none at all, so the steps
+# after a failure are checked as never reached, not assumed; a passing run may name lines its output
+# must hold too. A mismatch of any of these is marked UNEXPECTED and the harness exits 1 at the
 # end naming the count, so the transcript's last line says whether every case behaved. Every
 # setup step (a command that builds a case's state) stops the harness by name when it fails
 # (exit 2) rather than letting a case fail for the wrong reason. Nothing in the tree is touched:
@@ -37,13 +40,15 @@
 #                   cannot enter the repository root exits 2 saying so; the clean copy exits 0
 #   y               step 2's file list: an ignored .md under base/ is never linted, the same file
 #                   tracked is, a tracked .md missing from the disk fails by name
-#   z               step 2's install fails as itself: uvx missing from PATH, and a pin naming a
-#                   version never published, each fail step 2 by name before pymarkdown lints
+#   z               step 2's install fails as itself: the clean copy's install ok line comes before
+#                   the lint's; uvx missing from PATH, and a pin naming a version never published,
+#                   each fail step 2 by name as the install, before pymarkdown lints
 #   j               the CI replay: the run steps of .github/workflows/gate.yml on a clean copy and
 #                   a broken one
 # Needs git and uv (j reads the workflow with pyyaml, through uv run --with, installing nothing),
-# and network access for z's unpublished pin, which uvx looks up; z hides uvx with
-# PATH=/usr/bin:/bin, where git and bash must be and uvx must not.
+# and, the first time, network access to fetch the pinned pymarkdown into the uv cache. z hides uvx
+# with PATH=/usr/bin:/bin, where the commands steps 1 and 2 use before uvx (bash, dirname, git,
+# sort, head, grep) must be and uvx must not.
 # g, k, l, r, w and y also run a script from history (git show <sha>:<path>) to show the bug
 # they guard against as it was; that part is skipped where the commit is absent, and k's GNU comm
 # case where gcomm (coreutils) is absent.
@@ -65,12 +70,22 @@ says() {  # says <text> <file>: each line of the text is found in the file, in o
     k <= n && index($0, w[k]) { k++ }
     END { exit (k <= n) }' "$2"
 }
-check() {  # check <expected status> <status> [<expected text> <printed output>]: print the status; assert it and, for a failure, the text
+later() {  # later <n> <file>: the file holds a gate.sh step banner (== K/M) past step <n>
+  awk -v n="$1" '/^== [0-9]+\// && substr($0, 4) + 0 > n { f = 1 } END { exit !f }' "$2"
+}
+check() {  # check <expected status> <status> [<expected text> <printed output>]: print the status; assert it, the text (required for a failure), and no gate.sh step past the one the text fails at
+  local n=
   runs=$((runs + 1))
+  case ${3:-} in
+    *'FAIL  step '[0-9]*) n=${3##*FAIL  step }; n=${n%%/*} ;;   # the last FAIL  step N/M line the text names
+    'usage: scripts/gate.sh'*|'gate: cannot enter'*) n=0 ;;      # not run as the gate: no step at all
+  esac
   if [ "$2" -ne "$1" ]; then
     echo "exit=$2  UNEXPECTED (expected $1)"; unexpected=$((unexpected + 1))
-  elif [ "$1" -ne 0 ] && ! { [ -n "${3:-}" ] && says "$3" "$4"; }; then
+  elif { [ "$1" -ne 0 ] || [ -n "${3:-}" ]; } && ! { [ -n "${3:-}" ] && says "$3" "$4"; }; then
     echo "exit=$2  UNEXPECTED (the output does not say: ${3:-<no reason named>})"; unexpected=$((unexpected + 1))
+  elif [ -n "$n" ] && later "$n" "$4"; then
+    echo "exit=$2  UNEXPECTED (a step after step $n was reached)"; unexpected=$((unexpected + 1))
   else
     echo "exit=$2"
   fi
@@ -251,10 +266,11 @@ i) hdr "i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh 
    printf '[\n' >> "$NEG/i/.pymarkdown.yaml" || die "i: append ["
    ( cd "$NEG/i" && scripts/gate.sh > ../i3.out 2>&1 ); got=$?
    sed "s#$NEG/\([a-z0-9]*\)#<copy \1>#g" "$NEG/i3.out" | awk '
-     /^Traceback / { skip = 1; n = 0 }
-     skip && /^[^ T]/ { skip = 0; print "   ... the traceback, " n " lines, elided" }
+     /^Traceback / { skip = 1; n = 1; next }
+     skip && /^[^ ]/ { skip = 0; print "   ... the traceback, " n " lines, elided" }
      skip { n++; next }
-     { print }'
+     { print }
+     END { if (skip) print "   ... the traceback, " n " lines, elided, to the end of the output" }'
    check 1 "$got" $'/.pymarkdown.yaml\' is not a valid YAML file\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' "$NEG/i3.out" ;;
 k) hdr "k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)"
    mk k; printf '# T\n\nA standard.\n' > "$NEG/k/base/process/testing.md" || die "k: testing.md"; printf '# TF\n\nA standard.\n' > "$NEG/k/base/process/testing-fakes.md" || die "k: testing-fakes.md"
@@ -350,21 +366,24 @@ y) hdr "y (step 2 lists with git: an ignored base/process/draft.md with a lint f
    rm "$NEG/y/base/process/ownership.md" || die "y: rm ownership.md"
    note "base/process/ownership.md tracked but deleted from the disk, deletion not staged (must fail at step 2 naming it, exit 1, before pymarkdown runs):"
    run y 1 "FAIL  step 2/3: base/process/ownership.md is tracked but missing from the disk" scripts/gate.sh ;;
-z) hdr "z (step 2 installs the pinned pymarkdown as itself: the clean copy shows the install's ok line before the lint's; uvx missing from PATH is refused by name; a pin naming a version never published fails as the install, uvx naming it, pymarkdown never linting, 3/3 never printed)"
+z) hdr "z (step 2 installs the pinned pymarkdown as itself: the clean copy shows the install's ok line before the lint's; uvx missing from PATH is refused by name; a pin naming a version never published fails as the install, pymarkdown never linting, 3/3 never printed)"
    mk z
-   note "clean copy (must pass, exit 0; the install's ok line comes before the lint's):"
-   run z 0 scripts/gate.sh
+   note "clean copy (must pass, exit 0, the install's ok line before the lint's):"
+   ( cd "$NEG/z" && scripts/gate.sh ) > "$NEG/run.raw" 2>&1; got=$?
+   shown "$NEG/run.raw"
+   check 0 "$got" $'ok   pymarkdownlnt==
+ok   no findings' "$NEG/run.out"
    env PATH=/usr/bin:/bin bash -c 'command -v uvx' >/dev/null 2>&1 && die "z: uvx is on /usr/bin:/bin, so PATH cannot hide it"
-   for c in git sort head grep; do
+   for c in bash dirname git sort head grep; do
      env PATH=/usr/bin:/bin bash -c "command -v $c" >/dev/null 2>&1 || die "z: $c is not on /usr/bin:/bin"
    done
    note "PATH=/usr/bin:/bin, where git and bash are and uvx is not (step 1 must pass, then step 2 must fail naming uvx, exit 1):"
    run z 1 $'ok   scripts/sync-standards.sh\nFAIL  step 2/3: uvx is not on PATH; step 2 runs the pinned pymarkdown through it' env PATH=/usr/bin:/bin scripts/gate.sh
    sed -i.bak 's/^PYMARKDOWN_VERSION=.*$/PYMARKDOWN_VERSION=0.9.999/' "$NEG/z/scripts/gate.sh" || die "z: sed pin"; rm "$NEG/z/scripts/gate.sh.bak" || die "z: rm .bak"
    grep -qx 'PYMARKDOWN_VERSION=0.9.999' "$NEG/z/scripts/gate.sh" || die "z: pin not rewritten"
-   note "the copy's pin set to 0.9.999, a version never published (step 2 must fail as the install, uvx naming the version, exit 1, pymarkdown never linting):"
+   note "the copy's pin set to 0.9.999, a version never published (step 2 must fail as the install, exit 1, pymarkdown never linting, 3/3 never printed; why uvx refused it is uv's to say, and is not asserted):"
    run z 0 grep -n '^PYMARKDOWN_VERSION=' scripts/gate.sh
-   run z 1 $'there is no version of pymarkdownlnt==0.9.999\nFAIL  step 2/3: uvx could not install pymarkdownlnt==0.9.999, the pinned version (see above)' scripts/gate.sh ;;
+   run z 1 "FAIL  step 2/3: uvx could not install pymarkdownlnt==0.9.999, the pinned version, or pymarkdown would not start (see above)" scripts/gate.sh ;;
 j) hdr "j (CI replay: the run steps of .github/workflows/gate.yml, in order, on a clean copy and on a copy with a broken script)"
    cat <<'TXT'
 The workflow is not run on a hosting service here. The job's steps are read from the workflow file
@@ -380,7 +399,7 @@ TXT
    mk j1; mk j2; broken j2
    replay() {  # replay <name> <expected status> [<expected text>]: the workflow's steps against the copy
      local c=$1 want=$2 text=${3:-} got
-     uv run --quiet --no-project --with pyyaml python - "$NEG/$c" .github/workflows/gate.yml > "$NEG/run.raw" 2>&1 <<'PY'
+     uv run --quiet --no-project --with pyyaml python -u - "$NEG/$c" .github/workflows/gate.yml > "$NEG/run.raw" 2>&1 <<'PY'
 import subprocess, sys, yaml
 tree, wf = sys.argv[1], sys.argv[2]
 w = yaml.safe_load(open(wf)); on = w[True] if True in w else w["on"]; job = w["jobs"]["gate"]

@@ -24,12 +24,15 @@
 # a bash shebang; any other file fails the step by name, since only shell scripts live under
 # scripts/. Step 2 passes pymarkdown the .md files of its list rather than a directory to walk.
 #
-# Step 2 installs the pinned tool as its own check before the tool runs (the rule in
+# Step 2 installs the pinned tool as its own check before the tool lints (the rule in
 # base/process/verification-gate.md, "One script"): uvx missing from PATH, or a pin uvx cannot
 # install (a version never published, no network the first time), fails the step by name as the
-# install, never as a finding of pymarkdown's; only then does pymarkdown lint, and its reason is
-# about findings and the rule set it reads. The pin lives here because this repository has no
-# package manifest; uv's own version is pinned in CI only, as setup-uv's input.
+# install, never as a finding of pymarkdown's. uvx has no form that installs without running, so the
+# check runs `pymarkdown version`, which checks nothing in the tree, and a pymarkdown that will not
+# start fails there under the same reason; only then does pymarkdown lint, and its reason is about
+# findings and the rule set it reads. The pinned invocation is built once and used by both calls.
+# The pin lives here because this repository has no package manifest; uv's own version is pinned in
+# CI only, as setup-uv's input.
 #
 # Step 1 needs bash and git. Step 2 needs git, uv (uvx) and, the first time, network access to
 # fetch the pinned pymarkdown into the uv cache; uv is the one installer the patchbay packages
@@ -81,11 +84,11 @@ while IFS= read -r -d '' f; do
 done < <(listed base README.md)
 [ "${#md[@]}" -gt 0 ] || fail 2/3 "git lists no .md file under base/ or README.md"
 command -v uvx >/dev/null 2>&1 || fail 2/3 "uvx is not on PATH; step 2 runs the pinned pymarkdown through it"
-v=$(uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown version) ||
-  fail 2/3 "uvx could not install pymarkdownlnt==$PYMARKDOWN_VERSION, the pinned version (see above)"
+pmd=(uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown)   # the pinned invocation, for both calls
+v=$("${pmd[@]}" version) ||
+  fail 2/3 "uvx could not install pymarkdownlnt==$PYMARKDOWN_VERSION, the pinned version, or pymarkdown would not start (see above)"
 echo "ok   pymarkdownlnt==$PYMARKDOWN_VERSION installed through uvx (pymarkdown version: $v)"
-uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown \
-  --strict-config --config .pymarkdown.yaml scan "${md[@]}" ||
+"${pmd[@]}" --strict-config --config .pymarkdown.yaml scan "${md[@]}" ||
   fail 2/3 "pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)"
 echo "ok   no findings in ${#md[@]} file(s)"
 

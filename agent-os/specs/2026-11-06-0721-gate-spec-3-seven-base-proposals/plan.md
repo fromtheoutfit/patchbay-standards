@@ -270,3 +270,186 @@ and no attribution is added anywhere.
 - **New:** the spec folder.
 - **Unchanged and verified:** `.github/workflows/gate.yml`, `.pymarkdown.yaml`,
   `scripts/check-index.sh`, `scripts/sync-standards.sh`, `README.md`.
+
+# Revision after the review of PR 14 (2026-11-06)
+
+Shaped 2026-11-06 in plan mode with `/agent-os:shape-spec`; the first round's plan (issue #12) is
+above, and this revision is appended by its Task 1. Branch `task/12-gate-spec-3-…`, clean at
+`2138d96`, which is PR 14's head. The hosted gate run 42227921959 (`pull_request`, `2138d96`) succeeded.
+
+## Context
+
+The owner's review comment on PR 14 lists 12 findings against `2138d96`: 4 to fix before merge and 8
+minor. Each was checked against the files while shaping, and every one holds. This plan addresses all
+12, in this spec's own folder, as the PR 11 revision of gate spec 2 did:
+
+- a "Revision after review" section in `shape.md`;
+- the dispositions tabled below, copied into `plan.md`;
+- every transcript rerun.
+
+The owner chose four of the dispositions, each time the recommended option. The others follow the
+review's own suggestion.
+
+## Dispositions
+
+| # | Finding | Disposition |
+|---|---------|-------------|
+| 1 | The tool pins sit in `[dependency-groups]`, which the standard gives to the package | **Owner:** the pins of the tools the gate runs, and what the lockfile resolves for them, are gate files; the group's other entries stay the package's. Changes go in "Pinned" bullets 1 and 3, "The gate's own files" and "In a consuming project". A new patchbay issue covers its `pyproject.toml` header and `CLAUDE.md`. |
+| 2 | `shape.md:109`'s gate paragraph is stale | Rewrite it as the template now reads: the pin is installed through `uvx` as its own check first. |
+| 3 | z's header claims an ok-line order and "3/3 never printed", and neither is checked | **Owner:** assert both, for every `gate.sh` failure (see Task 2). |
+| 4 | The pinned invocation is written out twice | Build it once, `pmd=(uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown)`, and use it in both calls. |
+| 5 | j's replay prints its lines out of order, and nothing tracks it | **Owner:** fix here: the replay runs `python -u`, as patchbay's harness does. |
+| 6 | "Refuses any other version on every command" overstates uv | Probe it with uv 0.13.7. Write "on every command that reads the project" in "Pinned", and tighten "CI"'s "at its first command" the same way. |
+| 7 | z's unpublished-pin case needs the network and uv's own wording | **Owner:** assert only the gate's FAIL line naming 0.9.999. The header no longer says this case needs the network. |
+| 8 | The install check runs `pymarkdown version`, so a startup crash reads as "could not install" | Reword the reason: "…, the pinned version, or pymarkdown would not start (see above)". Write the general rule as "before any tool checks the tree". `pymarkdown version` checks nothing, and uvx has no install-only form. |
+| 9 | i3's awk filter can swallow a line | End the elision at the first unindented line, with `next` on the `Traceback` line, and add an `END` that prints the note. |
+| 10 | `bash` is missing from z's precondition loop | The loop becomes `bash dirname git sort head grep`, the commands steps 1 and 2 use; the header names them. |
+| 11 | The heading "runs the same script and nothing else" reads tighter than its body | Reword to "runs the same script, and checks nothing the script does not"; the `index.yml` description follows. |
+| 12 | Two uvx resolutions per run | Folded into 4 and accepted: each call resolves from the warm cache. Recorded, not changed. |
+
+## Task 1: Save spec documentation (revised in place)
+
+- **`plan.md`**: append "Revision after the review of PR 14", containing this Context and the table above.
+- **`shape.md`**:
+  - after Decisions, add "Revision after review (2026-11-06)": a summary of the review, the four owner
+    choices, and the decisions that extend the ones above;
+  - fix the Verification Gate paragraph (finding 2).
+
+  Results, Docs, Version and the Standards Retrospective are rewritten at the end, from the revised diff.
+
+## Task 2: Gate files (`scripts/gate.sh`, `scripts/gate-negative-tests.sh`)
+
+- **`gate.sh` step 2 (findings 4 and 8)**:
+  - define `pmd=(…)` once, then use `v=$("${pmd[@]}" version) || fail 2/3 "uvx could not install
+    pymarkdownlnt==$PYMARKDOWN_VERSION, the pinned version, or pymarkdown would not start (see above)"`
+    and `"${pmd[@]}" --strict-config --config .pymarkdown.yaml scan "${md[@]}"`;
+  - update the header's install paragraph to match.
+- **Harness `check` (finding 3)**: two new assertions.
+  1. Text given to `check` is asserted whatever the expected status. A run expecting 0 can now name
+     lines its output must hold, in order.
+  2. A new helper, `later <n> <file>`, uses awk over `== K/M` banners to find any banner past step n.
+     `check` marks the run `UNEXPECTED` ("a step after step N was reached") when either holds:
+     - the reason names `FAIL  step N/M` and the output has a banner past step N;
+     - the reason is `gate.sh`'s usage line or its cd line (N = 0) and the output has any banner.
+
+  This turns into checks the "never printed" claims in e, f, i, w and y; the "no step banner" claims
+  in x; z's claims; and j2's claims. It also covers the old-script runs in w and y, which stop where
+  their reasons say.
+- **Test z (findings 3, 7 and 10)**:
+  - The clean run is written in the same form as i's first case: the output goes to `run.raw`, then
+    `shown`, then `check 0 "$got" $'ok   pymarkdownlnt==\nok   no findings' …`.
+  - The precondition loop adds `bash` and `dirname`.
+  - The unpublished-pin case asserts only `FAIL  step 2/3: uvx could not install
+    pymarkdownlnt==0.9.999, the pinned version, or pymarkdown would not start (see above)`.
+  - Update z's header and notes, and the "Needs" line: z needs only what every `gate.sh` test needs.
+- **Test i3 (finding 9)**: the awk filter as tabled.
+- **j (finding 5)**: `uv run --quiet --no-project --with pyyaml python -u -`.
+- **Header**: lines 2–16 say that a failure's later steps are checked as never reached, and that a
+  passing run may name its lines. Update `check`'s comment line too.
+- **Run**: the gate on the tree, then `scripts/gate-negative-tests.sh` and `scripts/gate-negative-tests.sh
+  j`, iterating until both report 0 unexpected.
+
+## Task 3: Show the new assertions discriminate (`verification/review-mutations.txt`)
+
+This follows gate spec 2's `reason-assertion-mutations.txt`. Each mutation is made in a scratch copy of
+the repository's listed files, outside the tree, and the harness runs from that copy:
+
+1. **The gate runs every step and exits 1 at the end.** `fail` sets a flag instead of exiting, and the
+   closing line exits with the flag. Then run e and f: each still exits 1 with its FAIL line, and only
+   the new banner check marks it `UNEXPECTED`.
+2. **The install check deleted.** Run z: the unpublished pin now fails as "pymarkdown reported
+   findings…", and the gate-line-only assertion marks it `UNEXPECTED`.
+
+## Task 4: `base/process/verification-gate.md` (findings 1, 3, 6, 8 and 11)
+
+- **Probe (finding 6)** in the scratchpad, with uv 0.13.7 and a `pyproject.toml` declaring
+  `required-version = "==0.1.0"`. Run `uv --version`, `uv tool list`, `uv lock`, `uv sync` and
+  `uv run true`, and record the commands and output as a new section of
+  `verification/patchbay-evidence.txt`. The wording follows what the probe shows.
+- **"One script"**: the install rule reads "before any tool checks the tree" (finding 8).
+- **"Pinned"**:
+  - bullet 1: the pins of the tools the gate runs are gate files: in the script, as part of it; in a
+    manifest, the development group's tool pins and what the lockfile resolves for them. The group's
+    other entries are the project's.
+  - bullet 2: "on every command that reads the project".
+  - bullet 3: the tool sections, with those pins, are the gate's, and the rest of the manifest is the
+    project's.
+- **Harness bullet**: a run that fails at a step also shows no later step reached, and a passing run
+  may name its lines.
+- **"CI"**: the heading is reworded (finding 11), and the pinned runner's refusal comes at "its first
+  command that reads the project, the locked install".
+- **"The gate's own files"**: add the tool pins, in the script or in the manifest's development group
+  with their lockfile resolution.
+- **"In this repository"**: the install check starts `pymarkdown version`, so a pymarkdown that will
+  not start fails there, by the same reason.
+- **"In a consuming project"**:
+  - `[tool.*]`, plus the tool pins in `[dependency-groups] dev` with what `uv.lock` resolves for them,
+    are the gate's;
+  - `[project]`, `[build-system]` and the rest of `[dependency-groups]` are the package's;
+  - drop "as the file's header says", since patchbay's header says otherwise until its issue lands.
+
+## Task 5: Docs follow-through
+
+- **`index.yml`**: the `process/verification-gate` description gets "the tool pins among the gate's
+  files" and "CI runs the same script and checks nothing it does not". It keeps no `: ` and no ` #`.
+- **`CHANGELOG.md`**: revise the Seventh spec entry to the shipped state, with one sentence naming
+  the PR 14 review and the patchbay issue. Changed lines for `gate.sh` and the harness reflect what
+  shipped. The heading-fix line stays its own.
+- **`shape-spec.md` (a gate file)**: change it only if its step-2 text stops being true. Check
+  `CLAUDE.md` the same way.
+
+## Task 6: patchbay issue (finding 1, the owner's choice)
+
+Open it after Task 4's text is final:
+`gh issue create -R fromtheoutfit/patchbay`, with no attribution.
+
+- **Title:** "Gate spec: the dev group's tool pins are gate files (patchbay-standards PR 14)".
+- **Body**:
+  - the contradiction: the `pyproject.toml` header says `[dependency-groups]` is the package's, its
+    own dev-group comment says pins change only in the gate's spec, and `CLAUDE.md` gate-files lines
+    85–86 agree with the header;
+  - the revised rule;
+  - that hypothesis and pre-commit need classifying;
+  - the `[tool.uv]` comment's "any other uv refuses to run here" (finding 6's overstatement).
+
+  All of it is for patchbay's own gate spec after it syncs past PR 14. Record the issue number in
+  `shape.md` and `CHANGELOG.md`.
+
+## Task 7 (FINAL): Verification gate
+
+1–3. Run `scripts/gate.sh`: `bash -n` under `scripts/`; uvx on PATH, the pinned pymarkdown
+installed, then pymarkdown over `base/` and `README.md` as git lists them; then `check-index.sh`.
+
+Gate files change in Task 2, so every negative test runs after the last edit to them.
+- `verification/gate-negative-tests.txt` holds every test but j; `verification/ci-negative-test.txt`
+  holds j.
+- Each file has its date and branch in the header, and `N runs, 0 unexpected` on its last line.
+- `ci-negative-test.txt` also records PR 14's hosted run on its first head: 42227921959,
+  `pull_request`, `2138d96`, success. The revision's own hosted run is the owner's to record after
+  the push.
+
+4. **Docs**, recorded in `shape.md`:
+   - every sentence changed in `verification-gate.md`, read against the probe, patchbay's files and
+     this repository's scripts;
+   - the `gate.sh` and harness headers against their code;
+   - `CLAUDE.md` and `shape-spec.md`;
+   - a grep outside `agent-os/specs/` for the old reason, "on every command", "and nothing else" and
+     "there is no version";
+   - no line over 100 columns.
+5. **Version**: the revised `[Unreleased]` entries. There is no version to bump.
+6. **Standards retrospective**, last, from the revised diff against `main`: "no changes", or
+   proposals under `### Standards retrospective (proposed, base)`. Its edits are listed separately.
+
+Last act: run `scripts/gate.sh` under `bash -c` into `verification/gate-run.txt`, with the date and
+branch on its first line, then print `git status --short`. Nothing is staged, committed or pushed,
+and nothing is added to PR 14. The only outward action is the patchbay issue the owner chose.
+
+## Files
+
+- **Modified:**
+  - `scripts/gate.sh`, `scripts/gate-negative-tests.sh`;
+  - `base/process/verification-gate.md`;
+  - `index.yml`, `CHANGELOG.md`;
+  - the spec folder: `shape.md`, `plan.md` and `verification/*`, with `review-mutations.txt` new.
+- **Unchanged unless the Docs step shows otherwise:** `CLAUDE.md`, `.claude/commands/agent-os/shape-spec.md`,
+  `.github/workflows/gate.yml`, `.pymarkdown.yaml`, `base/process/standards-retrospective.md`.

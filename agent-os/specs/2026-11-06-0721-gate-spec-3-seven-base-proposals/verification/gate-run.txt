@@ -1,6 +1,6 @@
-Gate run 2026-11-06 on branch task/12-gate-spec-3-land-the-seven-base-proposals-from-patchbays-toolchain-spec-and-its-pr-4-revision, the last act before hand-over of the spec of issue #12 (gate spec 3): step 2's install of the pin,
-the harness's z and i cases, the seven rules in base/process/verification-gate.md and base/process/standards-retrospective.md, the index,
-the docs and the CHANGELOG. Every input is tracked but the spec folder, which no step reads.
+Gate run 2026-11-06 on branch task/12-gate-spec-3-land-the-seven-base-proposals-from-patchbays-toolchain-spec-and-its-pr-4-revision, the last act before hand-over of the spec of issue #12 (gate spec 3), revised after the review of PR 14:
+the tool pins as gate files, the install check's reason and the invocation built once, the harness's banner check, named lines, z and i3
+and j's -u, uv's refusal as probed, the index, the docs and the CHANGELOG. Every input is tracked but the spec folder, which no step reads.
 
 $ scripts/gate.sh
 
