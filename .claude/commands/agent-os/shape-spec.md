@@ -187,7 +187,8 @@ Create `agent-os/specs/{folder-name}/` with:
 
 Run the full verification gate, in order. The spec is not complete until every step passes:
 
-1. `bash -n` on every file under `scripts/` — every script must parse
+1. `bash -n` on every shell script under `scripts/` as git lists them (tracked or untracked, not
+   ignored) — every script must parse; any other file there fails the step by name
 2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`)
    over `base/` and `README.md` — must report no findings
 3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every
@@ -206,7 +207,8 @@ Run the full verification gate, in order. The spec is not complete until every s
    can be committed apart from it. If the spec taught nothing, record
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
 
-`scripts/gate.sh` runs steps 1–3 as one command. Steps 4–6 are judgment, in that order, recorded
+`scripts/gate.sh` runs steps 1–3 as one command, exit 1 at the first failing step after a `FAIL`
+line naming it, exit 2 on usage. Steps 4–6 are judgment, in that order, recorded
 in `shape.md`; the retrospective is always last.
 
 If any step fails, fix the underlying issue (do not bypass) and rerun before marking the
@@ -297,10 +299,10 @@ None yet; see Step 5a. The first base standards will fill this tier.
 
 ## Verification Gate
 
-Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every file under
-`scripts/`, `pymarkdown` over `base/` and `README.md`, and `scripts/check-index.sh` —
-and the three judgment steps are recorded, in this order: Docs, Version, then the
-standards retrospective below.
+Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every shell script under
+`scripts/` as git lists them, `pymarkdown` over `base/` and `README.md`, and
+`scripts/check-index.sh` — and the three judgment steps are recorded, in this order: Docs,
+Version, then the standards retrospective below.
 
 **Results ({date}):** [exit status, branch, `verification/gate-run.txt`; which negative
 tests were rerun if a gate file changed]

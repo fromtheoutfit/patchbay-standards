@@ -11,6 +11,37 @@ bring in.
 
 ### Added
 
+- Sixth spec, `agent-os/specs/2026-11-05-2019-gate-spec-2-five-base-proposals/` (issue #10), the
+  second gate spec: the five base proposals from patchbay's first two specs landed, each rule
+  written from patchbay's shipped files at its `origin/main` and from this repository's gate files
+  once aligned, never from the proposals' text; every gate file that changed carries its negative
+  test, and the two repositories' `scripts/gate.sh` now read the same apart from their step lists.
+  - `base/process/verification-gate.md`: "One script" fixes the exit contract (exit 1 at the
+    first failing step after `FAIL  step N/M: <reason>` on stderr, whatever the tool returned;
+    any argument is usage, exit 2) and gains the listing rule (a step that reads files from the
+    tree lists them with git, tracked plus untracked-not-ignored, each checked on the disk, a tree
+    that is not a work tree refused by name); "Every step that can fail is proven to fail" gains
+    the harness shape (`mktemp -d` under a hard failure, the scratch directory refused when empty
+    or inside the repository before the trap is set, a setup failure stopping the harness, every
+    run asserting its expected status, the last line of a transcript counting the mismatches);
+    "In this repository" rewritten from the aligned scripts (step 1's shell-only parse, the test
+    count, the current transcripts' home, the two-repository diff); "In a consuming project"
+    names the project's step 1, the exit contract, the pin step and the fixture.
+  - `base/process/standards-sync.md` "In a consuming project": the pin step as the form a
+    project's workflow uses (a `run` step with an `id` writes `.version` to `GITHUB_OUTPUT` as
+    `sha`, the second checkout takes it as `ref` at the default depth; the default branch with
+    full history fails on a pin later squashed or deleted), and the fixture a project's negative
+    tests use for the drift check (one clone of the sibling into the scratch directory per run,
+    each case as `<case>/patchbay` beside a `<case>/patchbay-standards` symlink, the sibling never
+    written, the missing-sibling case made by removing the symlink, the CI replay from the scratch
+    workspace).
+  - `scripts/gate-negative-tests.sh`: tests w (step 1 lists files with git: an ignored
+    `scripts/.DS_Store` passes, a tracked `scripts/notes.txt` is refused by name, a tracked script
+    missing from the disk is refused, a copy without `.git` is refused by name) and x (`--help`
+    and a stray argument exit 2 with the usage line; the clean copy exits 0). Transcripts in the
+    spec's `verification/`, j rerun there; `verification/gate-sh-diff.txt` is the `diff -u` of
+    patchbay's `scripts/gate.sh` at `origin/main` against this repository's.
+
 - Fifth spec, `agent-os/specs/2026-11-05-1441-sync-script-and-standards-sync/` (issue #8): the sync
   that makes a second patchbay repository possible, and the standard that describes it, verified
   against the script as shipped.
@@ -116,6 +147,26 @@ bring in.
 
 ### Changed
 
+- `scripts/gate.sh` (issue #10): aligned with patchbay's. Exits 1 at the first failing step after
+  `FAIL  step N/3: <reason>` on stderr, whatever `bash -n`, pymarkdown or `check-index.sh`
+  returned (test f recorded `bash -n`'s 2 before); any argument is usage, exit 2, no step run.
+  Step 1 lists `scripts/` with git, tracked plus untracked-not-ignored, in place of `find`, so an
+  ignored stray is never parsed and a script added before it is staged is; a file ending in `.sh`
+  or starting with a bash shebang is parsed, any other file fails the step by name, a tracked
+  file missing from the disk and a tree that is not a git work tree each fail by name. The header
+  says the exit contract, the listing rule and what each step needs.
+- `scripts/gate-negative-tests.sh` (issue #10): the harness shape patchbay's has. The scratch
+  directory comes from `mktemp -d` under a hard failure and is refused when empty or at or under
+  the repository before the trap is set; a setup step that fails stops the harness (exit 2);
+  `run` takes the status each case expects, prints `exit=N` or marks it `UNEXPECTED`, and the
+  harness ends with `N runs, M unexpected` and exits 1 on any mismatch. Every existing case now
+  asserts the status the fifth spec's transcript recorded; e and f end in the `FAIL` line.
+- `CLAUDE.md` and `.claude/commands/agent-os/shape-spec.md` (issue #10): step 1 described as the
+  script does it, every shell script under `scripts/` as git lists them, and the exit contract
+  named.
+- `index.yml` (issue #10): the `process/verification-gate` description rewritten for the exit
+  contract, the git listing and the asserting harness; `process/standards-sync` names the CI
+  checkout at the pin read from `.version`.
 - `base/process/standards-index.md` (issue #8): the interim hand-copy sentence and "named here when
   it ships" are pointers at `base/process/standards-sync.md` and `scripts/sync-standards.sh
   --index-only`; a base change without its index entry "does not merge" (the `gate` check is

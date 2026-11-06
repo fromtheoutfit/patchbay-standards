@@ -1,0 +1,20 @@
+Gate run 2026-11-05 on branch task/10-gate-spec-2-land-the-five-base-proposals-from-patchbays-first-specs-and-align-this-repositorys-gate, the last act before hand-over of the spec of issue #10 (gate spec 2): scripts/gate.sh aligned with patchbay's,
+the harness asserting every status, the five rules in verification-gate.md and standards-sync.md, the CHANGELOG. Every input is tracked but the
+spec folder, which no step reads.
+
+$ scripts/gate.sh
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  pymarkdown 0.9.41 over base/ and README.md (rules in .pymarkdown.yaml)
+ok   no findings
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (5 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
