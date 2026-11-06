@@ -1,0 +1,56 @@
+CI replay (test j of scripts/gate-negative-tests.sh), run 2026-11-06 on branch task/12-gate-spec-3-land-the-seven-base-proposals-from-patchbays-toolchain-spec-and-its-pr-4-revision, after the last edit to scripts/gate.sh,
+the harness and the gate task in shape-spec.md in this spec (issue #12). The workflow is unchanged since the fourth spec; j reruns because
+gate files changed, and j1 now runs step 2's install of the pin. The hosted run on the pull request is the owner's to read back and
+record at the end, once the owner pushes.
+
+$ scripts/gate-negative-tests.sh j
+
+
+### j (CI replay: the run steps of .github/workflows/gate.yml, in order, on a clean copy and on a copy with a broken script)
+The workflow is not run on a hosting service here. The job's steps are read from the workflow file
+and the run steps executed in order in a copy of the tree, each under the shell GitHub gives a run
+step on ubuntu (bash --noprofile --norc -eo pipefail). GitHub's rule: a step that exits non-zero
+fails the job unless continue-on-error is set, and this job sets nothing. This replays the job's
+control flow on this machine's toolchain; it is not the ubuntu run. The hosted run on the pull
+request is the proof of the workflow itself, recorded by run id and conclusion in the spec's
+verification/ once it exists. The two uses steps are checkout, which the copy stands in for, and
+setup-uv pinned to a version; the uv on PATH here is shown.
+uv on PATH: uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+-- j1, clean copy (the job must pass):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 6 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (5 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+job: gate  runs-on: ubuntu-24.04  timeout-minutes: 10  on: {'push': {'branches': ['main']}, 'pull_request': None}
+step 1: uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  with {'persist-credentials': False}  (not run here)
+step 2: uses astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  with {'version': '0.13.7', 'enable-cache': False}  (not run here)
+step 3: run scripts/gate.sh
+step 3 exit=0
+job: passed
+exit=0
+-- j2, scripts/broken.sh added as in test f (gate.sh fails at step 1, exit 1, so the job must fail):
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+scripts/broken.sh: line 3: syntax error: unexpected end of file
+FAIL  step 1/3: scripts/broken.sh does not parse
+job: gate  runs-on: ubuntu-24.04  timeout-minutes: 10  on: {'push': {'branches': ['main']}, 'pull_request': None}
+step 1: uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  with {'persist-credentials': False}  (not run here)
+step 2: uses astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  with {'version': '0.13.7', 'enable-cache': False}  (not run here)
+step 3: run scripts/gate.sh
+step 3 exit=1
+job: FAILED at step 3 (a run step that exits non-zero fails the job)
+exit=1
+
+2 runs, 0 unexpected
+harness exit=0

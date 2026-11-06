@@ -1,0 +1,196 @@
+Evidence the rules of issue #12 are written from, recorded 2026-11-06 on branch task/12-gate-spec-3-land-the-seven-base-proposals-from-patchbays-toolchain-spec-and-its-pr-4-revision.
+Every patchbay file is read at its origin/main with git show, never from its working tree, which is on a feature branch.
+
+## 1. patchbay origin/main
+
+$ git -C ../patchbay rev-parse origin/main
+73a583a9fd3e044b21cd3de5430dd911fbebba13
+$ git -C ../patchbay ls-remote origin refs/heads/main
+73a583a9fd3e044b21cd3de5430dd911fbebba13	refs/heads/main
+$ git -C ../patchbay diff --stat 2121c27 origin/main   (PR 4's head against the merge: no output, the trees are identical)
+exit=0
+$ git -C ../patchbay show origin/main:agent-os/standards/base/.version   (the commit of this repository patchbay is synced to)
+b3fc2fe7aa61147ae688f946e2533ae21902713b
+
+## 2. setup-uv README.md at 68559e99cc807c1eb7e9238fd43a15bba460eec2 (v10.3.3), the commit both workflows pin
+
+$ gh api repos/astral-sh/setup-uv/contents/README.md?ref=68559e9... --jq .content | base64 -d | sed -n "26,34p;46,52p;219,232p"
+### Install a required-version or latest (default)
+
+```yaml
+- name: Install the latest version of uv
+  uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+```
+
+If you do not specify a version, this action will look for a [required-version](https://docs.astral.sh/uv/reference/settings/#required-version)
+in a `uv.toml` or `pyproject.toml` file in the repository root. If none is found, the latest version will be installed.
+  uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+  with:
+    # The version of uv to install, e.g., "0.5.0", "latest", or "latest-known" (default: searches for version in config files, then latest)
+    version: ""
+
+    # Path to a file containing the version of uv to install, e.g., uv.toml, pyproject.toml, .tool-versions, requirements.txt or uv.lock. A selected .tool-versions file can also provide the Python version (default: searches uv.toml then pyproject.toml)
+    version-file: ""
+### Working directory
+
+You can set the working directory with the `working-directory` input.
+This controls where we look for `pyproject.toml`, `uv.toml` and `.python-version` files
+which are used to determine the version of uv and python to install.
+
+It also controls where [the venv gets created](#activate-environment), unless `venv-path` is set.
+
+```yaml
+- name: Install uv based on the config files in the working-directory
+  uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+  with:
+    working-directory: my/subproject/dir
+```
+
+## 3. Hosted runs of patchbay's gate workflow
+
+$ gh run list -R fromtheoutfit/patchbay --workflow gate --limit 3
+run 42150149022  push  head 73a583a  2026-11-06T02:24:45Z  conclusion: success
+run 42149183261  pull_request  head 2121c27  2026-11-06T02:15:45Z  conclusion: success
+run 42145584983  pull_request  head 92c2ec2  2026-11-06T01:42:12Z  conclusion: success
+
+42149183261 is the revised workflow (setup-uv with no version input) on PR 4's head 2121c27; 42150149022 the same tree
+merged to main. The revision spec's verification/ci-negative-test.txt at 73a583a records only 42145584983 (92c2ec2, the
+workflow before the revision) and says the revised run is the owner's to record; these two are read here instead.
+
+$ gh run view 42149183261 -R fromtheoutfit/patchbay --log | grep -E "Run astral|enable-cache|cache-dependency-glob|Trying to find version|Found version|Successfully installed uv|cache dependency glob|Cache hit for"
+2026-11-06T02:15:51.7740923Z ##[group]Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+2026-11-06T02:15:51.7742175Z   enable-cache: true
+2026-11-06T02:15:51.7742512Z   cache-dependency-glob: uv.lock
+2026-11-06T02:15:52.0171194Z Trying to find version for uv in: patchbay/uv.toml
+2026-11-06T02:15:52.0173485Z Trying to find version for uv in: patchbay/pyproject.toml
+2026-11-06T02:15:52.0187670Z Found version for uv in patchbay/pyproject.toml: 0.13.7
+2026-11-06T02:15:52.6901265Z Successfully installed uv version 0.13.7
+2026-11-06T02:15:52.7532730Z Searching files using cache dependency glob: /home/runner/work/patchbay/patchbay/patchbay/uv.lock
+2026-11-06T02:15:52.8128891Z Cache hit for: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-7f36e020ef444b14e4616c01a0c70d0c7a522a0e9165714bc9181ff2b09bdab9
+
+## 4. patchbay's files at origin/main
+
+$ git -C ../patchbay show origin/main:pyproject.toml | sed -n "1,12p;30,52p"   (the header; the end of [build-system], [tool.uv]; the dev group)
+# The one configuration file of this repository: every tool is configured under [tool.*] here and
+# nowhere else (no setup.py, setup.cfg, requirements*.txt, tox.ini, .flake8, mypy.ini, pytest.ini
+# or .ruff.toml). .pre-commit-config.yaml beside it registers hooks and configures no tool.
+#
+# Two kinds of section. [project], [build-system] and [dependency-groups] are the package's and
+# change in any spec; adding a dependency is a Decision in that spec's shape.md (what it does, why
+# the standard library cannot, its license). The [tool.*] sections are the gate's: [tool.uv] pins
+# the uv that gate steps 2-5 of scripts/gate.sh run under, [tool.uv.build-backend] names the module
+# step 2's sync installs, and the rest are the rule set those steps read (ruff format, ruff check,
+# mypy, pytest). They are gate files and change only in the gate's own spec, with a person
+# (agent-os/standards/base/process/verification-gate.md, "Pinned" and "The gate's own files change
+# only in their own spec").
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+# The uv every uv command in this repository runs under; any other uv refuses to run here, so a
+# local `--locked` run and CI's read uv.lock with the same uv (gate step 2's sync fails by name,
+# negative test o). CI's astral-sh/setup-uv reads this key to choose the uv it installs, so the
+# version is written once. Bumped deliberately, in the gate's own spec, and the gate rerun.
+[tool.uv]
+required-version = "==0.13.7"
+
+[tool.uv.build-backend]
+module-name = "patchbay"
+
+# The tools the gate runs, pinned exactly, each with the date it was published; uv.lock holds the
+# resolution and the gate runs them under `uv run --locked`, so a pin changed here without
+# re-locking fails the gate rather than being rewritten. A pin is bumped deliberately, in the
+# gate's own spec, and the gate rerun. Each is a Decision in the spec that added it.
+[dependency-groups]
+dev = [
+    "ruff==0.17.4",          # published 2026-11-05; linter and formatter, gate steps 2-3
+    "mypy==2.4.1",           # published 2026-10-28; type checker, gate step 4
+    "pytest==9.2.0",         # published 2026-10-27; test runner, gate step 5
+    "hypothesis==6.170.14",  # published 2026-10-30; property-based tests, run by pytest
+
+$ git -C ../patchbay show origin/main:scripts/gate.sh | grep -n -E "^step |command -v uv|uv sync --locked|ok   the locked|uv run --locked|fail 2/6"
+56:step "1/6  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)"
+71:step "2/6  uv sync --locked, then uv run --locked ruff format --check . (the locked toolchain; the formatter)"
+72:command -v uv >/dev/null 2>&1 || fail 2/6 "uv is not on PATH; steps 2-5 run the pinned tools through uv run --locked"
+73:uv sync --locked ||
+74:  fail 2/6 "uv could not sync the locked toolchain: uv.lock does not match pyproject.toml, uv could not read them or build the package, or this uv is not the version [tool.uv] requires (see above)"
+75:echo "ok   the locked toolchain synced"
+76:uv run --locked ruff format --check . ||
+77:  fail 2/6 "a file is not formatted as ruff format would write it, or ruff could not read its settings (see above)"
+80:step "3/6  uv run --locked ruff check . (the linter: [tool.ruff.lint] of pyproject.toml)"
+81:uv run --locked ruff check . || fail 3/6 "ruff check found a violation, or could not read its rule set (see above)"
+84:step "4/6  uv run --locked mypy ([tool.mypy] of pyproject.toml: strict, over src/ and tests/)"
+85:uv run --locked mypy || fail 4/6 "mypy found a type error (see above)"
+88:step "5/6  uv run --locked pytest ([tool.pytest.ini_options] of pyproject.toml, over tests/)"
+89:uv run --locked pytest || fail 5/6 "a test failed, or pytest could not read its configuration (see above)"
+92:step "6/6  scripts/sync-standards.sh --check: agent-os/standards/base/, the base: section and the script match patchbay-standards at the commit in .version (../patchbay-standards)"
+
+$ git -C ../patchbay show origin/main:.github/workflows/gate.yml | sed -n "/setup-uv@/,\$p"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          working-directory: patchbay
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+        working-directory: patchbay
+      - run: scripts/gate.sh
+        working-directory: patchbay
+
+$ git -C ../patchbay show origin/main:uv.lock | sed -n "1,3p"; ... | grep -c "^\[\[package\]\]"   (26 packages resolved)
+version = 1
+revision = 5
+requires-python = ">=3.12"
+26
+
+## 5. patchbay's negative tests h, m, n and o as recorded
+
+$ git -C ../patchbay show origin/main:agent-os/specs/2026-11-05-2057-toolchain-revision-after-pr-4-review/verification/gate-negative-tests.txt \
+    | awk "/^### h /,/^### u /" | grep -n -E "^### (h|m|n|o) |^-- |^ok   the locked|^ruff failed|^invalid type|unquoted keys cannot|needs to be updated|Required uv version|would be reformatted|^FAIL|^exit="
+  (line numbers count from the h header of the excerpt, which runs h to o and so holds i, k and l too; then the file's last two lines)
+1:### h (src/patchbay/_broken.py misformatted: step 1 passes, step 2 must name the file, exit 1, and never print 3/6)
+41:ok   the locked toolchain synced
+42:unformatted: File would be reformatted
+50:1 file would be reformatted, 9 files already formatted
+51:FAIL  step 2/6: a file is not formatted as ruff format would write it, or ruff could not read its settings (see above)
+52:exit=1
+94:ok   the locked toolchain synced
+114:FAIL  step 3/6: ruff check found a violation, or could not read its rule set (see above)
+115:exit=1
+157:ok   the locked toolchain synced
+168:FAIL  step 4/6: mypy found a type error (see above)
+169:exit=1
+211:ok   the locked toolchain synced
+238:FAILED tests/unit/test_broken_assertion.py::test_version_is_something_else - ...
+240:FAIL  step 5/6: a test failed, or pytest could not read its configuration (see above)
+241:exit=1
+243:### m (the rule set is pyproject.toml's: a changed line-length is applied and fails the clean tree at step 2; a value ruff cannot parse fails step 2 by name, and a file uv cannot parse fails step 2's sync by name)
+244:-- line-length = 100 changed to 40 in the copy's pyproject.toml (the clean tree must now fail step 2, exit 1):
+285:ok   the locked toolchain synced
+286:unformatted: File would be reformatted
+297:unformatted: File would be reformatted
+340:unformatted: File would be reformatted
+434:3 files would be reformatted, 6 files already formatted
+435:FAIL  step 2/6: a file is not formatted as ruff format would write it, or ruff could not read its settings (see above)
+436:exit=1
+437:-- line-length = "wide" (valid TOML, a value ruff refuses; step 2 must fail, exit 1):
+453:ok   the locked toolchain synced
+454:ruff failed
+460:invalid type: string "wide", expected i64
+462:FAIL  step 2/6: a file is not formatted as ruff format would write it, or ruff could not read its settings (see above)
+463:exit=1
+464:-- the line restored to 100 and a stray [ appended (TOML uv cannot parse; step 2's sync must fail, exit 1):
+477:  unquoted keys cannot be empty, expected letters, numbers, `-`, `_`
+484:         unquoted keys cannot be empty, expected letters, numbers, `-`, `_`
+485:FAIL  step 2/6: uv could not sync the locked toolchain: uv.lock does not match pyproject.toml, uv could not read them or build the package, or this uv is not the version [tool.uv] requires (see above)
+486:exit=1
+488:### n (ruff==0.17.4 changed to ruff==0.17.3 in the copy's pyproject.toml, uv.lock untouched: step 2's uv sync --locked must fail with uv naming the stale lockfile and the sync's reason, ruff never run, exit 1)
+500:error: The lockfile at `uv.lock` needs to be updated, but `--locked` was provided.
+503:FAIL  step 2/6: uv could not sync the locked toolchain: uv.lock does not match pyproject.toml, uv could not read them or build the package, or this uv is not the version [tool.uv] requires (see above)
+504:exit=1
+506:### o ([tool.uv] required-version changed to ==0.13.6 in the copy's pyproject.toml, a uv that is not the one running: step 2's uv sync must fail with uv naming both versions and the sync's reason, ruff never run, exit 1, and never print 3/6)
+508:-- the uv running here:
+510:exit=0
+518:error: Required uv version `==0.13.6` does not match the running version `0.13.7`
+519:FAIL  step 2/6: uv could not sync the locked toolchain: uv.lock does not match pyproject.toml, uv could not read them or build the package, or this uv is not the version [tool.uv] requires (see above)
+520:exit=1
+30 runs, 0 unexpected
+harness exit=0

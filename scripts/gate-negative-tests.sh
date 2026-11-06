@@ -23,9 +23,11 @@
 # default path and its origin/main as the default ref.
 #
 # Usage: scripts/gate-negative-tests.sh [test ...]   (default: every test but j; "all" adds j)
-#   tests: a b c1 c2 c3 d e f g h i k l m n w x y o p q r s t u v j
+#   tests: a b c1 c2 c3 d e f g h i k l m n w x y z o p q r s t u v j
 #   a-d, g, h, k-n  scripts/check-index.sh (gate step 3), each failure by name
-#   e, i            gate.sh stops at step 2 on a lint finding (i: with .pymarkdown.yaml shown read)
+#   e, i            gate.sh stops at step 2 on a lint finding, after the install's ok line (i: the
+#                   rule set in .pymarkdown.yaml shown read: a changed value applied, a misspelled
+#                   key not refused, an unparsable value and an unparsable file each refused)
 #   f               gate.sh stops at step 1 on an unparsable script
 #   w               step 1's file list: an ignored scripts/.DS_Store passes; a tracked non-shell
 #                   file, a tracked script missing from the disk, a tracked symlink to nothing, a
@@ -35,9 +37,13 @@
 #                   cannot enter the repository root exits 2 saying so; the clean copy exits 0
 #   y               step 2's file list: an ignored .md under base/ is never linted, the same file
 #                   tracked is, a tracked .md missing from the disk fails by name
+#   z               step 2's install fails as itself: uvx missing from PATH, and a pin naming a
+#                   version never published, each fail step 2 by name before pymarkdown lints
 #   j               the CI replay: the run steps of .github/workflows/gate.yml on a clean copy and
 #                   a broken one
-# Needs git and uv (j reads the workflow with pyyaml, through uv run --with, installing nothing).
+# Needs git and uv (j reads the workflow with pyyaml, through uv run --with, installing nothing),
+# and network access for z's unpublished pin, which uvx looks up; z hides uvx with
+# PATH=/usr/bin:/bin, where git and bash must be and uvx must not.
 # g, k, l, r, w and y also run a script from history (git show <sha>:<path>) to show the bug
 # they guard against as it was; that part is skipped where the commit is absent, and k's GNU comm
 # case where gcomm (coreutils) is absent.
@@ -164,8 +170,8 @@ old_file() {  # old_file <name> <sha> <path>: <path> as of <sha>, beside the cop
 broken() { printf '#!/usr/bin/env bash\nif true; then\n' > "$NEG/$1/scripts/broken.sh" || die "broken $1"; }   # broken <name>: an unparsable script in the copy
 
 tests=("$@")
-[ "${#tests[@]}" -eq 0 ] && tests=(a b c1 c2 c3 d e f g h i k l m n w x y o p q r s t u v)
-[ "${tests[*]}" = all ] && tests=(a b c1 c2 c3 d e f g h i k l m n w x y o p q r s t u v j)
+[ "${#tests[@]}" -eq 0 ] && tests=(a b c1 c2 c3 d e f g h i k l m n w x y z o p q r s t u v)
+[ "${tests[*]}" = all ] && tests=(a b c1 c2 c3 d e f g h i k l m n w x y z o p q r s t u v j)
 
 for t in "${tests[@]}"; do case "$t" in
 a) hdr "a (tracked file under base/ with no index entry; check-index.sh must fail)"
@@ -188,9 +194,9 @@ c3) hdr "c3 (agent-os/standards/index.yml a directory; check-index.sh must fail 
 d) hdr "d (tracked non-.md file under base/; check-index.sh must fail)"
    mk d; echo note > "$NEG/d/base/notes.txt" || die "d: notes.txt"; git -C "$NEG/d" add -A || die "d: git add"
    run d 1 $'FAIL  not a standard (only .md files belong under base/):\n        base/notes.txt' scripts/check-index.sh ;;
-e) hdr "e (lint finding: gate.sh must stop at step 2 with the FAIL line, exit 1, and never print 3/3)"
+e) hdr "e (lint finding: gate.sh must install the pin, then stop at step 2 on the finding with the FAIL line, exit 1, and never print 3/3)"
    mk e; printf '# bad\ntext right under the heading with a trailing space \n' > "$NEG/e/base/process/bad.md" || die "e: bad.md"
-   run e 1 $'base/process/bad.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3: pymarkdown reported findings, or could not run (see above)' scripts/gate.sh ;;
+   run e 1 $'ok   pymarkdownlnt==\nbase/process/bad.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' scripts/gate.sh ;;
 f) hdr "f (unparsable script: gate.sh must stop at step 1 naming it, exit 1, and never print 2/3)"
    mk f; broken f
    run f 1 "FAIL  step 1/3: scripts/broken.sh does not parse" scripts/gate.sh ;;
@@ -220,21 +226,36 @@ h) hdr "h (tracked files are git ls-files: an ignored stray passes, an untracked
    printf '  process/new:\n    description: never added\n' >> "$NEG/h/index.yml" || die "h: index entry"
    note "the same file with its index entry (must fail: not tracked, and the entry has no tracked file):"
    run h 1 $'FAIL  under base/ but not tracked (git add it, or keep it out of base/):\n        base/process/new.md\nFAIL  in index.yml but not tracked under base/:\n        process/new' scripts/check-index.sh ;;
-i) hdr "i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, exit 1, 3/3 never reached)"
+i) hdr "i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, exit 1, 3/3 never reached; a misspelled key is not refused; a value pymarkdown cannot use, and a file YAML cannot parse, each fail step 2 by name)"
    mk i; sed -i.bak 's/line_length: 120/line_length: 60/' "$NEG/i/.pymarkdown.yaml" || die "i: sed"; rm "$NEG/i/.pymarkdown.yaml.bak" || die "i: rm .bak"
    grep -n 'line_length' "$NEG/i/.pymarkdown.yaml" || die "i: line_length not set"
    ( cd "$NEG/i" && scripts/gate.sh > ../i.out 2>&1 ); got=$?
    grep -v 'MD013' "$NEG/i.out" | grep -v '^$'
    echo "   ... $(grep -c MD013 "$NEG/i.out") MD013 findings, Expected: 60, the first three:"
    grep MD013 "$NEG/i.out" | head -3 | sed "s#$NEG/i/##"
-   check 1 "$got" $'MD013: Line length [Expected: 60\nFAIL  step 2/3: pymarkdown reported findings, or could not run (see above)' "$NEG/i.out"
+   check 1 "$got" $'MD013: Line length [Expected: 60\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' "$NEG/i.out"
    note "the same copy with the key misspelled (line_lenght: 60): --strict-config does not refuse an unknown key, so the default 80 applies with no config error; in this tree, wrapped at 100, that still fails step 2 (Expected: 80), so the misspelling cannot pass here silently:"
    sed -i.bak 's/^    line_length: 60/    line_lenght: 60/' "$NEG/i/.pymarkdown.yaml" || die "i: sed misspelling"; rm "$NEG/i/.pymarkdown.yaml.bak" || die "i: rm .bak"
    grep -n 'line_len' "$NEG/i/.pymarkdown.yaml" || die "i: line_len not found"
    ( cd "$NEG/i" && uvx --from "pymarkdownlnt==$(sed -n 's/^PYMARKDOWN_VERSION=//p' scripts/gate.sh)" pymarkdown --strict-config --config .pymarkdown.yaml scan --recurse base README.md > ../i2.out 2>&1 ); got=$?
    echo "   ... $(grep -c MD013 "$NEG/i2.out") MD013 findings, Expected: 80, the first one:"
    grep MD013 "$NEG/i2.out" | head -1 | sed "s#$NEG/i/##"
-   check 1 "$got" "MD013: Line length [Expected: 80" "$NEG/i2.out" ;;
+   check 1 "$got" "MD013: Line length [Expected: 80" "$NEG/i2.out"
+   note "the key spelled right again with a value pymarkdown cannot use, line_length: wide (valid YAML; --strict-config refuses it, so step 2 must fail naming the property, exit 1):"
+   sed -i.bak 's/^    line_lenght: 60$/    line_length: wide/' "$NEG/i/.pymarkdown.yaml" || die "i: sed wide"; rm "$NEG/i/.pymarkdown.yaml.bak" || die "i: rm .bak"
+   grep -n '^    line_length: wide$' "$NEG/i/.pymarkdown.yaml" || die "i: line_length wide not set"
+   run i 1 $'The value for property \'plugins.md013.line_length\' must be of type \'int\'.\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' scripts/gate.sh
+   note "line_length back at 120 and a stray [ appended, a file YAML cannot parse (step 2 must fail naming the file, exit 1; pymarkdown's traceback is elided from the print, not from the check):"
+   sed -i.bak 's/^    line_length: wide$/    line_length: 120/' "$NEG/i/.pymarkdown.yaml" || die "i: sed restore"; rm "$NEG/i/.pymarkdown.yaml.bak" || die "i: rm .bak"
+   grep -qx '    line_length: 120' "$NEG/i/.pymarkdown.yaml" || die "i: line_length not restored"
+   printf '[\n' >> "$NEG/i/.pymarkdown.yaml" || die "i: append ["
+   ( cd "$NEG/i" && scripts/gate.sh > ../i3.out 2>&1 ); got=$?
+   sed "s#$NEG/\([a-z0-9]*\)#<copy \1>#g" "$NEG/i3.out" | awk '
+     /^Traceback / { skip = 1; n = 0 }
+     skip && /^[^ T]/ { skip = 0; print "   ... the traceback, " n " lines, elided" }
+     skip { n++; next }
+     { print }'
+   check 1 "$got" $'/.pymarkdown.yaml\' is not a valid YAML file\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' "$NEG/i3.out" ;;
 k) hdr "k (a key that is a prefix of another, testing and testing-fakes: the stripped list must be re-sorted before comm)"
    mk k; printf '# T\n\nA standard.\n' > "$NEG/k/base/process/testing.md" || die "k: testing.md"; printf '# TF\n\nA standard.\n' > "$NEG/k/base/process/testing-fakes.md" || die "k: testing-fakes.md"
    printf '  process/testing:\n    description: t\n  process/testing-fakes:\n    description: tf\n' >> "$NEG/k/index.yml" || die "k: index entries"
@@ -324,11 +345,26 @@ y) hdr "y (step 2 lists with git: an ignored base/process/draft.md with a lint f
    fi
    git -C "$NEG/y" add -f base/process/draft.md || die "y: add draft"
    note "the same file force-added, tracked (must fail at step 2 on its findings, exit 1, 3/3 never printed):"
-   run y 1 $'base/process/draft.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3: pymarkdown reported findings, or could not run (see above)' scripts/gate.sh
+   run y 1 $'base/process/draft.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' scripts/gate.sh
    git -C "$NEG/y" rm -q --cached base/process/draft.md || die "y: rm draft"; rm "$NEG/y/base/process/draft.md" || die "y: rm draft file"
    rm "$NEG/y/base/process/ownership.md" || die "y: rm ownership.md"
    note "base/process/ownership.md tracked but deleted from the disk, deletion not staged (must fail at step 2 naming it, exit 1, before pymarkdown runs):"
    run y 1 "FAIL  step 2/3: base/process/ownership.md is tracked but missing from the disk" scripts/gate.sh ;;
+z) hdr "z (step 2 installs the pinned pymarkdown as itself: the clean copy shows the install's ok line before the lint's; uvx missing from PATH is refused by name; a pin naming a version never published fails as the install, uvx naming it, pymarkdown never linting, 3/3 never printed)"
+   mk z
+   note "clean copy (must pass, exit 0; the install's ok line comes before the lint's):"
+   run z 0 scripts/gate.sh
+   env PATH=/usr/bin:/bin bash -c 'command -v uvx' >/dev/null 2>&1 && die "z: uvx is on /usr/bin:/bin, so PATH cannot hide it"
+   for c in git sort head grep; do
+     env PATH=/usr/bin:/bin bash -c "command -v $c" >/dev/null 2>&1 || die "z: $c is not on /usr/bin:/bin"
+   done
+   note "PATH=/usr/bin:/bin, where git and bash are and uvx is not (step 1 must pass, then step 2 must fail naming uvx, exit 1):"
+   run z 1 $'ok   scripts/sync-standards.sh\nFAIL  step 2/3: uvx is not on PATH; step 2 runs the pinned pymarkdown through it' env PATH=/usr/bin:/bin scripts/gate.sh
+   sed -i.bak 's/^PYMARKDOWN_VERSION=.*$/PYMARKDOWN_VERSION=0.9.999/' "$NEG/z/scripts/gate.sh" || die "z: sed pin"; rm "$NEG/z/scripts/gate.sh.bak" || die "z: rm .bak"
+   grep -qx 'PYMARKDOWN_VERSION=0.9.999' "$NEG/z/scripts/gate.sh" || die "z: pin not rewritten"
+   note "the copy's pin set to 0.9.999, a version never published (step 2 must fail as the install, uvx naming the version, exit 1, pymarkdown never linting):"
+   run z 0 grep -n '^PYMARKDOWN_VERSION=' scripts/gate.sh
+   run z 1 $'there is no version of pymarkdownlnt==0.9.999\nFAIL  step 2/3: uvx could not install pymarkdownlnt==0.9.999, the pinned version (see above)' scripts/gate.sh ;;
 j) hdr "j (CI replay: the run steps of .github/workflows/gate.yml, in order, on a clean copy and on a copy with a broken script)"
    cat <<'TXT'
 The workflow is not run on a hosting service here. The job's steps are read from the workflow file

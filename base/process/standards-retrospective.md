@@ -70,7 +70,7 @@ them differently:
   project as `agent-os/standards/base/`, pinned to a commit. They are owned by
   `patchbay-standards`, and **a base standard is never edited in place during a spec**, not in
   a consuming project and not in `patchbay-standards` itself. The change the spec would make is
-  written up in `shape.md` under `## Standards retrospective (proposed, base)`: the file, the
+  written up in `shape.md` under `### Standards retrospective (proposed, base)`: the file, the
   change, and the shipped code that proves it. That proposal becomes a pull request to
   `patchbay-standards`; a consuming project picks it up on its next sync, and until then lives
   with the standard as it is. The proposal, not a local edit, is the record. (Inside

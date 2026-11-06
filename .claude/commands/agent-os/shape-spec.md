@@ -97,7 +97,7 @@ Standards come in two kinds, and the difference matters here and again in the ga
   project as `agent-os/standards/base/`, pinned to a commit. They are owned by this repository
   (`patchbay-standards`). **A base standard is never edited in place during a spec**, not here
   and not in a consuming project. A change the spec would make to one is recorded in `shape.md`
-  under `## Standards retrospective (proposed, base)` and becomes a pull request to this
+  under `### Standards retrospective (proposed, base)` and becomes a pull request to this
   repository, approved by a person. Changing a base standard is a spec's own feature work on its
   own branch, never a side effect of another spec's retrospective.
 - **Project standards**, a consuming project's own files outside `base/`, belong to that project
@@ -190,8 +190,10 @@ Run the full verification gate, in order. The spec is not complete until every s
 1. `bash -n` on every shell script under `scripts/` as git lists them (tracked or untracked, not
    ignored), at a work-tree top that is the repository root — every script must parse; any other
    file there fails the step by name
-2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`)
-   over the `.md` files under `base/` and `README.md` as git lists them — must report no findings
+2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`),
+   installed at its pin as its own check first — `uvx` missing from `PATH`, or a pin it cannot
+   install, fails the step by name — then over the `.md` files under `base/` and `README.md` as
+   git lists them — must report no findings
 3. `scripts/check-index.sh` — `index.yml` lists exactly the tracked files under `base/`: every
    file has an entry, no entry lacks a file, nothing under `base/` is untracked or missing from
    the disk, and `agent-os/standards/index.yml` is a symlink to it
@@ -203,7 +205,7 @@ Run the full verification gate, in order. The spec is not complete until every s
 6. **Standards retrospective** — per `base/process/standards-retrospective.md`:
    check what this spec taught against the standards, add any pattern it invented,
    correct anything it proved stale, and keep `index.yml` in step — as an edit for a
-   project standard, as a proposal under `## Standards retrospective (proposed, base)` for
+   project standard, as a proposal under `### Standards retrospective (proposed, base)` for
    a base standard. List those edits separately from the feature's when reporting, so they
    can be committed apart from it. If the spec taught nothing, record
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
@@ -302,8 +304,8 @@ None yet; see Step 5a. The first base standards will fill this tier.
 ## Verification Gate
 
 Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every shell script under
-`scripts/` as git lists them, `pymarkdown` over the `.md` files under `base/` and `README.md` as
-git lists them, and
+`scripts/` as git lists them, `pymarkdown`, installed at its pin through `uvx` as its own check,
+over the `.md` files under `base/` and `README.md` as git lists them, and
 `scripts/check-index.sh` — and the three judgment steps are recorded, in this order: Docs,
 Version, then the standards retrospective below.
 

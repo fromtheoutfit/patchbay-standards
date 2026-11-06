@@ -24,10 +24,18 @@
 # a bash shebang; any other file fails the step by name, since only shell scripts live under
 # scripts/. Step 2 passes pymarkdown the .md files of its list rather than a directory to walk.
 #
+# Step 2 installs the pinned tool as its own check before the tool runs (the rule in
+# base/process/verification-gate.md, "One script"): uvx missing from PATH, or a pin uvx cannot
+# install (a version never published, no network the first time), fails the step by name as the
+# install, never as a finding of pymarkdown's; only then does pymarkdown lint, and its reason is
+# about findings and the rule set it reads. The pin lives here because this repository has no
+# package manifest; uv's own version is pinned in CI only, as setup-uv's input.
+#
 # Step 1 needs bash and git. Step 2 needs git, uv (uvx) and, the first time, network access to
 # fetch the pinned pymarkdown into the uv cache; uv is the one installer the patchbay packages
 # use, so nothing else is assumed: no Node, no package.json. Step 3 needs git, comm, awk and sed.
-# Nothing is installed to run the gate.
+# Nothing is installed to run the gate but the pinned pymarkdown, which uvx keeps in the uv cache,
+# outside the repository and the project.
 set -euo pipefail
 cd "$(dirname "$0")/.." || { echo "gate: cannot enter the repository root, $(dirname "$0")/..; not run as the gate" >&2; exit 2; }
 
@@ -64,7 +72,7 @@ while IFS= read -r -d '' f; do
 done < <(listed scripts)
 [ "$n" -gt 0 ] || fail 1/3 "git lists no file under scripts/"
 
-step "2/3  pymarkdown $PYMARKDOWN_VERSION over the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)"
+step "2/3  uvx installs pymarkdownlnt $PYMARKDOWN_VERSION, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)"
 md=()
 while IFS= read -r -d '' f; do
   case "$f" in *.md) ;; *) continue ;; esac
@@ -72,9 +80,13 @@ while IFS= read -r -d '' f; do
   md+=("$f")
 done < <(listed base README.md)
 [ "${#md[@]}" -gt 0 ] || fail 2/3 "git lists no .md file under base/ or README.md"
+command -v uvx >/dev/null 2>&1 || fail 2/3 "uvx is not on PATH; step 2 runs the pinned pymarkdown through it"
+v=$(uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown version) ||
+  fail 2/3 "uvx could not install pymarkdownlnt==$PYMARKDOWN_VERSION, the pinned version (see above)"
+echo "ok   pymarkdownlnt==$PYMARKDOWN_VERSION installed through uvx (pymarkdown version: $v)"
 uvx --from "pymarkdownlnt==$PYMARKDOWN_VERSION" pymarkdown \
   --strict-config --config .pymarkdown.yaml scan "${md[@]}" ||
-  fail 2/3 "pymarkdown reported findings, or could not run (see above)"
+  fail 2/3 "pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)"
 echo "ok   no findings in ${#md[@]} file(s)"
 
 step "3/3  index.yml lists exactly the tracked files under base/"
