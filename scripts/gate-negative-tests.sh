@@ -216,7 +216,7 @@ f) hdr "f (unparsable script: gate.sh must stop at step 1 naming it, exit 1, and
    mk f; broken f
    run f 1 "FAIL  step 1/3: scripts/broken.sh does not parse" scripts/gate.sh ;;
 g) hdr "g (comm collation: C-sorted lists with process/B's entry missing, under LANG=en_US.UTF-8; must name process/B alone)"
-   mk g; rm "$NEG/g/base/process/"*.md || die "g: rm"
+   mk g; rm -r "$NEG/g/base" || die "g: rm"; mkdir -p "$NEG/g/base/process" || die "g: mkdir"
    for n in B a_z ab; do printf '# %s\n\nA standard.\n' "$n" > "$NEG/g/base/process/$n.md" || die "g: $n.md"; done
    printf 'base:\n  process/a_z:\n    description: two\n  process/ab:\n    description: three\n' > "$NEG/g/index.yml" || die "g: index"
    git -C "$NEG/g" add -A || die "g: git add"

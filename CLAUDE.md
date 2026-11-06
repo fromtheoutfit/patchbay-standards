@@ -68,9 +68,10 @@ prohibition is on attribution markers, not on citing the work.
   describes agrees with it by construction, including when it is wrong.
 - **`base/` is owned by this repository and is never edited in place during a spec's
   retrospective** — not here, not in a consuming project. The retrospective records the proposed
-  change in `shape.md` under `### Standards retrospective (proposed, base)`, and the proposal
-  becomes a pull request here. Changing a base standard is a spec's own feature work on its own
-  branch. Every standards edit is approved by a person, always.
+  change in `shape.md` under `### Standards retrospective (proposed, base)`; before the spec is
+  done the proposal is presented to the owner, the approved ones are filed as one issue here,
+  and that issue's own spec lands them as a pull request. Changing a base standard is a spec's
+  own feature work on its own branch. Every standards edit is approved by a person, always.
 - Retrospective edits are their own change set: listed separately when the work is
   reported so they can be committed apart from the feature, never buried in its diff. The
   `## Git` rule above applies.

@@ -11,6 +11,31 @@ bring in.
 
 ### Added
 
+- Ninth spec, `agent-os/specs/2026-11-06-1205-retro-proposals-upstream-and-probe-rule/` (issues
+  #13 and #15, one spec because both edit `base/process/standards-retrospective.md`), a gate spec
+  as well, since the gate task text in `shape-spec.md` is a gate file. Its retrospective is the
+  first to present base proposals and file them the new way. `verification/issue-15-evidence.txt`
+  holds the lines on `main` the probe rule rests on, and the negative tests and the CI replay are
+  rerun there. Follow-ups: #17, the six base proposals its retrospective presented (four from
+  earlier specs, never filed, and two of its own), all approved by the owner; and a comment on
+  fromtheoutfit/patchbay#7, whose gate spec adds the step after its next sync.
+  - `base/process/standards-retrospective.md`: "Verify against the code, not against the spec"
+    gains the probe rule (#15). A rule that rests on how a tool behaves is verified by running the
+    tool at its pinned version on a scratch copy, with the transcript in `verification/`. The
+    probe's cases tell the competing claims apart, its setup is shown to have done what it
+    claims, and where probe and documentation disagree the tool's source at the pinned version
+    decides. A spec that changes such a rule reruns the probe. The case is the toolchain spec's,
+    without tool names. A new section, "Base proposals go to the owner, then upstream" (#13):
+    every base proposal is presented to the owner with AskUserQuestion before the spec reports
+    done, the approved ones are filed as one issue on `patchbay-standards` with no attribution,
+    its number is written beside each, and a declined one is marked `declined by owner, <date>`.
+    A proposal neither filed nor declined fails the gate. "Who owns which standard" routes a
+    proposal that way, and "Recording the answer" gains the `Proposals sent upstream:` line and
+    the outcome at the end of each entry.
+  - `base/process/standards-sync.md` "In a consuming project": the sync writes nothing under
+    `.claude/commands/`. A gate-task step that a base change asks for, the present-and-file step
+    the first, is made in the project's own gate spec after the sync, with its template line.
+
 - Eighth spec, `agent-os/specs/2026-11-06-1040-python-toolchain-standard/` (issue #4):
   `base/python/toolchain.md`, the first standard about Python packages, written from patchbay's
   files at `origin/main` (`73a583a`) and the Decisions of its two toolchain specs. The standard is
@@ -222,6 +247,23 @@ bring in.
 
 ### Changed
 
+- `.claude/commands/agent-os/shape-spec.md` (issues #13 and #15):
+  - Gate step 6 gains the present-and-file step.
+  - The `shape.md` template gains `Proposals sent upstream:` under `## Standards Retrospective`,
+    and each `(proposed, base)` entry ends with its issue or `declined by owner, <date>`.
+  - Step 5 and Step 9 say a base proposal is presented to the owner and filed as an issue here,
+    whose spec lands it as a pull request.
+- `CLAUDE.md` (issues #13 and #15): the Specs section says the same route.
+- `scripts/gate-negative-tests.sh` (issues #13 and #15): test g empties its copy's `base/` whole
+  and recreates `base/process/`, so its three standards are all `base/` holds. Since issue #4
+  added `base/python/toolchain.md`, the copy also held `python/toolchain`, so g's "all three
+  indexed" case exited 1. The toolchain spec changed no gate file and did not rerun the tests, so
+  the first rerun here found it.
+- `base/process/verification-gate.md` (issues #13 and #15): "In this repository" names this spec
+  as the one that last changed the harness and holds the current transcripts.
+- `index.yml` (issues #13 and #15): the `process/standards-retrospective` description is
+  rewritten for the probe rule and the present-and-file step; `process/standards-sync` says the
+  sync writes nothing under `.claude/commands`.
 - `base/process/verification-gate.md` (issue #4): the introduction's "The standard that names a
   repository's steps is cited here when it ships" now cites it: a consuming project's tool steps,
   and the order they run in, are `base/python/toolchain.md`'s.

@@ -1,0 +1,22 @@
+Gate run 2026-11-06 on branch feature/13-retrospective-present-base-proposals-to-the-owner-and-file-the-approved-ones-as-an-issue-before-the-spec-completes, the last act before hand-over of the spec of issues #13 and #15
+(the present-and-file step and the probe rule in base/process/standards-retrospective.md). One transcript: no file was added under
+base/, so step 3 reads the tree. The spec folder, which no step reads, holds the records; the negative tests and the CI replay,
+rerun after the last gate-file edit, are in gate-negative-tests.txt and ci-negative-test.txt beside this file.
+
+$ scripts/gate.sh
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0

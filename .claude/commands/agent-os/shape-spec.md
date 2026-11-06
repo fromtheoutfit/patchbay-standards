@@ -97,9 +97,10 @@ Standards come in two kinds, and the difference matters here and again in the ga
   project as `agent-os/standards/base/`, pinned to a commit. They are owned by this repository
   (`patchbay-standards`). **A base standard is never edited in place during a spec**, not here
   and not in a consuming project. A change the spec would make to one is recorded in `shape.md`
-  under `### Standards retrospective (proposed, base)` and becomes a pull request to this
-  repository, approved by a person. Changing a base standard is a spec's own feature work on its
-  own branch, never a side effect of another spec's retrospective.
+  under `### Standards retrospective (proposed, base)` and presented to the owner at the end of
+  the spec; an approved one is filed as an issue on this repository, whose own spec lands it as a
+  pull request, approved by a person. Changing a base standard is a spec's own feature work on
+  its own branch, never a side effect of another spec's retrospective.
 - **Project standards**, a consuming project's own files outside `base/`, belong to that project
   and change in its retrospective.
 
@@ -219,6 +220,13 @@ Run the full verification gate, in order. The spec is not complete until every s
    a base standard. List those edits separately from the feature's when reporting, so they
    can be committed apart from it. If the spec taught nothing, record
    `Standards retrospective: no changes` in `shape.md`. "No changes" is valid; silence is not.
+   When the retrospective records a base proposal, before the spec reports done (the standard's
+   "Base proposals go to the owner, then upstream"): present every proposal to the owner with
+   AskUserQuestion, multi-select, each in one or two sentences with the shipped file and test it
+   is verified against, "none" an answer; file the approved ones as one issue on
+   `patchbay-standards` with `gh`, no AI attribution, and write its number beside each; mark
+   each declined one `declined by owner, <date>`; record `Proposals sent upstream:` in
+   `shape.md`. A proposal neither filed nor marked declined fails the gate.
 
 `scripts/gate.sh` runs steps 1–3 as one command, exit 1 at the first failing step after a `FAIL`
 line naming it, exit 2 on usage or when it cannot enter the repository root. Steps 4–6 are
@@ -259,7 +267,8 @@ Plan complete. When you approve and execute:
 3. The final task runs the verification gate: the three runnable steps, then Docs,
    Version and the standards retrospective. The spec is not complete until the gate is
    green, Docs and Version are recorded, AND the standards are either updated (or
-   proposed, for base/) or recorded as "no changes"
+   proposed, for base/, each proposal filed upstream or declined by the owner) or
+   recorded as "no changes"
 
 Ready to start? (approve / adjust)
 ```
@@ -344,12 +353,20 @@ that verifies it:
   is a symlink to it; a consuming project edits its own sections of its project index]
 - **Deviation, not a standard change:** [what we did differently and why it stays a one-off]
 
+Either way, then the one line that says where the base proposals went (`none` when there are
+none):
+
+Proposals sent upstream: {fromtheoutfit/patchbay-standards#N} | none | declined: {…}
+
 ### Standards retrospective (proposed, base)
 
-Only when the spec taught a base standard something. Proposals, never local edits; each
-becomes a pull request to `patchbay-standards`, approved by a person.
+Only when the spec taught a base standard something. Proposals, never local edits; each is
+presented to the owner before the spec is done, the approved ones filed as one issue on
+`patchbay-standards`, whose own spec lands them as a pull request, approved by a person.
 
-- `base/{folder/standard}.md` — [the change, and the shipped code that proves it]
+- `base/{folder/standard}.md` — [the change, and the shipped file and test that prove it].
+  Proposed, not applied; filed as {fromtheoutfit/patchbay-standards#N} | declined by owner,
+  {date}.
 ```
 
 ## standards.md Content

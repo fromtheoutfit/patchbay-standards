@@ -134,3 +134,9 @@ copy as it does in the tree and `../patchbay-standards` itself is never written.
 missing-sibling case removes the symlink; the drift cases edit the copy under `<case>/patchbay`.
 The CI replay runs the workflow's `run` steps with the scratch directory as the workspace, each
 from its `working-directory`, and prints what the pin step wrote beside the commit in `.version`.
+
+The sync writes nothing under `.claude/commands/`. A base change that asks for a step in the gate
+task of the project's `shape-spec.md`, as "Base proposals go to the owner, then upstream" in
+`base/process/standards-retrospective.md` does, is made in the project's own gate spec after the
+sync that brings it in, with the `shape.md` template line that goes with it. The gate task text
+is a gate file (`base/process/verification-gate.md`), so the sync's change set does not carry it.
