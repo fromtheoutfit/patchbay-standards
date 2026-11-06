@@ -112,7 +112,25 @@ from the checkout's copy, `../patchbay-standards/scripts/sync-standards.sh --ini
 `scripts/sync-standards.sh --check` is a step of the project's `scripts/gate.sh`. The project's
 gate workflow checks both repositories out under the workspace, since `actions/checkout` writes
 nowhere else: the project into a subdirectory and `patchbay-standards` beside it, at the commit in
-`agent-os/standards/base/.version` (a step reads the file and passes it as that checkout's `ref`,
-or the checkout fetches the whole history), each action pinned as the gate standard directs, and
-runs `scripts/gate.sh` with the project's directory as the working directory. The hosted run then
-compares against the real thing at the pinned commit, and does not go red when `main` moves here.
+`agent-os/standards/base/.version`, each action pinned as the gate standard directs, and runs
+`scripts/gate.sh` with the project's directory as the working directory. The pin is read by a
+`run` step with an `id`, which writes the file's forty digits to `GITHUB_OUTPUT` as `sha`, and the
+second checkout takes `steps.<id>.outputs.sha` as its `ref`, with `repository` and `path` set and
+no `fetch-depth`: the default depth fetches that one commit, whatever branch it is on. Checking the
+default branch out with full history instead fails the moment a pinned commit is squashed or
+deleted from it, and fails only in CI. The hosted run then compares against the real thing at the
+pinned commit, and does not go red when `main` moves here.
+
+The project's negative tests (`base/process/verification-gate.md`, "Every step that can fail is
+proven to fail") stand the sibling up once per run: one `git clone` of `../patchbay-standards`
+into the scratch directory, a local clone, which shares the sibling's objects and so holds the
+pinned commit whenever the sibling does, whichever of its refs reaches it. A `--no-local` or
+`file://` clone copies only what the sibling's local branches and tags reach, and loses a pin that
+only a remote-tracking ref reaches. The clone's branches are the sibling's local ones and its
+`origin/HEAD` is the branch the sibling has checked out, neither of which the drift check reads,
+since it takes the pin from `.version`. Each case is laid out as `<case>/patchbay` with
+`<case>/patchbay-standards` a symlink to that clone, so the script's default path resolves in the
+copy as it does in the tree and `../patchbay-standards` itself is never written. The
+missing-sibling case removes the symlink; the drift cases edit the copy under `<case>/patchbay`.
+The CI replay runs the workflow's `run` steps with the scratch directory as the workspace, each
+from its `working-directory`, and prints what the pin step wrote beside the commit in `.version`.
