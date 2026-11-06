@@ -11,6 +11,30 @@ bring in.
 
 ### Added
 
+- Eighth spec, `agent-os/specs/2026-11-06-1040-python-toolchain-standard/` (issue #4): the first
+  standard about Python packages, written from patchbay's shipped files at its `origin/main`
+  (`73a583a`) and the Decisions of its two toolchain specs, the tree winning where the issue's
+  text differs. `verification/patchbay-evidence.txt` records what was read, by blob, and the
+  probes of ruff 0.17.4 and uv 0.13.7 on an export of that commit that the rules rest on. The
+  follow-up in patchbay is fromtheoutfit/patchbay#7.
+  - `base/python/toolchain.md`: one tool per job (uv for the environment, dependencies, lockfile
+    and build; ruff to lint and format; mypy; pytest with hypothesis; pre-commit, run by no gate
+    step), the gate's tools and the hooks run as `uv run --locked`; `pyproject.toml` the only
+    config file, `.pre-commit-config.yaml` the one exception; `[build-system]` the range `uv init`
+    writes, `uv_build>=X.Y.Z,<X.(Y+1).0`, floored at the uv `[tool.uv] required-version` pins (uv
+    builds with its bundled backend either way and only warns when the range leaves the running uv
+    out, so the floor is held by reading the file), `module-name` when the import name is not the
+    distribution's, `license-files` stated; the 3.12 floor in four places, raised together, and the
+    code written for it (UP036, UP035); a dependency added by the spec that uses it, as a Decision;
+    ruff's `select = ["ALL"]` with an ignore list the tree taught, patchbay's six with their
+    reasons, and a per-line `# noqa: <code>`, never blanket (PGH004, RUF100); mypy strict over
+    `src` and `tests`, an override per untyped package; pytest's strict flags and registered
+    markers, hypothesis with no section; two `repo: local` ruff hooks, `check --fix` then
+    `format`; the gate's tool steps in the order format, lint, types, tests. "In this repository":
+    there is no package, and the standard does not apply here. Package-surface and test-writing
+    rules from the review of patchbay PR 4 are left out, recorded in the spec's `shape.md` for
+    later standards.
+
 - Seventh spec, `agent-os/specs/2026-11-06-0721-gate-spec-3-seven-base-proposals/` (issue #12), the
   third gate spec: the seven base proposals from patchbay's toolchain spec and its revision after
   the review of fromtheoutfit/patchbay#4 landed, each rule written from patchbay's shipped files
@@ -214,6 +238,15 @@ bring in.
 
 ### Changed
 
+- `base/process/verification-gate.md` (issue #4): the introduction's "The standard that names a
+  repository's steps is cited here when it ships" now cites it: a consuming project's tool steps,
+  and the order they run in, are `base/python/toolchain.md`'s.
+- `.claude/commands/agent-os/shape-spec.md` (issue #4): Step 5a, empty until now, lists
+  `base/python/toolchain`, with the note that the tier applies to consuming projects; a spec here
+  records it under "Core Architecture" as not applying and does not copy it into `standards.md`.
+  Step 5b's text and prompt and the `shape.md` template's "Core Architecture" and "Core (always
+  applied)" lines say the same. The gate task is unchanged.
+- `index.yml` (issue #4): `python/toolchain` added under `base:`, after the `process/` keys.
 - `scripts/gate.sh` (issue #12): step 2 installs the pin as its own check before pymarkdown lints.
   `uvx` missing from `PATH` fails the step by name; `uvx --from pymarkdownlnt==$PYMARKDOWN_VERSION
   pymarkdown version` fails it as the install, "uvx could not install pymarkdownlnt==<pin>, the

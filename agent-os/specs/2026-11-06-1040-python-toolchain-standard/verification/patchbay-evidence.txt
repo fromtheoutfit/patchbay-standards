@@ -1,0 +1,282 @@
+patchbay evidence for base/python/toolchain.md, 2026-11-06, written on branch feature/4-write-basepythontoolchainmd-one-tool-per-job-pyprojecttoml-the-only-config of
+patchbay-standards. Every patchbay file is read from origin/main with git show, never from the
+checkout, which is on the merged feature branch. The probes run on a scratch export of that
+commit (git archive), under uv 0.13.7; <scratch> is a directory outside both repositories.
+
+### 1. The commit read
+
+$ git -C ../patchbay rev-parse origin/main; git -C ../patchbay ls-remote origin main
+73a583a9fd3e044b21cd3de5430dd911fbebba13
+73a583a9fd3e044b21cd3de5430dd911fbebba13	refs/heads/main
+
+### 2. The files read, by blob
+
+$ git -C ../patchbay ls-tree origin/main -- <files>
+100644 blob a7c8ca893fc0c55d92871c34d883797c49022847	.github/workflows/gate.yml
+100644 blob a23e771a71e2db94fc91ca6865d71b3589b21e7a	.gitignore
+100644 blob ea2485946409f863f0356efd784bfb27df8652f0	.pre-commit-config.yaml
+100644 blob e4fba2183587225f216eeada4c78dfab6b2e65f5	.python-version
+100644 blob 8cd591948d1bdca85a334570cc64efe3c87748b2	README.md
+100644 blob 1f75035514cd3dbbf6139f5358cfeccd189709a0	agent-os/specs/2026-11-05-2018-toolchain-ruff-mypy-pytest-full-gate/shape.md
+100644 blob 80725b9b3a6b67ee6c613bf0d7fea0856e593913	agent-os/specs/2026-11-05-2057-toolchain-revision-after-pr-4-review/shape.md
+100644 blob 9d85a88375a7d7bb3299415f8ab531e91d13cb01	agent-os/specs/2026-11-05-2057-toolchain-revision-after-pr-4-review/verification/wheel-license.txt
+100644 blob 3b3a32efd45c8c3d6d3e03714254a8ba28020d71	pyproject.toml
+100755 blob c689c7145b0e962b0a74efc090261064c3147341	scripts/gate.sh
+100644 blob 9f7eca5e5e2155bad9bcef72c6185cb856e8b03a	src/patchbay/__init__.py
+100644 blob 6f6fc2f22b82607b77f8ede7795959f89ddf0340	tests/unit/test_package.py
+100644 blob d14e3f8e9bb60a295e75855d8ec98d5ffb859496	tests/unit/test_version.py
+100644 blob beb9dd87fe2dbd0d54d64f4fec697781fc1739cf	uv.lock
+
+### 3. Lines the rules cite
+
+$ git show origin/main:pyproject.toml | grep -nE '^#|^\[|^license|^requires|^build-backend|^required-version|^module-name|"(ruff|mypy|pytest|hypothesis|pre-commit)==|^target-version|^line-length|^select|^    "[A-Z]+[0-9]+",|^"tests/\*\*"|^strict|^files|^python_version|^warn_unreachable|^implicit_reexport|^testpaths|^addopts|^markers|^    "integration|^dependencies'
+1:# The one configuration file of this repository: every tool is configured under [tool.*] here and
+2:# nowhere else (no setup.py, setup.cfg, requirements*.txt, tox.ini, .flake8, mypy.ini, pytest.ini
+3:# or .ruff.toml). .pre-commit-config.yaml beside it registers hooks and configures no tool.
+4:#
+5:# Two kinds of section. [project], [build-system] and [dependency-groups] are the package's and
+6:# change in any spec; adding a dependency is a Decision in that spec's shape.md (what it does, why
+7:# the standard library cannot, its license). The [tool.*] sections are the gate's: [tool.uv] pins
+8:# the uv that gate steps 2-5 of scripts/gate.sh run under, [tool.uv.build-backend] names the module
+9:# step 2's sync installs, and the rest are the rule set those steps read (ruff format, ruff check,
+10:# mypy, pytest). They are gate files and change only in the gate's own spec, with a person
+11:# (agent-os/standards/base/process/verification-gate.md, "Pinned" and "The gate's own files change
+12:# only in their own spec").
+14:[project]
+19:license = "MIT"
+20:# Stated, not left to a default: uv_build applies no license glob, and without this the wheel
+21:# carries License-Expression and not the MIT text the license requires to travel with it.
+22:license-files = ["LICENSE"]
+26:requires-python = ">=3.12"
+27:dependencies = []
+29:[build-system]
+30:requires = ["uv_build>=0.13.7,<0.14.0"]
+31:build-backend = "uv_build"
+33:# The uv every uv command in this repository runs under; any other uv refuses to run here, so a
+34:# local `--locked` run and CI's read uv.lock with the same uv (gate step 2's sync fails by name,
+35:# negative test o). CI's astral-sh/setup-uv reads this key to choose the uv it installs, so the
+36:# version is written once. Bumped deliberately, in the gate's own spec, and the gate rerun.
+37:[tool.uv]
+38:required-version = "==0.13.7"
+40:[tool.uv.build-backend]
+41:module-name = "patchbay"
+43:# The tools the gate runs, pinned exactly, each with the date it was published; uv.lock holds the
+44:# resolution and the gate runs them under `uv run --locked`, so a pin changed here without
+45:# re-locking fails the gate rather than being rewritten. A pin is bumped deliberately, in the
+46:# gate's own spec, and the gate rerun. Each is a Decision in the spec that added it.
+47:[dependency-groups]
+49:    "ruff==0.17.4",          # published 2026-11-05; linter and formatter, gate steps 2-3
+50:    "mypy==2.4.1",           # published 2026-10-28; type checker, gate step 4
+51:    "pytest==9.2.0",         # published 2026-10-27; test runner, gate step 5
+52:    "hypothesis==6.170.14",  # published 2026-10-30; property-based tests, run by pytest
+53:    "pre-commit==4.7.0",     # published 2026-10-12; the local hook runner, not run by the gate
+56:# ruff: gate steps 2 (format --check) and 3 (check). The formatter is ruff format; there is no black.
+57:[tool.ruff]
+58:# The interpreter the code targets; the floor of requires-python, stated so a rule set never
+59:# silently follows a raised floor.
+60:target-version = "py312"
+61:# 100: wide enough that a typed signature or a pydantic field with its description stays on one
+62:# line, narrow enough to read in a split editor and a GitHub diff.
+63:line-length = 100
+65:[tool.ruff.lint]
+66:# Every rule, then the ones this tree proved wrong, each with its reason. A rule the tree trips
+67:# is fixed in the code when the rule is right; it is ignored here only when it is wrong for this
+68:# tree, so the list is what the tree taught, not a list copied from memory.
+69:select = ["ALL"]
+73:    "D203",
+76:    "D213",
+78:    "COM812",
+81:    "CPY001",
+84:[tool.ruff.lint.per-file-ignores]
+85:"tests/**" = [
+87:    "S101",
+91:    "INP001",
+94:# mypy: gate step 4, over the package and the tests.
+95:[tool.mypy]
+96:strict = true
+97:files = ["src", "tests"]
+98:# The interpreter the types are checked against, the floor of requires-python.
+99:python_version = "3.12"
+100:# Code the checker proves unreachable is a bug, not dead weight; strict does not turn this on.
+101:warn_unreachable = true
+102:# Strict already implies it; stated because the issue names it: a name is exported only by
+103:# __all__ or an explicit `from x import y as y`, so the package's surface is what it says.
+104:implicit_reexport = false
+105:# An untyped third-party package gets its own [[tool.mypy.overrides]] block here, with
+106:# `module = ["name.*"]`, `ignore_missing_imports = true` and a comment saying which package and
+107:# why; never a global ignore. None is needed yet.
+109:# pytest: gate step 5.
+110:[tool.pytest.ini_options]
+111:testpaths = ["tests"]
+112:# -q: the gate's transcript is read by a person. --strict-markers: an unregistered marker is a
+113:# typo, so it fails. --strict-config: a key pytest does not know in this section fails the run,
+114:# as the gate standard asks of a rule-set config.
+115:addopts = "-q --strict-markers --strict-config"
+116:markers = [
+117:    "integration: needs a running instrument; not selected by the gate until a spec says so",
+
+$ git show origin/main:.python-version
+3.12
+
+$ git show origin/main:.pre-commit-config.yaml | grep -nE 'minimum|repo:|id:|entry:|language:|types_or:|require_serial:'
+9:minimum_pre_commit_version: "4.7.0"
+11:  - repo: local
+13:      - id: ruff-check
+15:        entry: uv run --locked ruff check --fix
+16:        language: system
+17:        types_or: [python, pyi]
+19:        require_serial: true
+20:      - id: ruff-format
+22:        entry: uv run --locked ruff format
+23:        language: system
+24:        types_or: [python, pyi]
+25:        require_serial: true
+
+$ git show origin/main:scripts/gate.sh | grep -nE '^step "|^uv (sync|run)'
+56:step "1/6  bash -n on every shell script under scripts/ (tracked or untracked, not ignored)"
+71:step "2/6  uv sync --locked, then uv run --locked ruff format --check . (the locked toolchain; the formatter)"
+73:uv sync --locked ||
+76:uv run --locked ruff format --check . ||
+80:step "3/6  uv run --locked ruff check . (the linter: [tool.ruff.lint] of pyproject.toml)"
+81:uv run --locked ruff check . || fail 3/6 "ruff check found a violation, or could not read its rule set (see above)"
+84:step "4/6  uv run --locked mypy ([tool.mypy] of pyproject.toml: strict, over src/ and tests/)"
+85:uv run --locked mypy || fail 4/6 "mypy found a type error (see above)"
+88:step "5/6  uv run --locked pytest ([tool.pytest.ini_options] of pyproject.toml, over tests/)"
+89:uv run --locked pytest || fail 5/6 "a test failed, or pytest could not read its configuration (see above)"
+92:step "6/6  scripts/sync-standards.sh --check: agent-os/standards/base/, the base: section and the script match patchbay-standards at the commit in .version (../patchbay-standards)"
+
+$ git show origin/main:.gitignore | grep -n 'uv.lock'   (commented: the lockfile is not ignored)
+99:#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+102:# uv.lock
+
+$ git show origin/main:.gitignore | grep -n '^.hypothesis/'
+51:.hypothesis/
+
+$ git ls-tree -r --name-only origin/main | grep -E '(^|/)(setup\.py|setup\.cfg|requirements[^/]*\.txt|tox\.ini|\.flake8|mypy\.ini|pytest\.ini|\.ruff\.toml|ruff\.toml|uv\.toml|conftest\.py|[^/]*\.lock)$|^tests/.*__init__\.py$'   (the config files the standard says are absent, any lockfile, conftest.py, an __init__.py under tests/: only uv.lock is listed)
+uv.lock
+
+$ git show origin/main:README.md | grep -n 'uv run pre-commit'   (the two uv runs without --locked, which run pre-commit itself)
+91:uv run pre-commit install        # once, to run the hooks on every commit
+92:uv run pre-commit run --all-files   # the hooks over the tree, with or without the git hook
+
+$ git show origin/main:.pre-commit-config.yaml | grep -n 'uv run pre-commit'
+7:# dev group. Install the git hook once with `uv run pre-commit install`; `uv run pre-commit run
+
+### 4. ruff 0.17.4 under patchbay's [tool.ruff]: noqa and the floor
+Each probe is a module under src/patchbay/ with a docstring, so only the probed rule can trip.
+
+$ cat src/patchbay/_probe_blanket.py
+"""Probe: a blanket noqa that suppresses a finding."""
+
+import os  # noqa
+
+$ uv run --locked ruff check --no-cache --output-format concise src/patchbay/_probe_blanket.py
+src/patchbay/_probe_blanket.py:3:12: PGH004 Use specific rule codes when using `noqa`
+Found 1 error.
+exit=1
+
+$ cat src/patchbay/_probe_coded.py
+"""Probe: a coded noqa that suppresses what it names."""
+
+import os  # noqa: F401
+
+$ uv run --locked ruff check --no-cache --output-format concise src/patchbay/_probe_coded.py
+All checks passed!
+exit=0
+
+$ cat src/patchbay/_probe_unused.py
+"""Probe: a coded noqa that suppresses nothing."""
+
+LIMIT = 1  # noqa: F401
+
+$ uv run --locked ruff check --no-cache --output-format concise src/patchbay/_probe_unused.py
+src/patchbay/_probe_unused.py:3:12: RUF100 [*] Unused `noqa` directive (unused: `F401`)
+Found 1 error.
+[*] 1 fixable with `--fix`.
+exit=1
+
+$ cat src/patchbay/_probe_version.py
+"""Probe: a version branch below the floor."""
+
+import sys
+
+if sys.version_info < (3, 11):
+    import tomli as tomllib
+else:
+    import tomllib
+
+__all__ = ["tomllib"]
+
+$ uv run --locked ruff check --no-cache --output-format concise src/patchbay/_probe_version.py
+src/patchbay/_probe_version.py:5:4: UP036 Version block is outdated for minimum Python version
+Found 1 error.
+1 unsafe fix available with `--fix --unsafe-fixes`.
+exit=1
+
+$ cat src/patchbay/_probe_backport.py
+"""Probe: a typing_extensions import of a name typing has at 3.12."""
+
+from typing_extensions import Self
+
+__all__ = ["Self"]
+
+$ uv run --locked ruff check --no-cache --output-format concise src/patchbay/_probe_backport.py
+src/patchbay/_probe_backport.py:3:1: UP035 [*] Import from `typing` instead: `Self`
+Found 1 error.
+[*] 1 fixable with `--fix`.
+exit=1
+
+### 5. uv_build: what the [build-system] range changes under uv 0.13.7
+uv documents that it builds with the backend bundled in it "if its version is compatible with
+the uv_build requirement" and otherwise uses a compatible uv_build package
+(https://docs.astral.sh/uv/concepts/build-backend/). Under uv 0.13.7, offline and with no cache,
+both uv build and the editable build of uv sync build with the bundled backend whatever the range
+says; a range that does not contain the running uv is a warning, and the build succeeds.
+
+$ requires = ["uv_build>=0.13.7,<0.14.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+DEBUG Using bundled `uv_build` backend for `.`
+Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+exit=0
+
+$ requires = ["uv_build>=0.12.0,<0.13.0"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+DEBUG Using bundled `uv_build` backend for `.`
+warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+warning: `build_system.requires = ["uv-build>=0.12.0,<0.13.0"]` does not contain the current uv version 0.13.7
+exit=0
+
+$ requires = ["uv_build==0.13.7"]; uv build --wheel --offline --no-cache -v -o <scratch>/wheels
+DEBUG Using bundled `uv_build` backend for `.`
+Successfully built <scratch>/wheels/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv sync --locked --offline --no-cache --reinstall-package patchbay-core -v
+DEBUG Performing direct build for patchbay-core @ file://<scratch>/pb
+exit=0
+
+### 6. What uv init writes for [build-system]
+
+$ cd <scratch>/init && uv init --package --build-backend uv --name probe-init --vcs none --no-workspace --offline
+Initialized project `probe-init`
+exit=0
+
+$ grep -n -A2 '^\[build-system\]' <scratch>/init/pyproject.toml
+15:[build-system]
+16-requires = ["uv_build>=0.13.7,<0.14.0"]
+17-build-backend = "uv_build"
+
+### 7. [tool.uv.build-backend] module-name: the export without it
+
+$ pyproject.toml without module-name; uv build --wheel --offline --no-cache -o <scratch>/wheels
+Building wheel...
+error: Failed to build `<scratch>/pb`
+  cause: Expected a Python module at: src/patchbay_core/__init__.py
+exit=2

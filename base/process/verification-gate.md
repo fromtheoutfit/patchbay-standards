@@ -8,8 +8,8 @@ work that quietly invents a pattern, so the gate runs on it too.
 
 This standard fixes the shape of the gate: what every repository's gate does and in what order.
 The runnable step list is each repository's own, named in its `scripts/gate.sh` and in the gate
-task of its `shape-spec.md`; this standard names no step and no tool. The standard that names a
-repository's steps is cited here when it ships.
+task of its `shape-spec.md`; this standard names no step and no tool. A consuming project's tool
+steps, and the order they run in, are `base/python/toolchain.md`'s.
 
 ## One script
 
