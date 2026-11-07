@@ -48,25 +48,31 @@ steps, and the order they run in, are `base/python/toolchain.md`'s.
     step first refuses, by name, any file git ignores there that the tool would read, so its walk
     reads only what git lists. pytest loads the `conftest.py` of every directory it collects from,
     and one at the root, whatever `--ignore` names.
-- **The first step makes the forms agree.** It asks git whether this directory is the top of the
-  work tree, `git rev-parse --show-cdup` empty, and compares no paths: a path typed in another case,
-  or spelled `C:/` rather than `/c/`, names the same directory, and comparing `pwd -P` with
-  `--show-toplevel` as strings refuses the real root. A tree whose work-tree top is not the
-  repository root, a copy without `.git` inside another repository's work tree included, fails the
-  step by name: never listed against the outer repository, never a bare exit. It then refuses, by
-  name, a tracked file git ignores, which `git ls-files --cached --ignored --exclude-standard`
-  lists: a force-added file that `.gitignore`, `.git/info/exclude` or the global excludes file
-  still matches is in git's list and skipped by a tool that reads `.gitignore` itself, so with
-  none in the tree every form reads one set of files. The global excludes file is a developer's
-  own, so a tracked file only it matches fails on that machine and not in CI; the fix is a `!`
-  pattern in `.gitignore`, or untracking the file.
-- **A listing git cannot make fails its step by name.** git's list is read through
-  `git ls-files -z … | LC_ALL=C sort -zu && printf '\0'`, and the refusal's list through
-  `git ls-files -z --cached --ignored --exclude-standard && printf '\0'`: `-u` lists each path
-  once, since a path in merge conflict is in the index once per stage, and the listing ends in one
-  empty record only when git listed. Every reader stops at that record and fails its step by name
-  without it ("git could not list the files under scripts/"). A process substitution's exit status
-  is lost, so a corrupt index otherwise reads as an empty listing.
+- **The first step makes the forms agree.** It asks git two things and compares no paths: that
+  this directory is inside a work tree, `git rev-parse --is-inside-work-tree` printing `true`, and
+  that it is the top, `git rev-parse --show-cdup` empty. `--show-cdup` alone prints nothing in
+  `.git/` and in a bare repository too, where `--is-inside-work-tree` prints `false`. A path typed
+  in another case, or spelled `C:/` rather than `/c/`, names the same directory, and comparing
+  `pwd -P` with `--show-toplevel` as strings refuses the real root. A tree whose work-tree top is
+  not the repository root, a copy without `.git` inside another repository's work tree or under its
+  `.git/` included, fails the step by name: never listed against the outer repository, never a bare
+  exit. It then refuses every tracked file a committed `.gitignore` matches under the paths the
+  gate's listings read, `git ls-files --cached --ignored --exclude-per-directory=.gitignore --
+  <those paths>`, naming each under one FAIL line: a file force-added, or added before its
+  pattern, is in git's list though the repository says it is ignored, and a tool that reads
+  `.gitignore` itself skips it, so with none every form reads one set of files. Only committed
+  `.gitignore` files count, so every clone of a commit gets the same answer: `.git/info/exclude`
+  and the global excludes file are the machine's, and a file no step reads never fails the gate.
+  The fix is a `!` pattern, or untracking the file; a `!` pattern cannot re-include a file under an
+  ignored directory, so the directory's contents are ignored (`dir/*`) rather than the directory.
+- **A listing git cannot make fails its step by name.** Each listing is written to a file and git's
+  own status checked: `git ls-files -z … > <file>.raw && LC_ALL=C sort -zu <file>.raw > <file>`,
+  and the step fails by name when that fails ("git could not list the files under scripts/").
+  Neither a pipe nor a process substitution keeps git's status: without `pipefail` a pipe's is the
+  last command's, and a process substitution's is lost either way, so a corrupt index otherwise
+  reads as an empty listing. `-u` lists each path once, since a path in merge conflict is in the
+  index once per stage. The files go in a directory `mktemp -d` makes, checked before it is used and
+  removed on exit; a step that cannot make it fails by name.
 - **The script runs from the repository root** wherever it is invoked from, and assumes nothing
   the repository does not already provide.
 
@@ -239,13 +245,15 @@ gate.
 The runnable steps are three: every shell script under `scripts/` parses, the Markdown files under
 `base/` and `README.md` lint clean against the pinned rule set, and `index.yml` lists exactly the
 tracked files under `base/`. `scripts/gate.sh` carries the exit contract above (tests e, f and x)
-and names the tool, its pin and its config. Steps 1 and 2 read git's list, each path once and
-ending in the empty record, and fail by name when git cannot list (tests w and y). Step 1 first
-refuses a tree whose work-tree top is not the repository root, asked of git (test w, the copy
-entered in upper case among it), then a tracked file git ignores (test y), then parses a file
-ending in `.sh` or starting with a bash shebang; any other file fails the step by name, since only
-shell scripts live under `scripts/` (test w). Step 2 passes pymarkdown the `.md` files of its list,
-since pymarkdown walks a directory without reading `.gitignore` (test y), and, before pymarkdown
+and names the tool, its pin and its config. Steps 1 and 2 read git's list from a temporary file,
+each path once, and fail by name when git cannot list or no temporary directory can be made (tests
+w and y). Step 1 first refuses a tree whose work-tree top is not the repository root, asked of git
+(test w: the copy entered in upper case among it, one under another repository's `.git/` and one
+in a bare repository), then every tracked file a committed `.gitignore` matches under `scripts/`,
+`base/` and `README.md`, the paths its listings read (test y), then parses a file ending in `.sh`
+or starting with a bash shebang; any other file fails the step by name, since only shell scripts
+live under `scripts/` (test w). Step 2 passes pymarkdown the `.md` files of its list, since
+pymarkdown walks a directory without reading `.gitignore` (test y), and, before pymarkdown
 lints, installs the pin as itself: `uvx` missing from `PATH`, or a pin `uvx` cannot install, fails
 the step by name, and pymarkdown's own reason is about findings and the rule set it reads (tests z
 and e). `uvx` has no form that installs without running, so the install
@@ -268,28 +276,30 @@ by step 1, not run by the gate.
 manifest to read it from, on `ubuntu-24.04` with a ten-minute timeout, no persisted credential and
 no cache, there being no lockfile to key one on; a local run uses the uv on `PATH`. Every spec
 folder under `agent-os/specs/` holds its `verification/gate-run.txt`; the spec that built the gate
-holds its six negative tests as recorded, the spec that last changed the harness (the gate spec of
-issues #17, #19 and #20) holds the current transcripts, j's included, with the mutations that show
-its guards covered, and the gate spec (issue #3) holds the hosted runs that proved the workflow,
-by id.
+holds its six negative tests as recorded, the spec that last changed the harness (the revision
+after the review of PR 23) holds the current transcripts, j's included, with the mutations that
+show its guards covered, and the gate spec (issue #3) holds the hosted runs that proved the
+workflow, by id.
 
 `scripts/gate.sh` here and in a consuming project share one skeleton: the `cd` and usage checks,
-the `step`, `fail`, `listed` and `present` helpers, step 1 with its root guard and its refusal of
-a tracked file git ignores, every reader's empty-record check, and the closing line. They differ
-only in their step lists, the pins those steps need and the paths each spells from its root. A
-spec that changes the skeleton here records the `diff -u` against a consuming project's
-`scripts/gate.sh` in its `verification/`, and the project takes the change in its own gate spec
-after the sync that brings this standard in; the gate spec of issues #17, #19 and #20 holds the
-current diff, against patchbay at `3f910d8`, which names the refusal as the hunk patchbay takes.
+the `step`, `fail`, `git_list`, `listed`, `fail_list` and `present` helpers, step 1 with its root
+guard, its temporary directory and its refusal of a tracked file a `.gitignore` ignores, and the
+closing line. They differ only in their step lists, the pins those steps need and the paths each
+spells from its root, the refusal's pathspec among them. A spec that changes the skeleton here
+records the `diff -u` against a consuming project's `scripts/gate.sh` in its `verification/`, and
+the project takes the change in its own gate spec after the sync that brings this standard in; the
+revision after the review of PR 23 holds the current diff, against patchbay at `3f910d8`, which
+names the hunks patchbay takes.
 
 ## In a consuming project
 
 This standard is synced in as `agent-os/standards/base/process/verification-gate.md`. The
 project's `scripts/gate.sh` runs its own step list on the skeleton above, with the exit contract
 and the same first step: the work-tree top refused unless git says it is the root, a tracked file
-git ignores refused, then every shell script under `scripts/` parsed as git lists them, a file
-ending in `.sh` or starting with a bash shebang, any other file refused by name. Every later step
-that reads files from the tree reads the files git lists, in one of the three forms above.
+a committed `.gitignore` matches refused under the paths its listings read, then every shell
+script under `scripts/` parsed as git lists them, a file ending in `.sh` or starting with a bash
+shebang, any other file refused by name. Every later step that reads files from the tree reads the
+files git lists, in one of the three forms above.
 Its `shape-spec.md` lists those steps in the gate task, followed by Docs, Version and the standards
 retrospective; its gate workflow runs the script and checks nothing the script does not; its
 `CLAUDE.md` names the script as the definition of done. `scripts/sync-standards.sh --check` is one

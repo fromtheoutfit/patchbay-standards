@@ -42,11 +42,13 @@ added, removed or changed, the old and new commit, what the index and the script
 JSON object on stdout after the last write, for a wrapper to read. Exit 0 is a sync whose result
 it compared against the export and found equal; 1 is a result that did not match; 2 is usage or a
 precondition, each named: a bad flag or two mode flags, a directory that is not the top of a git
-work tree (asked of git, `git rev-parse --show-cdup` empty, comparing no paths, so a project's root
+work tree (asked of git, comparing no paths: `git rev-parse --is-inside-work-tree` printing `true`,
+which it does not in `.git/` or a bare repository, and `--show-cdup` empty, so a project's root
 typed in another case is its root), `<path>` not a patchbay-standards checkout, no `origin/HEAD` to
 default the ref to, `<ref>` not a commit, no parseable `base:` section in the project's index
 without `--init` or in the commit's `index.yml`, a path under `base/` that is not a regular file or
-holds a control character. An explicit `<ref>` whose commit is not on origin's default branch is
+holds a control character, a listing of the project's files git cannot make. Each is found before
+anything is written. An explicit `<ref>` whose commit is not on origin's default branch is
 synced with a `WARN` line naming it: a commit not pushed or not merged can be rebased or abandoned,
 leaving the pin at nothing.
 
@@ -121,7 +123,8 @@ o to v in `scripts/gate-negative-tests.sh`, each on a scratch checkout whose `HE
 `origin/main` hold the working tree's files beside a scratch Agent OS project with its own index
 sections and standards, the sync run from the project with the sibling checkout as the default
 path and its `origin/main` as the default ref; u holds its refusals, a folder below the project's
-root among them, and its root typed in upper case passing. Gate step 1 parses the script.
+root and its `.git/` among them, and its root typed in upper case passing; t and u hold a project
+index git cannot read, refused by name. Gate step 1 parses the script.
 
 ## In a consuming project
 

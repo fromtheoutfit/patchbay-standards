@@ -10,8 +10,10 @@
 #     base/process/standards-index.md for how the two relate)
 #
 # "Tracked" is git ls-files, so this runs only in a git work tree whose top is the repository
-# root, and says so when it is not in one; it asks git whether this is the top (git rev-parse
-# --show-cdup is empty) and compares no paths, so a root typed in another case is the root. An
+# root, and says so when it is not in one; it asks git whether this is inside a work tree (git
+# rev-parse --is-inside-work-tree is true, which it is not in .git/ or a bare repository) and
+# whether it is the top (--show-cdup is empty), and compares no paths, so a root typed in another
+# case is the root. An
 # ignored stray such as .DS_Store is neither tracked nor reported. A listing git could not make (a
 # corrupt index) is reported by name, never as a bare exit. Every list is sorted after its last
 # transform, each path once (a path in merge conflict is in the index once per stage), and both
@@ -28,7 +30,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 root=$(pwd -P)
-if ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
+if ! inside=$(git rev-parse --is-inside-work-tree 2>/dev/null) || [ "$inside" != true ] ||
+   ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
   echo "FAIL  not a git work tree rooted at $root" \
        "(the files under base/ are read with git ls-files)"
   exit 1

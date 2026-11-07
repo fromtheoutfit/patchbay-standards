@@ -46,8 +46,8 @@ prohibition is on attribution markers, not on citing the work.
   standards every patchbay repository syncs in as `agent-os/standards/base/`; here they are the
   whole of `agent-os/standards/`. A spec is not complete until its verification gate passes —
   `scripts/gate.sh`, which runs `bash -n` on every shell script under `scripts/` as git lists
-  them, refusing a tracked file git ignores, `pymarkdown` through `uvx` (pinned there and
-  installed as its own check first, rules in `.pymarkdown.yaml`) over the `.md` files under
+  them, refusing a tracked file a `.gitignore` ignores, `pymarkdown` through `uvx` (pinned there
+  and installed as its own check first, rules in `.pymarkdown.yaml`) over the `.md` files under
   `base/` and `README.md` as git lists them, and
   `scripts/check-index.sh`, which holds `index.yml` equal to the tracked files under `base/`, and
   exits 1 at the first failing step, named, or 2 on usage or when it cannot enter the repository

@@ -1,0 +1,194 @@
+Probes for the revision after the review of PR 23 (head 00cf7ca), run 2026-11-07 on branch
+task/17-gate-spec-4-land-six-base-proposals-from-this-repositorys-specs-verification-gatemd-standards-syncmd,
+before any gate file was edited. Every probe runs in a scratch directory (<p>, from mktemp -d); the
+scripts at 00cf7ca and 11ceffd are read with git show and run there. Each setup is shown before its
+result is read. Nothing in the repository was written.
+
+What they show:
+  1. git rev-parse --show-cdup prints nothing and exits 0 at a work tree's top, and also in .git/,
+     in .git/objects/ and in a bare repository; --is-inside-work-tree prints true only in a work
+     tree, false in .git/, .git/objects/ and a bare repository, and exits 128 outside any
+     repository. So "inside a work tree, and at its top" is both answers together (findings 1, 2).
+  2. The sync script at 00cf7ca, run with --init from a project's .git/, passes its root guard,
+     writes agent-os/standards/ into the git directory and dies bare (exit 128) at a project-side
+     git call; the script at 11ceffd refuses there (exit 2) and writes nothing (finding 1,
+     reproduced as the review did).
+  3. git ls-files --cached --ignored --exclude-per-directory=.gitignore lists a tracked file the
+     root or a nested .gitignore matches, and not one only .git/info/exclude or the global excludes
+     file matches; --exclude-standard lists those too. A pathspec limits it. A ! pattern for a file
+     under an ignored directory leaves it ignored; ignoring the directory's contents (dir/*) and
+     then re-including the file (!dir/file) re-includes it (findings 3, 6): that, not a ! pattern
+     for the file alone, is the advice the refusal gives.
+  4. Without pipefail, "git ls-files -z | LC_ALL=C sort -zu && printf '\0'" on a corrupt index
+     prints the empty record, so its reader takes a failed listing for an empty one; with the
+     listing written to a file and git's status checked, the failure is seen whatever pipefail is
+     (finding 5, 8).
+  5. The sync script at 00cf7ca, --check on a project with a corrupt index, exits 128 with git's
+     fatal line and no FAIL line (finding 4).
+
+bash: GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25); git: git version 2.54.0 (Apple Git-157)
+
+## 1. git 2.54: --show-cdup and --is-inside-work-tree, place by place
+
+-- setup: <p>/r a repository with one file staged and sub/ in it; <p>/bare.git a bare repository; <p>/outer a repository with <p>/outer/copy, a directory without .git, inside it; <p>/plain inside no repository; <P>/R the top of <p>/r typed in upper case (this file system is case-insensitive):
+$ test -d <P>/R
+exit=0
+$ cd <p>/r
+  --show-cdup:            [] exit=0
+  --is-inside-work-tree:  [true] exit=0
+$ cd <P>/R
+  --show-cdup:            [] exit=0
+  --is-inside-work-tree:  [true] exit=0
+$ cd <p>/r/sub
+  --show-cdup:            [../] exit=0
+  --is-inside-work-tree:  [true] exit=0
+$ cd <p>/r/.git
+  --show-cdup:            [] exit=0
+  --is-inside-work-tree:  [false] exit=0
+$ cd <p>/r/.git/objects
+  --show-cdup:            [] exit=0
+  --is-inside-work-tree:  [false] exit=0
+$ cd <p>/bare.git
+  --show-cdup:            [] exit=0
+  --is-inside-work-tree:  [false] exit=0
+$ cd <p>/outer/copy
+  --show-cdup:            [../] exit=0
+  --is-inside-work-tree:  [true] exit=0
+$ cd <p>/plain
+  --show-cdup:            [fatal: not a git repository (or any of the parent directories): .git] exit=128
+  --is-inside-work-tree:  [fatal: not a git repository (or any of the parent directories): .git] exit=128
+
+## 2. sync-standards.sh at 00cf7ca and 11ceffd, run with --init from a project's .git/
+
+-- setup: <p>/s2/project a committed project with its own index and no base: section; <p>/s2/patchbay-standards an export of 00cf7ca, committed, origin/main at it:
+$ git status --short
+exit=0
+$ ls
+COMMIT_EDITMSG
+config
+description
+HEAD
+hooks
+index
+info
+logs
+objects
+refs
+exit=0
+-- the script at 00cf7ca from the project's .git/: the root guard passes, the sync writes into the git directory, then dies bare:
+$ bash <p>/sync-00cf7ca.sh --init <p>/s2/patchbay-standards HEAD
+fatal: this operation must be run in a work tree
+exit=128
+$ ls agent-os/standards
+base
+index.yml
+exit=0
+-- the script at 11ceffd from the same place: refused, exit 2, nothing written:
+$ bash <p>/sync-11ceffd.sh --init <p>/s2/patchbay-standards HEAD
+FAIL  run from the consuming project's root, the top of its git work tree (here: <p>/s2/project/.git)
+exit=2
+$ ls
+COMMIT_EDITMSG
+config
+description
+HEAD
+hooks
+index
+info
+logs
+objects
+refs
+exit=0
+
+## 3. git 2.54: tracked files a .gitignore matches, and the advice for a file under an ignored directory
+
+-- setup: .gitignore (*.log, !keep.log, build/, vendor/), sub/.gitignore (*.tmp), .git/info/exclude (secret.txt), the global excludes file (*.bak, under HOME=<p>/home); every file but stray.log tracked, the ignored ones force-added:
+$ env -u XDG_CONFIG_HOME -u GIT_CONFIG_GLOBAL HOME=<p>/home git check-ignore -v --no-index a.log keep.log build/tool.sh sub/n.tmp vendor/x.txt secret.txt g.bak ok.txt stray.log
+.gitignore:1:*.log	a.log
+.gitignore:2:!keep.log	keep.log
+.gitignore:3:build/	build/tool.sh
+sub/.gitignore:1:*.tmp	sub/n.tmp
+.gitignore:4:vendor/	vendor/x.txt
+.git/info/exclude:7:secret.txt	secret.txt
+<p>/home/.config/git/ignore:1:*.bak	g.bak
+.gitignore:1:*.log	stray.log
+exit=0
+-- --exclude-standard reads all three sources:
+$ git ls-files -z --cached --ignored --exclude-standard | nul
+a.log
+build/tool.sh
+g.bak
+secret.txt
+sub/n.tmp
+vendor/x.txt
+-- --exclude-per-directory=.gitignore reads the committed .gitignore files alone, the root's and sub/'s, and not info/exclude or the global file:
+$ git ls-files -z --cached --ignored --exclude-per-directory=.gitignore | nul
+a.log
+build/tool.sh
+sub/n.tmp
+vendor/x.txt
+exit=0
+-- a pathspec limits it:
+$ git ls-files -z --cached --ignored --exclude-per-directory=.gitignore -- build sub | nul
+build/tool.sh
+sub/n.tmp
+-- -i with no exclude source at all is refused by git:
+$ git ls-files --cached --ignored
+fatal: ls-files --ignored needs some exclude pattern
+exit=128
+-- the advice: !build/tool.sh added under build/ leaves the file ignored (git does not re-include a file under an excluded directory):
+$ git check-ignore -v --no-index build/tool.sh
+.gitignore:3:build/	build/tool.sh
+exit=0
+$ git ls-files -z --cached --ignored --exclude-per-directory=.gitignore -- build | nul
+build/tool.sh
+-- build/ replaced by build/*, the directory's contents, and !build/tool.sh kept: the file is re-included, the rest of build/ still ignored:
+$ cat .gitignore
+*.log
+!keep.log
+build/*
+vendor/
+!build/tool.sh
+exit=0
+$ git check-ignore -v --no-index build/tool.sh build/other.o
+.gitignore:5:!build/tool.sh	build/tool.sh
+.gitignore:3:build/*	build/other.o
+exit=0
+$ git ls-files -z --cached --ignored --exclude-per-directory=.gitignore -- build | nul
+
+## 4. bash 3.2: the empty-record reader without pipefail, and a listing written to a file
+
+-- setup: <p>/r's index overwritten with garbage:
+$ git ls-files
+fatal: .git/index: index file smaller than expected
+exit=128
+-- the reader with pipefail (the skeleton sets it): no empty record, so the failure is seen:
+$ bash -c set -euo pipefail; ok=; while IFS= read -r -d "" f; do [ -n "$f" ] || { ok=1; break; }; done < <(git ls-files -z --cached --others --exclude-standard | LC_ALL=C sort -zu && printf "\0"); echo "empty record seen: ${ok:-no}"
+fatal: .git/index: index file smaller than expected
+empty record seen: no
+exit=0
+-- the same reader without pipefail: the pipeline's status is sort's, 0, the empty record is printed, and the failed listing reads as an empty one (finding 5):
+$ bash -c set -eu; ok=; while IFS= read -r -d "" f; do [ -n "$f" ] || { ok=1; break; }; done < <(git ls-files -z --cached --others --exclude-standard | LC_ALL=C sort -zu && printf "\0"); echo "empty record seen: ${ok:-no}"
+fatal: .git/index: index file smaller than expected
+empty record seen: 1
+exit=0
+-- the listing written to a file, git's status checked, without pipefail (the form this revision ships):
+$ bash -c set -eu; if git ls-files -z --cached --others --exclude-standard > l.raw && LC_ALL=C sort -zu l.raw > l; then echo listed; else echo "git could not list (status $?)"; fi
+fatal: .git/index: index file smaller than expected
+git could not list (status 128)
+exit=0
+
+## 5. sync-standards.sh at 00cf7ca: --check on a project whose index git cannot read
+
+-- setup: the project synced with the script at 00cf7ca and committed; its --check passes:
+$ scripts/sync-standards.sh --check <p>/s2/patchbay-standards
+check base standards against 143e20dfae7e1c27075702b18153cb73d7349a8e  (<p>/s2/patchbay-standards)
+  index    base: section identical
+  script   scripts/sync-standards.sh matches
+{"mode":"check","upstream":"<p>/s2/patchbay-standards","commit":"143e20dfae7e1c27075702b18153cb73d7349a8e","missing":[],"extra":[],"changed":[],"index":"identical","script":"matches","ok":true}
+ok   agent-os/standards/base and the base: section of agent-os/standards/index.yml match patchbay-standards at 143e20dfae7e1c27075702b18153cb73d7349a8e
+exit=0
+-- the project's index overwritten with garbage: --check exits 128 with git's fatal line and no FAIL line, outside the script's 0/1/2:
+$ scripts/sync-standards.sh --check <p>/s2/patchbay-standards
+fatal: .git/index: index file smaller than expected
+exit=128
