@@ -52,6 +52,9 @@
 # path holding a control character, here or in the commit, is refused, so every list below and
 # the JSON hold by construction.
 #
+# The work-tree root is asked of git (git rev-parse --show-cdup is empty there) and no paths are
+# compared, so a project's root typed in another case, or spelled C:/ rather than /c/, is its root.
+#
 # Exit status: 0 success; 1 a failed check (drift, or a sync whose result does not match the
 # export); 2 usage or a precondition (a bad flag or two mode flags, not at a work-tree root, run
 # inside patchbay-standards itself, <path> not a patchbay-standards checkout, no origin/HEAD to
@@ -94,7 +97,7 @@ done
 
 # Preconditions, the cheap ones first; nothing is read from the commit until they all hold.
 root=$(pwd -P)
-if ! top=$(git rev-parse --show-toplevel 2>/dev/null) || [ "$top" != "$root" ]; then
+if ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then   # git says whether this is the top; no paths compared
   die 2 "run from the consuming project's root, the top of its git work tree (here: $root)"
 fi
 base=agent-os/standards/base

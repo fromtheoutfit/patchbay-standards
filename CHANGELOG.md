@@ -11,6 +11,44 @@ bring in.
 
 ### Added
 
+- Eleventh spec, `agent-os/specs/2026-11-07-1428-gate-spec-4-skeleton-listing-harness/` (issues
+  #17, #19 and #20, one spec because all three rewrite `base/process/verification-gate.md` and the
+  scripts it describes), the fourth gate spec. Every rule is written from the scripts as this
+  spec ships them and from fromtheoutfit/patchbay at `main` (`3f910d8`); where a proposal and the
+  code disagreed, the code won and the spec's `shape.md` says where. The probes the rules rest
+  on, and a mutation of every guard the spec added, are in its `verification/`.
+  - `scripts/gate.sh`: the shared skeleton takes patchbay's fixes. The root guard asks git
+    (`git rev-parse --show-cdup` empty) and compares no paths, so a root typed in another case
+    passes. `listed` sorts with `-u` and ends in one empty record only when git listed, and steps
+    1 and 2 fail by name without it. Step 1 then refuses, by name, a tracked file git ignores
+    (`git ls-files --cached --ignored --exclude-standard`), over the whole tree.
+  - `scripts/check-index.sh`: the same root guard, each path listed once, and a listing git cannot
+    make named instead of a bare exit 128. `scripts/sync-standards.sh`: the same root guard, so a
+    consuming project's root typed in another case is its root.
+  - `scripts/gate-negative-tests.sh`: `times`, an exact count, and a git shim that refuses one
+    call. w, y, m, h and u gain the cases, each running the script at `11ceffd` where it had the
+    bug. The header says a kept transcript holds one run, that a change to an assertion is shown
+    by a mutation, and that the tests are rerun when a file under a directory they copy is added,
+    removed or renamed.
+  - `base/process/verification-gate.md`: the listing rule's three forms, the third the refusal
+    form for a tool that walks a directory, and the missing-file clause bound to git's list; the
+    first step's root guard and refusal; a listing git cannot make. A key a tool does not know is
+    refused by some tools, not all. A case sets the whole of a copied directory it rests on. The
+    exclusive check, the mutation proof and one run per kept transcript are rules. A spec that
+    adds a standard records the tree's run and a git-added copy's.
+  - `base/process/standards-sync.md`: the sync's commit carries the project's `CHANGELOG.md`
+    entry naming the old and new commit, written by the person who syncs; the script is
+    unchanged. A base change that leaves a project's gate files behind names the project and the
+    work here, and an issue there records it. The root check is asked of git.
+  - `base/python/toolchain.md`: the gate's tool steps give their command lines, ruff and mypy
+    given git's list and pytest walking after a refusal; mypy's `files` is what a bare run walks,
+    with no `exclude_gitignore`.
+  - `.claude/commands/agent-os/shape-spec.md` and `CLAUDE.md`: step 1's refusal.
+  - **fromtheoutfit/patchbay takes this spec's changes to its gate files in its own gate spec
+    after its next sync (fromtheoutfit/patchbay#12):** step 1's refusal, tests p and g, the
+    re-recorded skeleton diff, step 5's refusal, which misses an ignored root `pytest.ini`, and the
+    gate task text. Its sync commit is the first to carry its own `CHANGELOG.md` entry.
+
 - Tenth spec, `agent-os/specs/2026-11-06-1244-revision-after-pr-18-review/`: the owner's review of
   PR 18 (the ninth spec, issues #13 and #15), twelve findings, each re-checked against `1e88c77`
   and answered in the spec's `plan.md`. A gate spec as well, since the gate task text and the

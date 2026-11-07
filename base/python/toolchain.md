@@ -6,6 +6,9 @@ says and in what order the gate runs them, and every rule names the file of a co
 is verified against. It was written from patchbay (`fromtheoutfit/patchbay`) at `73a583a`, whose
 toolchain spec and its revision after the review of patchbay PR 4 record each choice as a Decision
 with its reason; the probes it cites are recorded by the spec of issue #4 in `patchbay-standards`.
+"The gate's tool steps" and the `files` rule of "mypy" were read again at `3f910d8`, after
+patchbay's revision after the review of its PR 9, by the gate spec of issues #17, #19 and #20,
+which reran their probes.
 
 Where a tool's pin lives, the locked mode the tools run under, uv's own pin in `[tool.uv]
 required-version`, which sections of `pyproject.toml` are the gate's and which the package's, the
@@ -161,6 +164,11 @@ cites them and does not restate them.
   checker proves unreachable is a bug and strict does not turn it on, and `implicit_reexport =
   false` stated though strict implies it, so a name is exported only by `__all__` or an explicit
   `from x import y as y`. Verified against `pyproject.toml`.
+- **`files` is what a bare `uv run --locked mypy` walks**; the gate gives mypy git's list instead
+  ("The gate's tool steps"). There is no `exclude_gitignore`: under it mypy's walk skipped a
+  tracked file `.gitignore` matches, and in a linked worktree, where `.git` is a file, checked a
+  module that only `.git/info/exclude` hides. Verified against `[tool.mypy]` in `pyproject.toml`
+  (patchbay at `3f910d8`), its test p and the probes.
 - **An untyped third-party package gets its own override**: a `[[tool.mypy.overrides]]` block with
   `module = ["name.*"]`, `ignore_missing_imports = true` and a comment naming the package and why;
   never a global `ignore_missing_imports`. patchbay imports nothing untyped yet and has no
@@ -200,20 +208,33 @@ cites them and does not restate them.
 ## The gate's tool steps
 
 - **After the gate's first step and before `scripts/sync-standards.sh --check`, the gate runs one
-  step per tool, in this order: `ruff format --check .`, `ruff check .`, `mypy`, `pytest`.**
-  Format before lint, so a formatting failure is reported before a lint finding the formatter would
-  have changed; lint before types, since it is faster and its findings cheaper; tests last among
-  the tools, since a type error usually explains a failing test. hypothesis runs inside `pytest`, and pre-commit in no
-  step. Each tool runs as `uv run --locked <tool>`, and the first tool's step opens with
-  `uv sync --locked`, both `verification-gate.md`'s. Verified against `scripts/gate.sh`
-  (patchbay: steps 2 to 5 of six).
+  step per tool, in this order: format, lint, types, tests.** Format before lint, so a formatting
+  failure is reported before a lint finding the formatter would have changed; lint before types,
+  since it is faster and its findings cheaper; tests last among the tools, since a type error
+  usually explains a failing test. hypothesis runs inside `pytest`, and pre-commit in no step. Each
+  tool runs as `uv run --locked <tool>`, and the first tool's step opens with `uv sync --locked`,
+  both `verification-gate.md`'s. Verified against `scripts/gate.sh` (patchbay: steps 2 to 5 of
+  six).
+- **ruff and mypy are given git's list; pytest walks, after a refusal.** The command lines are
+  `uv run --locked ruff format --check -- <the .py and .pyi files git lists>`, then
+  `uv run --locked ruff check -- <the same>`, then
+  `uv run --locked mypy -- <those under src/ and tests/>`, each path checked on the disk: the
+  listing rule's first form (`verification-gate.md`, "One script"), so a tracked file `.gitignore`
+  matches is read and git alone decides what `.gitignore`, `.git/info/exclude` and the global
+  excludes file hide. Walking, ruff (`respect-gitignore`) and mypy (`exclude_gitignore`) skip a
+  force-added file `.gitignore` still matches. Then `uv run --locked pytest`, which walks
+  `testpaths`: pytest has no form that reads a list without also loading the `conftest.py` of each
+  directory it collects from, so its step first refuses, by name, any `.py` file git ignores under
+  `tests/` and an ignored `conftest.py` at the root (the refusal form). Verified against
+  `scripts/gate.sh` steps 2 to 5 and tests p and q (patchbay at `3f910d8`), and the probes.
 
 ## In this repository
 
 `patchbay-standards` has no package: no `pyproject.toml`, no `uv.lock`, no Python under `src/` or
 `tests/`. This standard does not apply here, and no file here verifies it. Its rules were read from
-patchbay at `73a583a`; a spec that changes one reads it again from a consuming project's shipped
-files, and reruns the probes a rule rests on. The one Python tool this repository's gate runs,
+patchbay at `73a583a`, the tool steps and mypy's `files` again at `3f910d8`; a spec that changes
+one reads it again from a consuming project's shipped files, and reruns the probes a rule rests
+on. The one Python tool this repository's gate runs,
 pymarkdown through `uvx`, takes the no-manifest form of `verification-gate.md`. Step 5a of this
 repository's `shape-spec.md` lists this standard with the note that it applies to consuming
 projects; a spec shaped here records it under "Core Architecture" as not applying and does not copy

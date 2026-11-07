@@ -10,9 +10,13 @@
 #     base/process/standards-index.md for how the two relate)
 #
 # "Tracked" is git ls-files, so this runs only in a git work tree whose top is the repository
-# root, and says so when it is not in one. An ignored stray such as .DS_Store is neither tracked
-# nor reported. Every list is sorted after its last transform, and both lists are checked sorted
-# before comm compares them, so comm's own exit is never mistaken for "nothing missing".
+# root, and says so when it is not in one; it asks git whether this is the top (git rev-parse
+# --show-cdup is empty) and compares no paths, so a root typed in another case is the root. An
+# ignored stray such as .DS_Store is neither tracked nor reported. A listing git could not make (a
+# corrupt index) is reported by name, never as a bare exit. Every list is sorted after its last
+# transform, each path once (a path in merge conflict is in the index once per stage), and both
+# lists are checked sorted before comm compares them, so comm's own exit is never mistaken for
+# "nothing missing".
 #
 # Usage: scripts/check-index.sh   (exit 0 when all hold; each failure is named)
 set -euo pipefail
@@ -24,14 +28,19 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 root=$(pwd -P)
-if ! top=$(git rev-parse --show-toplevel 2>/dev/null) || [ "$top" != "$root" ]; then
+if ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
   echo "FAIL  not a git work tree rooted at $root" \
        "(the files under base/ are read with git ls-files)"
   exit 1
 fi
 
-git -c core.quotePath=false ls-files -- base | sort > "$tmp/files"
-git -c core.quotePath=false ls-files --others --exclude-standard -- base | sort > "$tmp/untracked"
+if ! git -c core.quotePath=false ls-files -- base > "$tmp/files.raw" ||
+   ! git -c core.quotePath=false ls-files --others --exclude-standard -- base > "$tmp/untracked.raw"; then
+  echo "FAIL  git could not list the files under base/ (see above)"
+  exit 1
+fi
+sort -u "$tmp/files.raw" > "$tmp/files"
+sort -u "$tmp/untracked.raw" > "$tmp/untracked"
 if [ -s "$tmp/untracked" ]; then
   echo "FAIL  under base/ but not tracked (git add it, or keep it out of base/):"
   sed 's/^/        /' "$tmp/untracked"

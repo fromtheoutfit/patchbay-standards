@@ -12,13 +12,24 @@
 # after a failure are checked as never reached, not assumed; a passing run may name lines its output
 # must hold too. The reason is found line by line, in order, and says nothing of what else was printed,
 # so a case that says a step names an entry alone follows its run with only, which holds the entries
-# listed under the run's FAIL lines to exactly those it names. A mismatch of any of these is marked
-# UNEXPECTED and the harness exits 1 at the end naming the count, so the transcript's last line says
-# whether every case behaved. Every setup step (a command that builds a case's state) stops the
-# harness by name when it fails (exit 2) rather than letting a case fail for the wrong reason.
-# Nothing in the tree is touched: the scratch directory is refused unless mktemp made it, outside
-# this repository. The transcript of a run is kept in the spec's verification/ folder as
-# gate-negative-tests.txt (every test but j) and ci-negative-test.txt (j, the CI replay).
+# listed under the run's FAIL lines to exactly those it names, and a case that says a line is
+# printed once follows it with times, which holds one whole line to an exact count. A mismatch of
+# any of these is marked UNEXPECTED and the harness exits 1 at the end naming the count, so the
+# transcript's last line says whether every case behaved. Every setup step (a command that builds a
+# case's state) stops the harness by name when it fails (exit 2) rather than letting a case fail for
+# the wrong reason. A change to these assertions is shown to discriminate by a mutation, the guard
+# it covers deleted in a copy and the case coming back UNEXPECTED, recorded in the spec's
+# verification/ beside the run. Nothing in the tree is touched: the scratch directory is refused
+# unless mktemp made it, outside this repository. The transcript of one run is kept in the spec's
+# verification/ folder as gate-negative-tests.txt (every test but j) and ci-negative-test.txt (j,
+# the CI replay), each holding that one run and ending on its count; an earlier run kept as
+# evidence, a failing one before a fix, goes in a file of its own.
+#
+# Every case copies base/ and scripts/ as the tree holds them (mk), so a case whose expectation
+# depends on what a copied directory holds sets the whole of that directory (g empties base/ and
+# writes its own), and one that needs a named file there stops by name without it (a, n and y need
+# base/process/ownership.md). The tests are rerun whenever the gate's files change, and whenever a
+# spec adds, removes or renames a file under a directory mk copies.
 #
 # Tests o to v are scripts/sync-standards.sh's (base/process/standards-sync.md), a gate file in
 # every consuming project: each builds a scratch patchbay-standards checkout whose HEAD commit holds
@@ -29,19 +40,24 @@
 #
 # Usage: scripts/gate-negative-tests.sh [test ...]   (default: every test but j; "all" adds j)
 #   tests: a b c1 c2 c3 d e f g h i k l m n w x y z o p q r s t u v j
-#   a-d, g, h, k-n  scripts/check-index.sh (gate step 3), each failure by name
+#   a-d, g, h, k-n  scripts/check-index.sh (gate step 3), each failure by name (h: a standard in
+#                   a three-way merge conflict listed once; m: the copy entered in upper case
+#                   passes, a corrupt index fails by name)
 #   e, i            gate.sh stops at step 2 on a lint finding, after the install's ok line (i: the
 #                   rule set in .pymarkdown.yaml shown read: a changed value applied, a misspelled
 #                   key not refused, an unparsable value and an unparsable file each refused)
 #   f               gate.sh stops at step 1 on an unparsable script
-#   w               step 1's file list: an ignored scripts/.DS_Store passes; a tracked non-shell
-#                   file, a tracked script missing from the disk, a tracked symlink to nothing, a
-#                   copy that is not a git work tree and one inside another repository each fail
-#                   by name
+#   w               step 1's file list: an ignored scripts/.DS_Store passes; the copy entered in
+#                   upper case passes; a script in a three-way merge conflict is listed once; a
+#                   corrupt index, a git that refuses step 1's listing, a tracked non-shell file, a
+#                   tracked script missing from the disk, a tracked symlink to nothing, a copy that
+#                   is not a git work tree and one inside another repository each fail by name
 #   x               not run as the gate: any argument exits 2 with the usage line, a script that
 #                   cannot enter the repository root exits 2 saying so; the clean copy exits 0
-#   y               step 2's file list: an ignored .md under base/ is never linted, the same file
-#                   tracked is, a tracked .md missing from the disk fails by name
+#   y               step 2's file list: an ignored .md under base/ is never linted; force-added, git
+#                   still ignoring it, step 1 refuses it by name; with no pattern matching it, git
+#                   lists it and step 2 lints it; a git that refuses step 2's listing, and a tracked
+#                   .md missing from the disk, each fail by name
 #   z               step 2's install fails as itself: the clean copy's install ok line comes before
 #                   the lint's; uvx missing from PATH, and a pin naming a version never published,
 #                   each fail step 2 by name as the install, before pymarkdown lints
@@ -50,10 +66,12 @@
 # Needs git and uv (j reads the workflow with pyyaml, through uv run --with, installing nothing),
 # and, the first time, network access to fetch the pinned pymarkdown into the uv cache. z hides uvx
 # with PATH=/usr/bin:/bin, where the commands steps 1 and 2 use before uvx (bash, dirname, git,
-# sort, head, grep) must be and uvx must not.
-# g, k, l, r, w and y also run a script from history (git show <sha>:<path>) to show the bug
-# they guard against as it was; that part is skipped where the commit is absent, and k's GNU comm
-# case where gcomm (coreutils) is absent.
+# sort, head, grep) must be and uvx must not. w and y put a git that refuses one call first on
+# PATH (shim, in the scratch directory), every other call the real git.
+# g, h, k, l, m, r, u, w and y also run a script from history (git show <sha>:<path>) to show the
+# bug they guard against as it was; that part is skipped where the commit is absent, k's GNU comm
+# case where gcomm (coreutils) is absent, and the upper-case runs of m, u and w on a case-sensitive
+# file system, where the path typed in upper case is no directory.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO=$(pwd -P)
@@ -65,6 +83,7 @@ case "$NEG" in
   "$REPO"|"$REPO"/*) die "the scratch directory $NEG is inside this repository; refusing to use it" ;;
 esac
 trap 'rm -rf "${NEG:?}"' EXIT
+NEGUP=$(printf '%s' "$NEG" | tr '[:lower:]' '[:upper:]')   # the scratch path typed in upper case (w, m, u)
 
 runs=0; unexpected=0
 says() {  # says <text> <file>: each line of the text is found in the file, in order, as a fixed string within a line
@@ -92,8 +111,8 @@ check() {  # check <expected status> <status> [<expected text> <printed output>]
     echo "exit=$2"
   fi
 }
-shown() {  # shown <raw output>: print it with the scratch paths shortened to <copy name>, into $NEG/run.out too
-  sed "s#$NEG/\([a-z0-9]*\)#<copy \1>#g" "$1" > "$NEG/run.out" || die "sed on $1"
+shown() {  # shown <raw output>: print it with the scratch paths shortened to <copy name> (<COPY NAME> when typed in upper case), into $NEG/run.out too
+  sed -e "s#$NEG/\([a-z0-9]*\)#<copy \1>#g" -e "s#$NEGUP/\([A-Z0-9]*\)#<COPY \1>#g" "$1" > "$NEG/run.out" || die "sed on $1"
   cat "$NEG/run.out"
 }
 run() {  # run <name> <expected status> [<expected text, when the status is not 0>] <cmd...>: run in the copy, print its output and status, assert both
@@ -112,6 +131,23 @@ only() {  # only <entry>...: after run, the entries listed under its FAIL lines 
   else
     echo "only=$*  UNEXPECTED (listed: $(printf '%s\n' "$got" | sed 's/^ *//' | paste -sd ' ' -))"; unexpected=$((unexpected + 1))
   fi
+}
+times() {  # times <n> <line>: after run, its output holds exactly this whole line exactly n times; a mismatch is UNEXPECTED, an assertion on that run, not another run
+  local got
+  got=$(grep -cxF -- "$2" "$NEG/run.out")
+  if [ "$got" -eq "$1" ]; then echo "times=$1 x $2"
+  else echo "times=$1 x $2  UNEXPECTED (found $got)"; unexpected=$((unexpected + 1)); fi
+}
+shim() {  # shim: $NEG/shim/git, the real git but for a call whose arguments hold $GATE_TEST_REFUSE, which it refuses (exit 128); a case puts it first on PATH
+  [ -x "$NEG/shim/git" ] && return 0
+  mkdir -p "$NEG/shim" || die "shim: mkdir"
+  cat > "$NEG/shim/git" <<SH || die "shim: write"
+#!/usr/bin/env bash
+# git, refusing a call whose arguments hold \$GATE_TEST_REFUSE; every other call is the real git
+case " \$* " in *"\${GATE_TEST_REFUSE:?}"*) echo "git (test shim): refusing: \$*" >&2; exit 128 ;; esac
+exec "$(command -v git)" "\$@"
+SH
+  chmod +x "$NEG/shim/git" || die "shim: chmod"
 }
 hdr() { printf '\n### %s\n' "$1"; }
 note() { printf -- '-- %s\n' "$1"; }
@@ -242,7 +278,7 @@ g) hdr "g (comm collation: C-sorted lists with process/B's entry missing, under 
    printf 'base:\n  process/B:\n    description: one\n  process/a_z:\n    description: two\n  process/ab:\n    description: three\n' > "$NEG/g/index.yml" || die "g: index, all three"
    note "shipped script, all three indexed, LANG=en_US.UTF-8 (must pass):"
    run g 0 env -u LC_ALL LANG=en_US.UTF-8 scripts/check-index.sh ;;
-h) hdr "h (tracked files are git ls-files: an ignored stray passes, an untracked standard is refused)"
+h) hdr "h (tracked files are git ls-files: an ignored stray passes, an untracked standard is refused, a standard in a three-way merge conflict is listed once)"
    mk h; touch "$NEG/h/base/.DS_Store" || die "h: touch"
    note "untracked, ignored base/.DS_Store present (must pass):"
    run h 0 git status --short --ignored base
@@ -253,7 +289,20 @@ h) hdr "h (tracked files are git ls-files: an ignored stray passes, an untracked
    run h 1 $'FAIL  under base/ but not tracked (git add it, or keep it out of base/):\n        base/process/new.md' scripts/check-index.sh
    printf '  process/new:\n    description: never added\n' >> "$NEG/h/index.yml" || die "h: index entry"
    note "the same file with its index entry (must fail: not tracked, and the entry has no tracked file):"
-   run h 1 $'FAIL  under base/ but not tracked (git add it, or keep it out of base/):\n        base/process/new.md\nFAIL  in index.yml but not tracked under base/:\n        process/new' scripts/check-index.sh ;;
+   run h 1 $'FAIL  under base/ but not tracked (git add it, or keep it out of base/):\n        base/process/new.md\nFAIL  in index.yml but not tracked under base/:\n        process/new' scripts/check-index.sh
+   mk hc; printf '# Conflict\n\nA standard.\n' > "$NEG/hc/base/process/conflict.md" || die "h: conflict.md"
+   printf '  process/conflict:\n    description: in conflict\n' >> "$NEG/hc/index.yml" || die "h: index entry"; git -C "$NEG/hc" add index.yml || die "h: add index"
+   ch=$(git -C "$NEG/hc" hash-object -w base/process/conflict.md) || die "h: hash-object"
+   printf '100644 %s 1\tbase/process/conflict.md\n100644 %s 2\tbase/process/conflict.md\n100644 %s 3\tbase/process/conflict.md\n' "$ch" "$ch" "$ch" |
+     git -C "$NEG/hc" update-index --index-info || die "h: index-info"
+   note "a fresh copy with base/process/conflict.md indexed and in a three-way merge conflict, its index entry at stages 1, 2 and 3 (must pass: the path is listed once):"
+   run hc 0 git ls-files -s base/process/conflict.md
+   run hc 0 scripts/check-index.sh
+   if old_file hc 11ceffd scripts/check-index.sh; then
+     note "the script at 11ceffd (main before this spec) on the same: sorted without -u, the three stages leave two copies of the entry unmatched, reported missing (the bug):"
+     run hc 1 $'FAIL  tracked under base/ but not in index.yml:\n        process/conflict' scripts/check-index-11ceffd.sh
+     only process/conflict process/conflict
+   fi ;;
 i) hdr "i (.pymarkdown.yaml is read: md013 line lengths 60 in the copy; gate.sh must stop at step 2 on MD013, exit 1, 3/3 never reached; a misspelled key is not refused; a value pymarkdown cannot use, and a file YAML cannot parse, each fail step 2 by name)"
    mk i; sed -i.bak 's/line_length: 120/line_length: 60/' "$NEG/i/.pymarkdown.yaml" || die "i: sed"; rm "$NEG/i/.pymarkdown.yaml.bak" || die "i: rm .bak"
    grep -n 'line_length' "$NEG/i/.pymarkdown.yaml" || die "i: line_length not set"
@@ -315,18 +364,88 @@ l) hdr "l (a non-ASCII path, base/process/café.md, tracked and indexed; must pa
      note "the script at cf1bdf0 read the path C-quoted and refused it:"
      run l 1 $'FAIL  not a standard (only .md files belong under base/):\n        "base/process/caf\\303\\251.md"' scripts/check-index-cf1bdf0.sh
    fi ;;
-m) hdr "m (a copy that is not a git work tree; check-index.sh must fail by name, not with a bare exit)"
-   mk m; rm -rf "$NEG/m/.git" || die "m: rm .git"
-   run m 1 "FAIL  not a git work tree rooted at <copy m> (the files under base/ are read with git ls-files)" scripts/check-index.sh ;;
+m) hdr "m (check-index.sh asks git for the top: the copy entered through its path in upper case passes; a corrupt index, a copy that is not a git work tree and the same copy inside another repository's work tree each fail by name, not with a bare exit)"
+   mk m
+   UPC=$(printf '%s' "$NEG/m" | tr '[:lower:]' '[:upper:]')
+   if [ -d "$UPC" ]; then
+     note "the copy entered through its path in upper case (this file system is case-insensitive; must pass, exit 0):"
+     run m 0 bash -c 'cd "$1" && scripts/check-index.sh' _ "$UPC"
+     if old_file m 11ceffd scripts/check-index.sh; then
+       note "the script at 11ceffd (main before this spec) on the same: pwd -P and git's top compared as strings, the root refused (the bug):"
+       run m 1 "FAIL  not a git work tree rooted at <COPY M> (the files under base/ are read with git ls-files)" bash -c 'cd "$1" && scripts/check-index-11ceffd.sh' _ "$UPC"
+       rm "$NEG/m/scripts/check-index-11ceffd.sh" || die "m: rm old script"
+     fi
+   else
+     note "this file system is case-sensitive: the copy's path in upper case is no directory, so the upper-case runs are skipped"
+   fi
+   cp "$NEG/m/.git/index" "$NEG/m-index" || die "m: save index"
+   printf 'garbage' > "$NEG/m/.git/index" || die "m: corrupt index"
+   note "the copy's index overwritten with garbage, so git cannot list (must fail naming the listing, exit 1):"
+   run m 1 $'index file smaller than expected\nFAIL  git could not list the files under base/ (see above)' scripts/check-index.sh
+   if old_file m 11ceffd scripts/check-index.sh; then
+     note "the script at 11ceffd on the same: set -e ends it at the listing with git's status, 128, and no FAIL line (the bug):"
+     run m 128 "index file smaller than expected" scripts/check-index-11ceffd.sh
+     rm "$NEG/m/scripts/check-index-11ceffd.sh" || die "m: rm old script"
+   fi
+   cp "$NEG/m-index" "$NEG/m/.git/index" || die "m: restore index"
+   run m 0 scripts/check-index.sh
+   rm -rf "$NEG/m/.git" || die "m: rm .git"
+   note "the copy's .git removed (must fail by name, exit 1):"
+   run m 1 "FAIL  not a git work tree rooted at <copy m> (the files under base/ are read with git ls-files)" scripts/check-index.sh
+   mkdir "$NEG/mo" || die "m: mkdir mo"; git -c init.defaultBranch=main -C "$NEG/mo" init -q || die "m: git init mo"
+   cp -R "$NEG/m" "$NEG/mo/copy" || die "m: cp into mo"
+   note "the same copy, still without .git, inside another repository's work tree (<copy mo>, nothing tracked there; must fail by name, exit 1):"
+   run mo/copy 1 "FAIL  not a git work tree rooted at <copy mo>/copy (the files under base/ are read with git ls-files)" scripts/check-index.sh ;;
 n) hdr "n (a tracked standard deleted from disk, deletion not staged; check-index.sh must fail)"
    mk n; rm "$NEG/n/base/process/ownership.md" || die "n: rm"
    run n 0 git status --short base
    run n 1 $'FAIL  tracked but missing on disk (stage the deletion, or restore the file):\n        base/process/ownership.md' scripts/check-index.sh ;;
-w) hdr "w (step 1 lists files with git: an ignored scripts/.DS_Store passes; a tracked scripts/notes.txt is refused by name; a tracked script deleted from the disk, and a tracked symlink to nothing, are each refused by name; a copy that is not a git work tree, and the same copy inside another repository's work tree, are each refused by name)"
+w) hdr "w (step 1 lists files with git: an ignored scripts/.DS_Store passes; the copy entered through its path in upper case passes; a script in a three-way merge conflict is listed once; a corrupt index, and a git that refuses step 1's listing of scripts/, are each refused by name; a tracked scripts/notes.txt is refused by name; a tracked script deleted from the disk, and a tracked symlink to nothing, are each refused by name; a copy that is not a git work tree, and the same copy inside another repository's work tree, are each refused by name)"
    mk w; touch "$NEG/w/scripts/.DS_Store" || die "w: touch"
    note "untracked, ignored scripts/.DS_Store present (must pass, exit 0; the gate never lists it):"
    run w 0 git status --short --ignored scripts
    run w 0 scripts/gate.sh
+   UPC=$(printf '%s' "$NEG/w" | tr '[:lower:]' '[:upper:]')
+   if [ -d "$UPC" ]; then
+     note "the copy entered through its path in upper case (this file system is case-insensitive): step 1 asks git whether this is the top and compares no paths, and step 3's check-index.sh does the same, so the gate must pass, exit 0:"
+     run w 0 bash -c 'cd "$1" && scripts/gate.sh' _ "$UPC"
+     if old_file w 11ceffd scripts/gate.sh; then
+       note "the gate at 11ceffd (main before this spec) on the same: step 1 compares pwd -P with git's top as strings and refuses the repository's own root (the bug):"
+       run w 1 "FAIL  step 1/3: not a git work tree rooted at <COPY W>; the gate lists files with git ls-files" bash -c 'cd "$1" && scripts/gate-11ceffd.sh' _ "$UPC"
+       rm "$NEG/w/scripts/gate-11ceffd.sh" || die "w: rm old gate"
+     fi
+   else
+     note "this file system is case-sensitive: the copy's path in upper case is no directory, so the upper-case runs are skipped"
+   fi
+   printf '#!/usr/bin/env bash\necho conflict\n' > "$NEG/w/scripts/conflict.sh" || die "w: conflict.sh"
+   ch=$(git -C "$NEG/w" hash-object -w scripts/conflict.sh) || die "w: hash-object"
+   printf '100755 %s 1\tscripts/conflict.sh\n100755 %s 2\tscripts/conflict.sh\n100755 %s 3\tscripts/conflict.sh\n' "$ch" "$ch" "$ch" |
+     git -C "$NEG/w" update-index --index-info || die "w: index-info"
+   note "scripts/conflict.sh in a three-way merge conflict, its index entry at stages 1, 2 and 3 (step 1 must list it once, and the gate pass, exit 0):"
+   run w 0 git ls-files -s scripts/conflict.sh
+   run w 0 scripts/gate.sh
+   times 1 'ok   scripts/conflict.sh'
+   if old_file w 11ceffd scripts/gate.sh; then
+     note "the gate at 11ceffd on the same: listed without -u, the path is parsed, printed and counted three times (the bug):"
+     run w 0 scripts/gate-11ceffd.sh
+     times 3 'ok   scripts/conflict.sh'
+     rm "$NEG/w/scripts/gate-11ceffd.sh" || die "w: rm old gate"
+   fi
+   git -C "$NEG/w" rm -q --cached scripts/conflict.sh || die "w: rm conflict"; rm "$NEG/w/scripts/conflict.sh" || die "w: rm conflict file"
+   cp "$NEG/w/.git/index" "$NEG/w-index" || die "w: save index"
+   printf 'garbage' > "$NEG/w/.git/index" || die "w: corrupt index"
+   note "the copy's index overwritten with garbage, so git cannot list (must fail at step 1 naming its first listing, of the tracked files git ignores, exit 1, 2/3 never printed):"
+   run w 1 $'index file smaller than expected\nFAIL  step 1/3: git could not list the tracked files git ignores (see above)' scripts/gate.sh
+   if old_file w 11ceffd scripts/gate.sh; then
+     note "the gate at 11ceffd on the same: the listing's failure is lost in the process substitution, and step 1 says git lists no file (the bug):"
+     run w 1 "FAIL  step 1/3: git lists no file under scripts/" scripts/gate-11ceffd.sh
+     rm "$NEG/w/scripts/gate-11ceffd.sh" || die "w: rm old gate"
+   fi
+   cp "$NEG/w-index" "$NEG/w/.git/index" || die "w: restore index"
+   run w 0 git status --short scripts
+   shim
+   note "a git on PATH that refuses step 1's listing of scripts/ alone, every other call the real git, so the listing of the tracked files git ignores passes first (must fail at step 1 naming the scripts/ listing, exit 1, 2/3 never printed):"
+   run w 1 $'git (test shim): refusing\nFAIL  step 1/3: git could not list the files under scripts/ (see above)' env PATH="$NEG/shim:$PATH" GATE_TEST_REFUSE=' -- scripts ' scripts/gate.sh
    printf 'a note\n' > "$NEG/w/scripts/notes.txt" || die "w: notes"; git -C "$NEG/w" add scripts/notes.txt || die "w: add notes"
    note "scripts/notes.txt tracked, neither .sh nor a bash shebang (must fail at step 1 naming it, exit 1, 2/3 never printed):"
    run w 1 "FAIL  step 1/3: scripts/notes.txt is not a shell script; only shell scripts live under scripts/" scripts/gate.sh
@@ -363,7 +482,7 @@ x) hdr "x (not run as the gate: --help and a stray argument each exit 2 with the
    run x 2 "usage: scripts/gate.sh   (no arguments; exits 1 at the first failing step, 2 on usage)" scripts/gate.sh x
    note "the copy's gate.sh run as bash -c with \$0 under a directory that does not exist, so its cd to the repository root fails (exit 2 saying so, no step banner):"
    run x 2 "gate: cannot enter the repository root, <copy x>/nowhere/scripts/..; not run as the gate" bash -c "$(cat "$NEG/x/scripts/gate.sh")" "$NEG/x/nowhere/scripts/gate.sh" ;;
-y) hdr "y (step 2 lists with git: an ignored base/process/draft.md with a lint finding is never linted; the same file tracked is; a tracked standard deleted from the disk is refused by name)"
+y) hdr "y (step 2 lists with git: an ignored base/process/draft.md with a lint finding is never linted; the same file force-added, git ignoring it through .gitignore or .git/info/exclude, is refused at step 1 by name; untracked with no pattern matching it, git lists it and step 2 lints it; a git that refuses step 2's listing, and a tracked standard deleted from the disk, are each refused by name)"
    mk y; printf 'base/process/draft.md\n' >> "$NEG/y/.gitignore" || die "y: ignore draft"
    printf '# draft\ntext right under the heading with a trailing space \n' > "$NEG/y/base/process/draft.md" || die "y: draft.md"
    note "base/process/draft.md, with two findings, ignored through the copy's .gitignore (must pass, exit 0; step 2 never lints it, step 3 never sees it):"
@@ -375,9 +494,37 @@ y) hdr "y (step 2 lists with git: an ignored base/process/draft.md with a lint f
      rm "$NEG/y/scripts/gate-a5f88ae.sh" || die "y: rm old script"
    fi
    git -C "$NEG/y" add -f base/process/draft.md || die "y: add draft"
-   note "the same file force-added, tracked (must fail at step 2 on its findings, exit 1, 3/3 never printed):"
+   note "the same file force-added: git lists it as tracked, and .gitignore still matches it, so a tool that reads .gitignore itself would skip it (must fail at step 1 naming it, exit 1, 2/3 never printed):"
+   run y 0 git ls-files --cached --ignored --exclude-standard
+   run y 1 "FAIL  step 1/3: base/process/draft.md is tracked but git ignores it; stop ignoring it (a ! pattern in .gitignore) or stop tracking it" scripts/gate.sh
+   if old_file y 11ceffd scripts/gate.sh; then
+     note "the gate at 11ceffd (main before this spec) on the same: step 1 passes, and step 2 lints a file that a tool reading .gitignore would have skipped (the state the refusal closes):"
+     run y 1 $'ok   scripts/sync-standards.sh\nbase/process/draft.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3' scripts/gate-11ceffd.sh
+     rm "$NEG/y/scripts/gate-11ceffd.sh" || die "y: rm old gate"
+   fi
+   git -C "$NEG/y" rm -q --cached base/process/draft.md || die "y: rm draft"
+   sed -i.bak '/^base\/process\/draft\.md$/d' "$NEG/y/.gitignore" || die "y: sed .gitignore"; rm "$NEG/y/.gitignore.bak" || die "y: rm .bak"
+   grep -q 'draft' "$NEG/y/.gitignore" && die "y: draft still in .gitignore"
+   printf 'base/process/draft.md\n' >> "$NEG/y/.git/info/exclude" || die "y: info/exclude"
+   git -C "$NEG/y" add -f base/process/draft.md || die "y: add draft again"
+   note "the ignore line moved from .gitignore to .git/info/exclude, and the file force-added again (must fail at step 1 naming it: git ignores it either way):"
+   run y 0 git check-ignore -v --no-index base/process/draft.md
+   run y 1 "FAIL  step 1/3: base/process/draft.md is tracked but git ignores it; stop ignoring it (a ! pattern in .gitignore) or stop tracking it" scripts/gate.sh
+   git -C "$NEG/y" rm -q --cached base/process/draft.md || die "y: rm draft again"
+   sed -i.bak '/^base\/process\/draft\.md$/d' "$NEG/y/.git/info/exclude" || die "y: sed info/exclude"; rm "$NEG/y/.git/info/exclude.bak" || die "y: rm .bak"
+   grep -q 'draft' "$NEG/y/.git/info/exclude" && die "y: draft still in info/exclude"
+   note "no pattern matches the file now: untracked and not ignored, git lists it, so step 2 lints it (must fail at step 2 on its findings, exit 1, 3/3 never printed):"
+   run y 0 git status --short --ignored base
    run y 1 $'base/process/draft.md:2:51: MD009: Trailing spaces\nFAIL  step 2/3: pymarkdown reported findings, or could not read .pymarkdown.yaml (see above)' scripts/gate.sh
-   git -C "$NEG/y" rm -q --cached base/process/draft.md || die "y: rm draft"; rm "$NEG/y/base/process/draft.md" || die "y: rm draft file"
+   rm "$NEG/y/base/process/draft.md" || die "y: rm draft file"
+   shim
+   note "a git on PATH that refuses step 2's listing of base/ and README.md alone, every other call the real git (must fail at step 2 naming the listing, exit 1, 3/3 never printed):"
+   run y 1 $'ok   scripts/sync-standards.sh\ngit (test shim): refusing\nFAIL  step 2/3: git could not list the files under base/ and README.md (see above)' env PATH="$NEG/shim:$PATH" GATE_TEST_REFUSE=' -- base README.md ' scripts/gate.sh
+   if old_file y 11ceffd scripts/gate.sh; then
+     note "the gate at 11ceffd on the same: the listing's failure is lost, and step 2 says git lists no .md file (the bug):"
+     run y 1 "FAIL  step 2/3: git lists no .md file under base/ or README.md" env PATH="$NEG/shim:$PATH" GATE_TEST_REFUSE=' -- base README.md ' scripts/gate-11ceffd.sh
+     rm "$NEG/y/scripts/gate-11ceffd.sh" || die "y: rm old gate"
+   fi
    rm "$NEG/y/base/process/ownership.md" || die "y: rm ownership.md"
    note "base/process/ownership.md tracked but deleted from the disk, deletion not staged (must fail at step 2 naming it, exit 1, before pymarkdown runs):"
    run y 1 "FAIL  step 2/3: base/process/ownership.md is tracked but missing from the disk" scripts/gate.sh ;;
@@ -609,12 +756,24 @@ t) hdr "t (the drift check passes after a sync and fails on a one-byte edit, an 
    run t/project 2 "FAIL  pinned commit 0123456789abcdef0123456789abcdef01234567 is not in <copy t>/patchbay-standards (fetch it)" scripts/sync-standards.sh --check
    git -C "$NEG/t/project" checkout -q -- agent-os/standards/base/.version || die "t: restore pin"
    run t/project 0 git status --short ;;
-u) hdr "u (refusals, each exit 2 by name and nothing written: inside patchbay-standards itself, not at a work-tree root, a plain directory or another repository as the path, a ref that is not a commit, an unknown flag, two mode flags, a commit whose index.yml has no parseable base: section, no origin/HEAD to default to, a second base: line in the project's index)"
+u) hdr "u (refusals, each exit 2 by name and nothing written: inside patchbay-standards itself, not at a work-tree root (a root typed in upper case is the root, and passes), a plain directory or another repository as the path, a ref that is not a commit, an unknown flag, two mode flags, a commit whose index.yml has no parseable base: section, no origin/HEAD to default to, a second base: line in the project's index)"
    mk_upstream u/patchbay-standards; mk_project u/project; mkdir "$NEG/u/plain" || die "u: mkdir plain"; first_sync u
    note "run inside the checkout itself, where agent-os/standards/base is a symlink:"
    run u/patchbay-standards 2 "FAIL  agent-os/standards/base is a symlink: this is patchbay-standards itself, not a consuming project" scripts/sync-standards.sh --init .
    note "run from a folder below the project's root:"
    run u/project/agent-os 2 "FAIL  run from the consuming project's root, the top of its git work tree (here: <copy u>/project/agent-os)" ../../patchbay-standards/scripts/sync-standards.sh ../../patchbay-standards
+   UPP=$(printf '%s' "$NEG/u/project" | tr '[:lower:]' '[:upper:]')
+   if [ -d "$UPP" ]; then
+     note "the project's root entered through its path in upper case (this file system is case-insensitive): the root is asked of git, so --check must pass, exit 0:"
+     run u/project 0 bash -c 'cd "$1" && scripts/sync-standards.sh --check' _ "$UPP"
+     if old_file u/project 11ceffd scripts/sync-standards.sh; then
+       note "the script at 11ceffd (main before this spec) on the same: pwd -P and git's top compared as strings, the root refused (the bug):"
+       run u/project 2 "FAIL  run from the consuming project's root, the top of its git work tree (here: <COPY U>/PROJECT)" bash -c 'cd "$1" && scripts/sync-standards-11ceffd.sh --check' _ "$UPP"
+       rm "$NEG/u/project/scripts/sync-standards-11ceffd.sh" || die "u: rm old script"
+     fi
+   else
+     note "this file system is case-sensitive: the project's path in upper case is no directory, so the upper-case runs are skipped"
+   fi
    note "a plain directory as the path:"
    run u/project 2 "FAIL  ../plain is not a git checkout; pass the path to a patchbay-standards checkout" scripts/sync-standards.sh ../plain
    note "a git checkout that is not patchbay-standards (the project itself):"
