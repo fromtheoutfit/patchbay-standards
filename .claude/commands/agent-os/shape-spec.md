@@ -199,8 +199,8 @@ Create `agent-os/specs/{folder-name}/` with:
 Run the full verification gate, in order. The spec is not complete until every step passes:
 
 1. `bash -n` on every shell script under `scripts/` as git lists them (tracked or untracked, not
-   ignored), at a work-tree top that is the repository root — every script must parse; any other
-   file there fails the step by name
+   ignored), at a work-tree top that is the repository root, as git says, with no tracked file a
+   `.gitignore` ignores — every script must parse; any other file there fails the step by name
 2. `pymarkdown` through `uvx` (version pinned in `scripts/gate.sh`, rules in `.pymarkdown.yaml`),
    installed at its pin as its own check first — `uvx` missing from `PATH`, or a pin it cannot
    install, fails the step by name — then over the `.md` files under `base/` and `README.md` as
@@ -326,10 +326,10 @@ does not apply here (Step 5a).
 ## Verification Gate
 
 Spec is not complete until `scripts/gate.sh` passes — `bash -n` on every shell script under
-`scripts/` as git lists them, `pymarkdown`, installed at its pin through `uvx` as its own check,
-over the `.md` files under `base/` and `README.md` as git lists them, and
-`scripts/check-index.sh` — and the three judgment steps are recorded, in this order: Docs,
-Version, then the standards retrospective below.
+`scripts/` as git lists them, with no tracked file a `.gitignore` ignores, `pymarkdown`, installed
+at its pin through `uvx` as its own check, over the `.md` files under `base/` and `README.md` as
+git lists them, and `scripts/check-index.sh` — and the three judgment steps are recorded, in this
+order: Docs, Version, then the standards retrospective below.
 
 **Results ({date}):** [exit status, branch, `verification/gate-run.txt`; which negative
 tests were rerun if a gate file changed]

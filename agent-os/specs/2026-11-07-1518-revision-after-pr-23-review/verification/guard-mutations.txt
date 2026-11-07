@@ -1,0 +1,253 @@
+The guard mutations of the revision after the review of PR 23, run 2026-11-07 on branch
+task/17-gate-spec-4-land-six-base-proposals-from-this-repositorys-specs-verification-gatemd-standards-syncmd,
+after the last edit to the gate's scripts. Each mutation is a fresh copy of the tree as git lists it
+(tracked plus untracked-not-ignored), made in a scratch directory outside the repository and not a
+git repository itself, with one guard this revision added or changed put back as it was at
+00cf7ca, deleted, or its status ignored; the harness case that covers the guard is then run from
+that copy. The copy has no history, so the cases' runs of the scripts at 00cf7ca and earlier are
+skipped there, as the harness says. Every mutation must come back UNEXPECTED, harness exit 1: a
+guard whose deletion no case notices is not known to be tested. The unmutated runs of the same
+cases are in gate-negative-tests.txt (0 unexpected). Below each mutation: the diff, then the
+UNEXPECTED runs of the harness, each with the lines above it, and the count. Nothing here is a gate
+step or part of the harness; it is the evidence that the cases discriminate.
+
+### M1: gate.sh step 1's root guard without --is-inside-work-tree, as it was at 00cf7ca
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -82,8 +82,7 @@
+ 
+ step "1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores"
+ root=$(pwd -P)
+-inside=$(git rev-parse --is-inside-work-tree 2>/dev/null) && [ "$inside" = true ] &&
+-  cdup=$(git rev-parse --show-cdup 2>/dev/null) && [ -z "$cdup" ] ||
++cdup=$(git rev-parse --show-cdup 2>/dev/null) && [ -z "$cdup" ] ||
+   fail 1/3 "not a git work tree rooted at $root; the gate lists files with git ls-files"
+ tmp=$(mktemp -d) && [ -n "$tmp" ] && [ -d "$tmp" ] ||
+   fail 1/3 "mktemp -d made no temporary directory for git's listings (see above)"
+$ scripts/gate-negative-tests.sh w   (in the mutated copy)
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+fatal: this operation must be run in a work tree
+FAIL  step 1/3: git could not list the tracked files a .gitignore ignores (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: not a git work tree rooted at <copy wg>/.git/tree; the gate lists files with git ls-files)
+--
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+fatal: this operation must be run in a work tree
+FAIL  step 1/3: git could not list the tracked files a .gitignore ignores (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  step 1/3: not a git work tree rooted at <copy wb>.git/tree; the gate lists files with git ls-files)
+20 runs, 2 unexpected
+harness exit=1
+
+### M2: check-index.sh's root guard without --is-inside-work-tree, as it was at 00cf7ca
+$ diff -u scripts/check-index.sh (as shipped) scripts/check-index.sh (mutated)
+@@ -30,8 +30,7 @@
+ trap 'rm -rf "$tmp"' EXIT
+ 
+ root=$(pwd -P)
+-if ! inside=$(git rev-parse --is-inside-work-tree 2>/dev/null) || [ "$inside" != true ] ||
+-   ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
++if ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
+   echo "FAIL  not a git work tree rooted at $root" \
+        "(the files under base/ are read with git ls-files)"
+   exit 1
+$ scripts/gate-negative-tests.sh m   (in the mutated copy)
+-- the same copy inside another repository's .git/, where --show-cdup prints nothing but git is in no work tree (must fail by name, exit 1):
+fatal: this operation must be run in a work tree
+FAIL  git could not list the files under base/ (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  not a git work tree rooted at <copy mg>/.git/tree (the files under base/ are read with git ls-files))
+--
+-- the same copy inside a bare repository (must fail by name, exit 1):
+fatal: this operation must be run in a work tree
+FAIL  git could not list the files under base/ (see above)
+exit=1  UNEXPECTED (the output does not say: FAIL  not a git work tree rooted at <copy mb>.git/tree (the files under base/ are read with git ls-files))
+7 runs, 2 unexpected
+harness exit=1
+
+### M3: sync-standards.sh's root check without --is-inside-work-tree, as it was at 00cf7ca
+$ diff -u scripts/sync-standards.sh (as shipped) scripts/sync-standards.sh (mutated)
+@@ -98,8 +98,7 @@
+ 
+ # Preconditions, the cheap ones first; nothing is read from the commit until they all hold.
+ root=$(pwd -P)
+-if ! inside=$(git rev-parse --is-inside-work-tree 2>/dev/null) || [ "$inside" != true ] ||
+-   ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then   # git says: a work tree, and its top
++if ! cdup=$(git rev-parse --show-cdup 2>/dev/null) || [ -n "$cdup" ]; then
+   die 2 "run from the consuming project's root, the top of its git work tree (here: $root)"
+ fi
+ base=agent-os/standards/base
+$ scripts/gate-negative-tests.sh u   (in the mutated copy)
+-- run from the project's .git/, where --show-cdup prints nothing but git is in no work tree (must fail, exit 2, nothing written into .git/):
+fatal: this operation must be run in a work tree
+FAIL  git could not list the files under agent-os/standards/base (see above)
+exit=2  UNEXPECTED (the output does not say: FAIL  run from the consuming project's root, the top of its git work tree (here: <copy u>/project/.git))
+.git/agent-os
+exit=0
+times=0 x .git/agent-os  UNEXPECTED (found 1)
+19 runs, 2 unexpected
+harness exit=1
+
+### M4: git_list's && broken, so its status is sort's and git's is lost
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -67,7 +67,7 @@
+ 
+ step() { printf '\n== %s\n' "$1"; }
+ fail() { printf 'FAIL  step %s: %s\n' "$1" "$2" >&2; exit 1; }   # fail <step> <reason>
+-git_list() { local out=$1; shift; git ls-files -z "$@" > "$out.raw" && LC_ALL=C sort -zu "$out.raw" > "$out"; }   # git_list <file> <ls-files args...>: git's list into <file>, NUL-separated, sorted, each path once; fails when git cannot list
++git_list() { local out=$1; shift; git ls-files -z "$@" > "$out.raw"; LC_ALL=C sort -zu "$out.raw" > "$out"; }   # git_list <file> <ls-files args...>: git's list into <file>, NUL-separated, sorted, each path once; fails when git cannot list
+ listed() { local out=$1; shift; git_list "$out" --cached --others --exclude-standard -- "$@"; }   # listed <file> <path...>: what git lists under the paths, tracked or untracked not ignored
+ fail_list() {  # fail_list <step> <reason> <file>: fail the step naming every path in the NUL-separated file, each indented eight spaces
+   local f
+$ scripts/gate-negative-tests.sh w   (in the mutated copy)
+fatal: .git/index: index file smaller than expected
+fatal: .git/index: index file smaller than expected
+FAIL  step 1/3: git lists no file under scripts/
+exit=1  UNEXPECTED (the output does not say: index file smaller than expected
+--
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+git (test shim): refusing: ls-files -z --cached --others --exclude-standard -- scripts
+FAIL  step 1/3: git lists no file under scripts/
+exit=1  UNEXPECTED (the output does not say: git (test shim): refusing
+20 runs, 2 unexpected
+harness exit=1
+
+### M5: step 2's check of its listing deleted
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -107,7 +107,7 @@
+ [ "$n" -gt 0 ] || fail 1/3 "git lists no file under scripts/"
+ 
+ step "2/3  uvx installs pymarkdownlnt $PYMARKDOWN_VERSION, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)"
+-listed "$tmp/md" base README.md || fail 2/3 "git could not list the files under base/ and README.md (see above)"
++listed "$tmp/md" base README.md
+ md=()
+ while IFS= read -r -d '' f; do
+   case "$f" in *.md) ;; *) continue ;; esac
+$ scripts/gate-negative-tests.sh y   (in the mutated copy)
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+git (test shim): refusing: ls-files -z --cached --others --exclude-standard -- base README.md
+exit=128  UNEXPECTED (expected 1)
+15 runs, 1 unexpected
+harness exit=1
+
+### M6: the refusal's check of its own listing ignored
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -88,8 +88,7 @@
+ tmp=$(mktemp -d) && [ -n "$tmp" ] && [ -d "$tmp" ] ||
+   fail 1/3 "mktemp -d made no temporary directory for git's listings (see above)"
+ trap 'rm -rf "$tmp"' EXIT
+-git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore -- scripts base README.md ||
+-  fail 1/3 "git could not list the tracked files a .gitignore ignores (see above)"
++git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore -- scripts base README.md || true
+ if [ -s "$tmp/ignored" ]; then
+   fail_list 1/3 "tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached)" "$tmp/ignored"
+ fi
+$ scripts/gate-negative-tests.sh w   (in the mutated copy)
+fatal: .git/index: index file smaller than expected
+fatal: .git/index: index file smaller than expected
+FAIL  step 1/3: git could not list the files under scripts/ (see above)
+exit=1  UNEXPECTED (the output does not say: index file smaller than expected
+20 runs, 1 unexpected
+harness exit=1
+
+### M7: the refusal back to --exclude-standard, reading .git/info/exclude and the global excludes file
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -88,7 +88,7 @@
+ tmp=$(mktemp -d) && [ -n "$tmp" ] && [ -d "$tmp" ] ||
+   fail 1/3 "mktemp -d made no temporary directory for git's listings (see above)"
+ trap 'rm -rf "$tmp"' EXIT
+-git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore -- scripts base README.md ||
++git_list "$tmp/ignored" --cached --ignored --exclude-standard -- scripts base README.md ||
+   fail 1/3 "git could not list the tracked files a .gitignore ignores (see above)"
+ if [ -s "$tmp/ignored" ]; then
+   fail_list 1/3 "tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached)" "$tmp/ignored"
+$ scripts/gate-negative-tests.sh y   (in the mutated copy)
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+FAIL  step 1/3: tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached):
+        base/process/draft.md
+exit=1  UNEXPECTED (the output does not say: ok   scripts/sync-standards.sh
+--
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+FAIL  step 1/3: tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached):
+        base/process/draft.md
+exit=1  UNEXPECTED (the output does not say: ok   scripts/sync-standards.sh
+15 runs, 2 unexpected
+harness exit=1
+
+### M8: the refusal's pathspec deleted, so it reads the whole tree
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -88,7 +88,7 @@
+ tmp=$(mktemp -d) && [ -n "$tmp" ] && [ -d "$tmp" ] ||
+   fail 1/3 "mktemp -d made no temporary directory for git's listings (see above)"
+ trap 'rm -rf "$tmp"' EXIT
+-git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore -- scripts base README.md ||
++git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore ||
+   fail 1/3 "git could not list the tracked files a .gitignore ignores (see above)"
+ if [ -s "$tmp/ignored" ]; then
+   fail_list 1/3 "tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached)" "$tmp/ignored"
+$ scripts/gate-negative-tests.sh y   (in the mutated copy)
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+FAIL  step 1/3: tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached):
+        vendor/x.txt
+exit=1  UNEXPECTED (expected 0)
+15 runs, 1 unexpected
+harness exit=1
+
+### M9: fail_list naming the first path alone
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -72,7 +72,7 @@
+ fail_list() {  # fail_list <step> <reason> <file>: fail the step naming every path in the NUL-separated file, each indented eight spaces
+   local f
+   printf 'FAIL  step %s: %s:\n' "$1" "$2" >&2
+-  while IFS= read -r -d '' f; do printf '        %s\n' "$f" >&2; done < "$3"
++  IFS= read -r -d '' f < "$3"; printf '        %s\n' "$f" >&2
+   exit 1
+ }
+ present() {  # present <step> <path>: fail the step unless the listed path is on the disk
+$ scripts/gate-negative-tests.sh y   (in the mutated copy)
+FAIL  step 1/3: tracked, but a .gitignore ignores them; stop ignoring each (a ! pattern, and for a file under an ignored directory, ignore dir/* rather than dir/ first) or stop tracking it (git rm --cached):
+        base/process/draft.md
+exit=1
+only=base/process/draft.md scripts/local.sh  UNEXPECTED (listed: base/process/draft.md)
+15 runs, 1 unexpected
+harness exit=1
+
+### M10: the check that mktemp -d made a directory deleted
+$ diff -u scripts/gate.sh (as shipped) scripts/gate.sh (mutated)
+@@ -85,8 +85,7 @@
+ inside=$(git rev-parse --is-inside-work-tree 2>/dev/null) && [ "$inside" = true ] &&
+   cdup=$(git rev-parse --show-cdup 2>/dev/null) && [ -z "$cdup" ] ||
+   fail 1/3 "not a git work tree rooted at $root; the gate lists files with git ls-files"
+-tmp=$(mktemp -d) && [ -n "$tmp" ] && [ -d "$tmp" ] ||
+-  fail 1/3 "mktemp -d made no temporary directory for git's listings (see above)"
++tmp=$(mktemp -d) || true
+ trap 'rm -rf "$tmp"' EXIT
+ git_list "$tmp/ignored" --cached --ignored --exclude-per-directory=.gitignore -- scripts base README.md ||
+   fail 1/3 "git could not list the tracked files a .gitignore ignores (see above)"
+$ scripts/gate-negative-tests.sh w   (in the mutated copy)
+mktemp (test shim): refusing
+scripts/gate.sh: line 70: /ignored.raw: Read-only file system
+FAIL  step 1/3: git could not list the tracked files a .gitignore ignores (see above)
+exit=1  UNEXPECTED (the output does not say: mktemp (test shim): refusing
+20 runs, 1 unexpected
+harness exit=1
+
+### M11: sync-standards.sh's project_files listing back to the bare block of 00cf7ca, set -e ending it with git's status
+$ diff -u scripts/sync-standards.sh (as shipped) scripts/sync-standards.sh (mutated)
+@@ -269,10 +269,8 @@
+   local f
+   : > "$tmp/have.raw"
+   [ -d "$base" ] || return 0
+-  if ! git -c core.quotePath=false ls-files -z -- "$base" > "$tmp/ls" ||
+-     ! git -c core.quotePath=false ls-files -z --others --exclude-standard -- "$base" >> "$tmp/ls"; then
+-    die 2 "git could not list the files under $base (see above)"   # before any write: nothing between this and the verification listing writes .git/index
+-  fi
++  { git -c core.quotePath=false ls-files -z -- "$base"
++    git -c core.quotePath=false ls-files -z --others --exclude-standard -- "$base"; } > "$tmp/ls"
+   while IFS= read -r -d '' f; do
+     [ -f "$f" ] || continue
+     has_control "$f" && die 2 "a path under $base holds a control character and is refused: $(printf '%q' "$f")"
+$ scripts/gate-negative-tests.sh t   (in the mutated copy)
+exit=2
+-- the project's index overwritten with garbage, so git cannot list the project's files (--check must fail naming the listing, exit 2, the script's status for a precondition):
+fatal: .git/index: index file smaller than expected
+exit=128  UNEXPECTED (expected 2)
+11 runs, 1 unexpected
+harness exit=1

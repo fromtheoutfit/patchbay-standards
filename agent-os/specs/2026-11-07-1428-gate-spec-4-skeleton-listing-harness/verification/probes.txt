@@ -1,0 +1,345 @@
+Probes for gate spec 4 (patchbay-standards issues #17, #19 and #20), run 2026-11-07 on branch
+task/17-gate-spec-4-land-six-base-proposals-from-this-repositorys-specs-verification-gatemd-standards-syncmd,
+before any gate file was edited. Every probe runs in a scratch directory (<p>, from mktemp -d);
+fromtheoutfit/patchbay is read only as git archive of its main, 3f910d8, the merge of its PR 9,
+whose tree is its head 799cfde's. Each setup is shown (git ls-files -s, git check-ignore -v, git
+status --ignored) before its result is read. Nothing in either repository was written.
+
+What they show:
+  1. git 2.54 lists a path at stages 1-3 three times through ls-files --cached, once after
+     sort -zu (#20 proposal 6, listed).
+  2. Entered through its path in upper case, bash 3.2's pwd -P keeps the typed case, so a string
+     comparison with --show-toplevel differs, while --show-cdup is empty; below the top it is ../,
+     in a copy without .git inside another repository it is ../, and outside any work tree
+     rev-parse exits 128 (#20 proposals 6 and 7, the root guard). --show-cdup reads no index.
+  3. On a corrupt index git ls-files exits 128, and a reader of
+     "ls-files | sort -zu && printf '\0'" under set -euo pipefail sees no empty record, where on
+     the good index it sees one after the records (#20 proposal 6, the readers).
+  4. git ls-files --cached --ignored --exclude-standard lists a tracked file that .gitignore,
+     .git/info/exclude or the global excludes file matches, a file under an ignored directory
+     included, and not an untracked ignored file or a tracked one a ! pattern re-includes; on the
+     trees of patchbay-standards and patchbay main it lists nothing (#20 proposal 1, as shipped
+     here: step 1 refuses what it lists).
+  5. pytest 9.2.0 under patchbay's addopts refuses a key it does not know in
+     [tool.pytest.ini_options] (exit 4), and warns and passes without --strict-config (#17
+     proposal 3). It loads an ignored conftest.py in a directory it collects from, --ignore of
+     it or not, and an ignored one at the root (#20 proposal 8). An ignored pytest.ini at the root
+     is read in place of pyproject.toml, and patchbay's step 5 refusal, which lists .py files,
+     does not name it (a gap in patchbay's step 5, recorded for its gate spec).
+  6. ruff 0.17.4 and mypy 2.4.1: walking, ruff (respect-gitignore) and mypy under
+     --exclude-gitignore skip a force-added file .gitignore still matches, and given git's list
+     each reads it; in a linked worktree, a module hidden only by .git/info/exclude is not in
+     git's list, and mypy under --exclude-gitignore checks it (#20 proposals 1 and 4).
+
+bash: GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25); git: git version 2.54.0 (Apple Git-157); uv: uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+
+## 1. git 2.54: a path at stages 1-3, and listed
+
+-- setup: conflict.sh in the index at stages 1, 2 and 3:
+$ git ls-files -s
+100755 3c769421807b0d7d9df84adf32b68abe4519039f 1	conflict.sh
+100755 3c769421807b0d7d9df84adf32b68abe4519039f 2	conflict.sh
+100755 3c769421807b0d7d9df84adf32b68abe4519039f 3	conflict.sh
+exit=0
+-- git ls-files -z --cached --others --exclude-standard, as listed reads it, records one per line:
+$ git ls-files -z --cached --others --exclude-standard | nul
+conflict.sh
+conflict.sh
+conflict.sh
+-- the same through LC_ALL=C sort -zu && printf '\0', listed as shipped in patchbay main:
+$ { git ls-files -z --cached --others --exclude-standard | LC_ALL=C sort -zu && printf '\0'; } | nul
+conflict.sh
+<empty record>
+
+## 2. bash 3.2 and git 2.54: the work-tree top, typed in another case
+
+-- setup: the repository <p>/c entered through its path in upper case, <P>/C (this file system is case-insensitive: the directory exists):
+$ test -d <P>/C
+exit=0
+$ cd <P>/C; pwd -P; git rev-parse --show-toplevel; git rev-parse --show-cdup
+pwd -P:        <P>/C
+--show-toplevel: <p>/c
+--show-cdup:     []
+string comparison: differ
+$ cd <p>/c; pwd -P; git rev-parse --show-toplevel; git rev-parse --show-cdup
+pwd -P:        <p>/c
+--show-toplevel: <p>/c
+--show-cdup:     []
+string comparison: equal
+$ cd <P>/C/SUB; pwd -P; git rev-parse --show-toplevel; git rev-parse --show-cdup
+pwd -P:        <P>/C/SUB
+--show-toplevel: <p>/c
+--show-cdup:     [../]
+string comparison: differ
+-- setup: <p>/outer a repository with nothing tracked, <p>/outer/copy a directory without .git inside it:
+$ git rev-parse --show-toplevel
+<p>/outer
+exit=0
+$ git rev-parse --show-cdup
+../
+exit=0
+-- setup: <p>/plain, inside no work tree:
+$ git rev-parse --show-cdup
+fatal: not a git repository (or any of the parent directories): .git
+exit=128
+
+## 3. git 2.54: a listing git cannot make
+
+-- the reader the skeleton uses, on the good index of <p>/c (the conflicted path, once):
+$ bash -c set -euo pipefail; ok=; n=0
+while IFS= read -r -d "" f; do [ -n "$f" ] || { ok=1; break; }; n=$((n + 1)); done < <(git ls-files -z --cached --others --exclude-standard | LC_ALL=C sort -zu && printf "\0")
+echo "records: $n  empty record seen: ${ok:-no}"
+records: 1  empty record seen: 1
+exit=0
+-- setup: <p>/c's index overwritten with garbage:
+$ git ls-files
+fatal: .git/index: index file smaller than expected
+exit=128
+-- the same reader on it: git's failure is lost in the process substitution, and only the missing empty record says so:
+$ bash -c set -euo pipefail; ok=; n=0
+while IFS= read -r -d "" f; do [ -n "$f" ] || { ok=1; break; }; n=$((n + 1)); done < <(git ls-files -z --cached --others --exclude-standard | LC_ALL=C sort -zu && printf "\0")
+echo "records: $n  empty record seen: ${ok:-no}"
+fatal: .git/index: index file smaller than expected
+records: 0  empty record seen: no
+exit=0
+-- --show-cdup on the corrupt index (it reads no index, so the root guard still passes and the listing is what fails):
+$ git rev-parse --show-cdup
+
+exit=0
+
+## 4. git 2.54: tracked files git ignores, git ls-files --cached --ignored --exclude-standard
+
+-- setup: .gitignore (*.log, !keep.log, build/), .git/info/exclude (secret.txt), the global excludes file (*.tmp, under HOME=<p>/home); every file but stray.log tracked, the ignored ones force-added:
+$ cat .gitignore
+*.log
+!keep.log
+build/
+exit=0
+$ env -u XDG_CONFIG_HOME -u GIT_CONFIG_GLOBAL HOME=<p>/home git ls-files -s
+100644 81cc3952e1d32a25d23906ba90b6609418b8ee5b 0	.gitignore
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	a.log
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	build/out.txt
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	keep.log
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	notes.tmp
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	ok.txt
+100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0	secret.txt
+exit=0
+$ env -u XDG_CONFIG_HOME -u GIT_CONFIG_GLOBAL HOME=<p>/home git status --short --ignored
+A  .gitignore
+A  a.log
+A  build/out.txt
+A  keep.log
+A  notes.tmp
+A  ok.txt
+A  secret.txt
+!! stray.log
+exit=0
+-- which pattern matches each path (check-ignore --no-index reads the patterns, not the index):
+$ env -u XDG_CONFIG_HOME -u GIT_CONFIG_GLOBAL HOME=<p>/home git check-ignore -v --no-index a.log keep.log build/out.txt secret.txt notes.tmp stray.log ok.txt
+.gitignore:1:*.log	a.log
+.gitignore:2:!keep.log	keep.log
+.gitignore:3:build/	build/out.txt
+.git/info/exclude:7:secret.txt	secret.txt
+<p>/home/.config/git/ignore:1:*.tmp	notes.tmp
+.gitignore:1:*.log	stray.log
+exit=0
+-- the listing step 1 reads:
+$ git ls-files -z --cached --ignored --exclude-standard | nul
+a.log
+build/out.txt
+notes.tmp
+secret.txt
+exit=0
+-- the same with no global excludes file (HOME at an empty directory): notes.tmp is no longer listed, so the global file counts:
+$ HOME=<p>/emptyhome git ls-files -z --cached --ignored --exclude-standard | nul
+a.log
+build/out.txt
+secret.txt
+-- on patchbay-standards' working tree (tracked plus untracked), as step 1 will run it:
+$ git ls-files -z --cached --ignored --exclude-standard
+exit=0
+-- on patchbay main's tree: git archive 3f910d8 into <p>/pb, the files main's own .gitignore matches before anything is added (each would be a tracked file git ignores on main):
+$ git ls-files -z --others --ignored --exclude-standard
+exit=0
+$ git add -A
+exit=0
+
+## 5. pytest 9.2.0: an unknown key, an ignored conftest.py, an ignored pytest.ini
+
+-- setup: <p>/pb synced locked, the toolchain uv.lock resolves:
+$ uv sync --locked --quiet
+exit=0
+$ uv run --locked pytest --version
+pytest 9.2.0
+exit=0
+$ grep -n addopts pyproject.toml
+126:addopts = "-q --strict-markers --strict-config"
+exit=0
+-- a key pytest does not know, probe_unknown_key, added under [tool.pytest.ini_options]:
+$ grep -n probe_unknown_key pyproject.toml
+121:probe_unknown_key = 1
+exit=0
+-- with the shipped addopts (--strict-config): refused, exit 4:
+$ uv run --locked pytest
+   Building patchbay-core @ file://<p>/pb
+      Built patchbay-core @ file://<p>/pb
+Uninstalled 1 package in 0.39ms
+Installed 1 package in 1ms
+ERROR: Unknown config option: probe_unknown_key
+
+
+
+no tests ran in 0.45s
+exit=4
+-- with addopts overridden to -q alone (no --strict-config): a warning, and the run passes:
+$ uv run --locked pytest -o addopts=-q
+......                                                                   [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1636
+  <p>/pb/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1636: PytestConfigWarning: Unknown config option: probe_unknown_key
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+6 passed, 1 warning in 0.59s
+exit=0
+-- setup: a tracked failing test, and tests/unit/conftest.py, which deselects it, ignored through .git/info/exclude:
+$ git status --short --ignored tests
+A  tests/unit/test_probe_fail.py
+!! tests/unit/__pycache__/
+!! tests/unit/conftest.py
+exit=0
+$ git check-ignore -v tests/unit/conftest.py
+.git/info/exclude:8:conftest.py	tests/unit/conftest.py
+exit=0
+-- pytest: the ignored conftest is loaded and the failing test deselected, exit 0:
+$ uv run --locked pytest
+   Building patchbay-core @ file://<p>/pb
+      Built patchbay-core @ file://<p>/pb
+Uninstalled 1 package in 0.43ms
+Installed 1 package in 1ms
+......                                                                   [100%]
+6 passed, 1 deselected in 0.10s
+exit=0
+-- pytest given --ignore=tests/unit/conftest.py: loaded all the same, exit 0:
+$ uv run --locked pytest --ignore=tests/unit/conftest.py
+......                                                                   [100%]
+6 passed, 1 deselected in 0.09s
+exit=0
+-- the conftest moved out of the tree: the failing test runs, exit 1 (so the exit 0 above is the conftest's):
+$ uv run --locked pytest
+..F....                                                                  [100%]
+=================================== FAILURES ===================================
+_______________________________ test_probe_fail ________________________________
+
+    def test_probe_fail() -> None:
+        """Fails on purpose."""
+>       assert 1 == 2
+E       assert 1 == 2
+
+tests/unit/test_probe_fail.py:6: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_probe_fail.py::test_probe_fail - assert 1 == 2
+1 failed, 6 passed in 0.11s
+exit=1
+-- an ignored conftest.py at the root that raises on import:
+$ git check-ignore -v conftest.py
+.git/info/exclude:8:conftest.py	conftest.py
+exit=0
+$ uv run --locked pytest
+ImportError while loading conftest '<p>/pb/conftest.py'.
+conftest.py:1: in <module>
+    raise RuntimeError("an ignored root conftest was imported")
+E   RuntimeError: an ignored root conftest was imported
+exit=4
+-- an ignored pytest.ini at the root, deselecting the failing test by -k:
+$ git check-ignore -v pytest.ini
+.git/info/exclude:9:pytest.ini	pytest.ini
+exit=0
+-- pytest reads it in place of pyproject.toml (its header names configfile: pytest.ini), and the run passes, exit 0:
+$ uv run --locked pytest
+============================= test session starts ==============================
+platform darwin -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0
+rootdir: <p>/pb
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: platformdirs-4.14.5, hypothesis-6.170.14
+collected 7 items / 1 deselected / 6 selected
+
+tests/unit/test_package.py ..                                            [ 33%]
+tests/unit/test_version.py ....                                          [100%]
+
+======================= 6 passed, 1 deselected in 0.10s ========================
+exit=0
+-- patchbay's step 5 refusal lists what git ignores under tests/ and a root conftest.py; it lists nothing here, so the gate would let pytest run with this pytest.ini:
+$ git ls-files -z --others --ignored --exclude-standard -- tests conftest.py | nul
+
+## 6. ruff 0.17.4 and mypy 2.4.1: a force-added file .gitignore matches; .git/info/exclude in a linked worktree
+
+-- setup: src/patchbay/lib/ (the tree's .gitignore ignores lib/), codec.py importing os unused and returning a str as int, both force-added:
+$ git check-ignore -v --no-index src/patchbay/lib/codec.py
+.gitignore:17:lib/	src/patchbay/lib/codec.py
+exit=0
+$ git ls-files -- src/patchbay/lib
+src/patchbay/lib/__init__.py
+src/patchbay/lib/codec.py
+exit=0
+$ git ls-files -z --cached --ignored --exclude-standard | nul
+src/patchbay/lib/__init__.py
+src/patchbay/lib/codec.py
+-- ruff walking . (respect-gitignore, its default): codec.py skipped, exit 0:
+$ uv run --locked ruff check .
+All checks passed!
+exit=0
+-- ruff given git's list of .py and .pyi files as explicit paths: codec.py read, F401, exit 1:
+$ uv run --locked ruff check -- src/patchbay/__init__.py src/patchbay/lib/__init__.py src/patchbay/lib/codec.py tests/unit/test_package.py tests/unit/test_version.py
+F401 [*] `os` imported but unused
+ --> src/patchbay/lib/codec.py:3:8
+  |
+1 | """A module .gitignore matches, force-added."""
+2 |
+3 | import os
+  |        ^^
+help: Remove unused import: `os`
+  |
+2 |
+  - import os
+3 |
+  |
+
+Found 1 error.
+[*] 1 fixable with `--fix`.
+exit=1
+-- mypy walking files = [src, tests] under --exclude-gitignore (the command-line form of the exclude_gitignore key patchbay's first gate spec set): codec.py skipped, exit 0:
+$ uv run --locked mypy --exclude-gitignore
+Success: no issues found in 3 source files
+exit=0
+-- mypy given git's list under src/ and tests/: codec.py read, the return type named, exit 1:
+$ uv run --locked mypy -- src/patchbay/__init__.py src/patchbay/lib/__init__.py src/patchbay/lib/codec.py tests/unit/test_package.py tests/unit/test_version.py
+src/patchbay/lib/codec.py:8: error: Incompatible return value type (got "str", expected "int")  [return-value]
+Found 1 error in 1 file (checked 5 source files)
+exit=1
+$ git worktree add -q <p>/wt
+exit=0
+-- setup: <p>/wt a linked worktree of <p>/pb, where .git is a file; src/patchbay/hidden.py there, untracked, ignored only by the common .git/info/exclude:
+$ cat .git
+gitdir: <p>/pb/.git/worktrees/wt
+exit=0
+$ git check-ignore -v src/patchbay/hidden.py
+<p>/pb/.git/info/exclude:10:src/patchbay/hidden.py	src/patchbay/hidden.py
+exit=0
+$ uv sync --locked --quiet
+exit=0
+-- git's list under src/ in the worktree: hidden.py is not in it:
+$ git ls-files --cached --others --exclude-standard -- src
+src/patchbay/__init__.py
+src/patchbay/py.typed
+exit=0
+-- mypy walking under --exclude-gitignore in the worktree: it checks hidden.py, exit 1:
+$ uv run --locked mypy --exclude-gitignore
+src/patchbay/hidden.py:6: error: Incompatible return value type (got "str", expected "int")  [return-value]
+Found 1 error in 1 file (checked 4 source files)
+exit=1
+-- mypy given git's list in the worktree: hidden.py is not read, exit 0:
+$ uv run --locked mypy -- src/patchbay/__init__.py tests/unit/test_package.py tests/unit/test_version.py
+Success: no issues found in 3 source files
+exit=0

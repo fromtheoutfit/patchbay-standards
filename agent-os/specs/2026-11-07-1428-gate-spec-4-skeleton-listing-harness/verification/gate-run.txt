@@ -1,0 +1,22 @@
+Gate run 2026-11-07 on branch task/17-gate-spec-4-land-six-base-proposals-from-this-repositorys-specs-verification-gatemd-standards-syncmd, the last act before hand-over of the gate spec of issues #17, #19 and #20
+(the eleventh spec). One transcript: no file was added under base/, so step 3 reads the tree. The spec folder, which no step
+reads, holds the records; the probes, the negative tests, the CI replay, the guard mutations and the skeleton diff are beside
+this file. This shell's VIRTUAL_ENV, which named an unrelated project, was unset for the run.
+
+$ scripts/gate.sh
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file git ignores
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 7 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (6 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
