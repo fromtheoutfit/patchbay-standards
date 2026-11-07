@@ -8,7 +8,9 @@ toolchain spec and its revision after the review of patchbay PR 4 record each ch
 with its reason; the probes it cites are recorded by the spec of issue #4 in `patchbay-standards`.
 "The gate's tool steps" and the `files` rule of "mypy" were read again at `3f910d8`, after
 patchbay's revision after the review of its PR 9, by the gate spec of issues #17, #19 and #20,
-which reran their probes.
+which reran their probes. "Dependencies" and the suppression rules of "ruff" and "mypy" were read
+again at `7471387`, after patchbay's contracts spec and its revision after the review of its PR 11,
+by the spec of issue #21, which reran the probes they rest on (its `verification/probes.txt`).
 
 Where a tool's pin lives, the locked mode the tools run under, uv's own pin in `[tool.uv]
 required-version`, which sections of `pyproject.toml` are the gate's and which the package's, the
@@ -113,8 +115,26 @@ cites them and does not restate them.
   dependencies` and for every dependency group. Verified against the header of `pyproject.toml`,
   and patchbay's toolchain spec, whose Decisions give all three for each of its five dev tools.
 - **A dependency is added by the spec that uses it**, never ahead of it. Verified against
-  `pyproject.toml`: patchbay's `dependencies` is empty though its product stack names pydantic and
-  typer, since nothing in it yet crosses a boundary or has a CLI.
+  `pyproject.toml`: patchbay's three runtime dependencies came with the code that imports them,
+  numpy and pydantic with its contracts spec and pydantic-core with that spec's revision, each a
+  Decision in its spec's `shape.md`; typer, which its product stack names for the CLI, is not
+  declared, since nothing in it has a CLI yet.
+- **A runtime dependency is a range: the version the gate ran as its floor, the next major as its
+  ceiling** (`pydantic>=2.14.3,<3`), since an adapter installs the package beside its own
+  dependencies, and an exact pin would refuse every other version. The dev group's entries stay
+  exact (below). Verified against `[project] dependencies` in `pyproject.toml` and the comment
+  over it.
+- **A package the code imports directly is declared, even when another dependency brings it in**:
+  patchbay's `errors.py` imports pydantic-core's `ErrorDetails`, which pydantic does not re-export,
+  so `pydantic-core>=2.50.4,<3` is declared beside the pydantic that requires it. Verified against
+  `pyproject.toml` and `src/patchbay/errors.py`; probe f of issue #21's spec.
+- **The spec that adds a runtime dependency shows the lock's change in its `verification/`**: the
+  lock gained the dependency and the dependencies it brings, and changed no resolution of a tool
+  the gate runs, a package a tool shares with it (`typing-extensions`) included. Declaring a
+  package the lock already holds changes only the package's own entry, its `dependencies` and its
+  `requires-dist`. Verified against the `verification/uv-lock-diff.txt` of patchbay's contracts spec
+  (additions only: annotated-types, numpy, pydantic, pydantic-core and typing-inspection) and of
+  its revision (patchbay-core's own entry gaining pydantic-core, twice).
 - **Every entry of the dev group is pinned exactly, with the date it was published beside it.** The
   pins of the tools the gate runs are `verification-gate.md`'s; the group's other entries take the
   same form (patchbay's hypothesis, run by pytest, and pre-commit, run by no gate step). Verified
@@ -133,8 +153,12 @@ cites them and does not restate them.
   conflict ruff warns of, between two rules or between a rule and the formatter, is ignored too,
   so the choice is the project's and written down rather than ruff's and silent. One comment per
   entry says why. Nothing is listed from memory: a rule the tree has not tripped and ruff has not
-  warned of is not ignored (patchbay's run gave neither ISC001 nor PLR2004, and it lists neither).
-  Verified against `[tool.ruff.lint]` in `pyproject.toml`, its comment, and the probes.
+  warned of is not ignored (patchbay's first run gave neither ISC001 nor PLR2004, and it lists
+  neither). When patchbay's contracts revision took the `test_` prefix off its contract tests, D401,
+  which waives a function named `test_*`, reported their docstrings, and they were rewritten in
+  the imperative, "Check that ...", not ignored. Verified against `[tool.ruff.lint]` in
+  `pyproject.toml`, its comment, `src/patchbay/testing/contract_tests.py` and the probes, probe b
+  of issue #21's spec among them.
 - **patchbay's list has six entries, each for a reason that holds of any patchbay package**, and a
   package lists each when its own run gives it:
   - Conflicts ruff warns of. `D203` and `D213`: `ruff check` and `ruff format` warn that D203 and
@@ -153,7 +177,18 @@ cites them and does not restate them.
   `ALL`, PGH004 refuses a blanket `# noqa` even where it suppresses a finding, and RUF100 refuses a
   `# noqa` whose code suppresses nothing. A suppression loosens the rule for that line and is
   reviewed as the loosening it is (`verification-gate.md`, "A failing step is fixed at its cause").
-  patchbay has none yet. Verified against `select` in `pyproject.toml` and the probes.
+  Verified against `select` in `pyproject.toml` and the probes.
+- **A suppression sits only where the code cannot change, with its reason beside it**, on its line
+  or in the comment directly above, since no tool checks the reason and the reviewer reads it
+  there. patchbay's `src/` holds four, each coded: `# noqa: BLE001` on the event bus's catch of
+  every subscriber's `Exception`, the behaviour `base/python/events.md` requires;
+  `# type: ignore[attr-defined]` on the base-init marker; and `# type: ignore[assignment]` on each
+  of the two `__hash__: ClassVar[None] = None` (`base/python/models.md`). A third party's method is
+  wrapped, never overridden with its signature copied (`base/python/models.md`), so PLR0913 has no
+  case: the three `# noqa: PLR0913` patchbay's contracts spec put on copied signatures went with
+  the copies in its revision. Verified against `src/patchbay/events.py` and
+  `src/patchbay/models.py`, and the suppressions counted in issue #21's
+  `verification/patchbay-evidence.txt`; probe b of that spec.
 - **The ignore list grows only in the gate's own spec**, `[tool.ruff]` being a gate file
   (`verification-gate.md`, "The gate's own files change only in their own spec").
 
@@ -171,8 +206,16 @@ cites them and does not restate them.
   (patchbay at `3f910d8`), its test p and the probes.
 - **An untyped third-party package gets its own override**: a `[[tool.mypy.overrides]]` block with
   `module = ["name.*"]`, `ignore_missing_imports = true` and a comment naming the package and why;
-  never a global `ignore_missing_imports`. patchbay imports nothing untyped yet and has no
-  override, and the rule is the comment in its `[tool.mypy]`. Verified against `pyproject.toml`.
+  never a global `ignore_missing_imports`. patchbay's runtime dependencies, numpy, pydantic and
+  pydantic-core, are typed, it has no override, and the rule is the comment in its `[tool.mypy]`.
+  Verified against `pyproject.toml` and the clean mypy run in issue #21's
+  `verification/patchbay-evidence.txt`.
+- **A `# type: ignore` names its code, `# type: ignore[<code>]`, as a `noqa` does**: under
+  `select = ["ALL"]` ruff's PGH003 refuses a blanket one, and strict's `warn_unused_ignores`
+  refuses a coded one that suppresses nothing. In `src/` one sits only where the code cannot change
+  ("ruff", above); in a test one may hold a refusal mypy must keep making
+  (`base/testing/tests.md`). Verified against `src/patchbay/models.py`, the six in `tests/unit/`
+  and `pyproject.toml`; probes b and c of issue #21's spec.
 
 ## pytest and hypothesis
 
@@ -234,8 +277,9 @@ cites them and does not restate them.
 `tests/`. This standard does not apply here, and no file here verifies it. Its rules were read from
 patchbay at `73a583a`, the tool steps and mypy's `files` again at `3f910d8`; a spec that changes
 one reads it again from a consuming project's shipped files, and reruns the probes a rule rests
-on. The one Python tool this repository's gate runs,
-pymarkdown through `uvx`, takes the no-manifest form of `verification-gate.md`. Step 5a of this
+on. "Dependencies" and the suppression rules were read again at `7471387`. The one Python tool
+this repository's gate runs, pymarkdown through `uvx`, takes the no-manifest form of
+`verification-gate.md`. Step 5a of this
 repository's `shape-spec.md` lists this standard with the note that it applies to consuming
 projects; a spec shaped here records it under "Core Architecture" as not applying and does not copy
 it into `standards.md`.

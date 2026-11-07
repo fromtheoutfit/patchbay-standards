@@ -111,11 +111,17 @@ with their full content in `standards.md`:
 
 - **`base/python/toolchain`** — one tool per job in a uv Python package, `pyproject.toml` the only
   config file, and the order of the gate's tool steps.
+- **`base/python/layout`** — one module per concern, the `testing` subpackage, what `__init__.py`
+  holds, and the one direction the modules import in.
+- **`base/python/typing`** — `NewType` keys, protocols, PEP 695 generics, re-exports through
+  `__all__`, and no future import where pydantic reads annotations.
+- **`base/python/models`** — one frozen, closed, finite, strict base, refusing as the package,
+  read-only inside, and computing alike.
 
-**This tier applies to consuming projects.** This repository has no package, so
-`base/python/toolchain` does not apply here: a spec shaped here records it under the "Core
-Architecture" heading of `shape.md` as not applying, and does not copy it into `standards.md`. A
-consuming project's own `shape-spec.md` lists the tier in its Step 5a and includes it.
+**This tier applies to consuming projects.** This repository has no package, so these four do not
+apply here: a spec shaped here records them under the "Core Architecture" heading of `shape.md` as
+not applying, and does not copy them into `standards.md`. A consuming project's own
+`shape-spec.md` lists the tier in its Step 5a and includes it.
 
 #### Step 5b: Feature-Specific Standards
 
@@ -124,14 +130,15 @@ Read `agent-os/standards/index.yml` to identify standards relevant to the featur
 repository's own `index.yml`, keyed by path relative to `base/` without the `.md`;
 `agent-os/standards/base` resolves to `base/`, so `base/process/standards-retrospective` is
 `base/process/standards-retrospective.md`. Leave the Step 5a standards out of the list:
-`python/toolchain` is in the index, but here it does not apply, and in a consuming project Step 5a
-already includes it.
+`python/toolchain`, `python/layout`, `python/typing` and `python/models` are in the index, but here
+they do not apply, and in a consuming project Step 5a already includes them.
 
 Use AskUserQuestion to confirm:
 
 ```
-The core architecture tier (Step 5a) holds base/python/toolchain, which applies to consuming
-projects; this repository has no package, so here nothing is included without asking.
+The core architecture tier (Step 5a) holds base/python/toolchain, layout, typing and models,
+which apply to consuming projects; this repository has no package, so here nothing is included
+without asking.
 
 These standards may apply:
 
@@ -297,8 +304,8 @@ The shape.md file should capture:
 
 ## Core Architecture (Non-Negotiable)
 
-`base/python/toolchain` — applies to consuming projects; this repository has no package, so it
-does not apply here (Step 5a).
+`base/python/toolchain`, `base/python/layout`, `base/python/typing` and `base/python/models` —
+apply to consuming projects; this repository has no package, so they do not apply here (Step 5a).
 
 ## Scope
 
@@ -318,7 +325,7 @@ does not apply here (Step 5a).
 ## Standards Applied
 
 **Core (Step 5a, consuming projects):**
-- `base/python/toolchain` — not applied here: no package (Step 5a)
+- `base/python/toolchain`, `layout`, `typing`, `models` — not applied here: no package (Step 5a)
 
 **Feature-specific:**
 - {folder/standard} — [why it applies]

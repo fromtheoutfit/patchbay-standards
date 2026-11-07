@@ -1,0 +1,73 @@
+Gate run 2026-11-07 on branch task/21-standards-spec-write-basepython-models-errors-events-testing-typing-and-layout-from-patchbays-contracts-spec-and-correct-toolchainmd, the last act before hand-over of the spec of issue #21
+(agent-os/specs/2026-11-07-1549-contracts-standards-and-toolchain/). Two transcripts.
+
+=== 1. scripts/gate.sh on the tree as handed over. The six new standards under base/ are not yet staged (staging is the
+owner's, base/process/ownership.md), and scripts/check-index.sh reads git ls-files, so step 3 names each of them.
+
+$ scripts/gate.sh
+
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 13 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+FAIL  under base/ but not tracked (git add it, or keep it out of base/):
+        base/python/errors.md
+        base/python/events.md
+        base/python/layout.md
+        base/python/models.md
+        base/python/typing.md
+        base/testing/tests.md
+FAIL  in index.yml but not tracked under base/:
+        python/errors
+        python/events
+        python/layout
+        python/models
+        python/typing
+        testing/tests
+FAIL  step 3/3: index.yml and the tracked files under base/ disagree, or the index symlink is wrong (see above)
+exit=1
+
+=== 2. The same scripts/gate.sh on a temporary copy of the tree outside the repository, every file git lists copied
+(tracked, and untracked but not ignored) and git-added in a fresh repository, the six new standards among them: what the
+tree's run becomes after the owner's git add.
+
+$ git ls-files base   (in <scratch>/gate-copy)
+base/process/ownership.md
+base/process/standards-index.md
+base/process/standards-retrospective.md
+base/process/standards-sync.md
+base/process/verification-gate.md
+base/python/errors.md
+base/python/events.md
+base/python/layout.md
+base/python/models.md
+base/python/toolchain.md
+base/python/typing.md
+base/testing/tests.md
+
+$ scripts/gate.sh   (in <scratch>/gate-copy)
+
+
+== 1/3  bash -n on every shell script under scripts/ (tracked or untracked, not ignored), in a tree with no tracked file a .gitignore ignores
+ok   scripts/check-index.sh
+ok   scripts/gate-negative-tests.sh
+ok   scripts/gate.sh
+ok   scripts/sync-standards.sh
+
+== 2/3  uvx installs pymarkdownlnt 0.9.41, then pymarkdown lints the .md files under base/ and README.md as git lists them (rules in .pymarkdown.yaml)
+ok   pymarkdownlnt==0.9.41 installed through uvx (pymarkdown version: 0.9.41)
+ok   no findings in 13 file(s)
+
+== 3/3  index.yml lists exactly the tracked files under base/
+ok   index.yml and the tracked files under base/ agree (12 standard(s))
+
+Gate steps 1-3 passed. Steps 4-6 are judgment, recorded in shape.md: Docs, Version, the standards retrospective.
+exit=0
