@@ -2,16 +2,12 @@
 
 Every value that crosses a patchbay package's boundary is a pydantic model on one base. This
 standard says what that base guarantees and how each guarantee is kept: frozen, closed, finite and
-strict, refusing as the package, read-only inside, and computing alike. Every rule names the file
-of a consuming project it is verified against, the test that holds it and the probe a rule about a
-tool's behaviour rests on. It was written from patchbay (`fromtheoutfit/patchbay`) at `7471387`,
-the merge of its PR 11, whose contracts spec
-(`agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/`) and its revision after the
-review of that pull request (`agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/`)
-record each choice as a Decision with its reason. The probes it cites are in the
-`verification/probes.txt` of the spec of issue #21 in `patchbay-standards`, which reruns patchbay's
-own at its pins, cited by name (`footing.py` A), and adds the ones patchbay lacked, cited by letter
-(probe a).
+strict, refusing as the package, read-only inside, and computing alike. Every rule names the file of
+a consuming project it is verified against, the test that holds it and the probe a rule about a
+tool's behaviour rests on. Written from fromtheoutfit/patchbay at `7471387`, the merge of its PR 11,
+whose contracts spec and that spec's revision record each choice as a Decision; the evidence is in
+the `verification/` of the spec of issue #21 in `patchbay-standards` and of its revision after the
+review of PR 25, patchbay's own probes cited by name and the ones those specs added by letter.
 
 How mypy reads a model's frozenness is here; the type system's other rules, the future import a
 model's module never carries among them, are `base/python/typing.md`'s. What the package's errors
@@ -40,13 +36,16 @@ in `base/python/events.md`.
   `allow_inf_nan=False` and `strict=True`. A field the model does not declare, NaN and an infinity
   are refused, and no value is converted from another type: `"0.5"` is not 0.5, `1` is not `True`,
   a list is not a tuple and a `str` is not an enum. Strict admits three things, by pydantic's
-  design: an int for a float; a dict for a nested model, every field inside it validated as
-  strictly; and `model_validate_strings`, whose purpose is parsing strings. A model's own
+  design: an int for a float; a dict for a nested model, every field inside it validated by the
+  nested model's own config, so as strictly where the nested model is on the base too, and laxly
+  where it is not, strict outside or not; and `model_validate_strings`, whose purpose is parsing
+  strings. Every model a model holds is on the base, so strict holds at every depth. A model's own
   `model_config` adds to the base's and relaxes none of it: patchbay's `Patch` adds base64 for
   bytes, `RenderResult` arbitrary types for its array. Verified against `src/patchbay/models.py`
   and `tests/unit/test_models.py` (`test_every_entry_point_refuses_with_patchbay_validation_error`,
   `test_strict_refuses_a_conversion`, `test_strict_admits_an_int_for_a_float_and_json_forms`);
-  probes `runtime.py` 5, `strict_nested.py` and `config_form.py`.
+  probes `runtime.py` 5, `strict_nested.py` (1, strict inside; 2, a lax model inside a strict one
+  admitting `'0.5'`) and `config_form.py`.
 
 ## Refusing as the package
 
@@ -149,26 +148,23 @@ in `base/python/events.md`.
   `RenderRequest.samples(pattern)`, the length of every render, and `sample_at(pattern, beat)`,
   where a note falls, each in `fractions.Fraction` and rounded half to even. An implementation
   calls the method and never restates the formula. A float derived from one divides an int by an
-  int (`RenderResult.audio_seconds`), which Python rounds correctly at any size. Verified against
+  int (`RenderResult.audio_seconds`), which Python rounds correctly and which overflows only where
+  the quotient passes the largest float, as an array's length over a positive rate never does.
+  Verified against
   `src/patchbay/models.py`, `src/patchbay/testing/fake.py` and
   `src/patchbay/testing/contract_tests.py`, which call them, and `tests/unit/test_models.py`
   (`test_samples_is_an_int_however_long_the_render`, `test_samples_rounds_half_to_even`,
   `test_sample_at_places_a_beat_by_the_rule_that_fixes_the_length`,
-  `test_sample_at_is_an_int_at_any_tempo`, `test_audio_seconds_holds_at_any_rate`); probe
-  `footing.py` B.
+  `test_sample_at_is_an_int_at_any_tempo`, `test_audio_seconds_holds_at_any_rate`); probes
+  `footing.py` B and s.
 
 ## In this repository
 
-`patchbay-standards` has no package: no `pyproject.toml`, no Python under `src/` or `tests/`. This
-standard does not apply here, and no file here verifies it. Its rules were read from patchbay at
-`7471387`; a spec that changes one reads it again from a consuming project's shipped files and
-reruns the probes a rule rests on. Step 5a of this repository's `shape-spec.md` lists this standard
-with the note that it applies to consuming projects; a spec shaped here records it under "Core
-Architecture" as not applying and does not copy it into `standards.md`.
+This repository has no package, so this standard does not apply here; its `shape-spec.md` lists it
+in Step 5a for consuming projects.
 
 ## In a consuming project
 
-This standard is synced in as `agent-os/standards/base/python/models.md`. Every rule above is the
-project's, verified against the project's own files it names. The project's `shape-spec.md` lists
-it in Step 5a, the tier every spec includes without asking, with its full content in that spec's
+Synced in as `agent-os/standards/base/python/models.md`, its rules the project's, verified against
+the project's own files; Step 5a includes it in every spec, with its full content in that spec's
 `standards.md`.

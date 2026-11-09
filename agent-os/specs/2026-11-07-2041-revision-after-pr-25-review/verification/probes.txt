@@ -1,0 +1,205 @@
+Probes for the revision after the review of PR 25, run 2026-11-07 on branch
+task/21-standards-spec-write-basepython-models-errors-events-testing-typing-and-layout-from-patchbays-contracts-spec-and-correct-toolchainmd.
+
+As the thirteenth spec's: on its export of fromtheoutfit/patchbay at 7471387 (shown as <export>), from
+its root, through its locked environment, so ruff, mypy and pytest read patchbay's [tool.*] at the
+versions uv.lock pins (ruff 0.17.4, mypy 2.4.1, pytest 9.2.0, pydantic 2.14.3, python 3.12.16).
+VIRTUAL_ENV is unset. The sources are copied into <export>/revprobes; ruff's INP001 (no __init__.py
+there) is in its output and is not under test. Each source is shown before its output. The letters
+go on from the thirteenth spec's (a to f, j to o), so a standard citing a letter names one probe.
+
+What the revision takes from them (shape.md, dispositions):
+
+- p, escape.py (finding 1): the thirteenth spec's probe o labelled its escape case "the escape" but
+  wrote the character itself, which ruff reported. Here the escape is six ASCII characters, shown
+  byte by byte before ruff runs: RUF001 reports the character in a string and RUF003 in a comment,
+  and neither reports its escape, in a string or a comment (tests).
+- q, q/tests (finding 2): a conftest.py in tests/unit/ and another in tests/unit/testing/, with no
+  __init__.py, are one module name twice to mypy, "Duplicate module named conftest", while pytest
+  loads both and the test taking a fixture from each passes: the refusal is mypy's alone (tests).
+- r, utc_zone.py (finding 5): Event.at's check asks the zone for its offset at no particular
+  instant. UTC, timezone.utc, ZoneInfo('UTC') and pydantic's parsed Z answer zero and are accepted;
+  naive, a fixed +01:00 and Europe/London, which answers None, in January and July, are refused. A
+  tzinfo answering zero for None and +01:00 at every real instant is accepted, and held as the same
+  instant in UTC: the check is the zone's answer for no instant, not its offset at every one (events).
+- s, int_division.py (finding 6): int / int is correctly rounded and overflows only when the quotient
+  passes the largest float: 10**400 / 1 and 2**1024 / 1 raise OverflowError, 8 / 10**400 and
+  2**1024 / 3 do not (models).
+
+================================================================================
+$ cat revprobes/escape.py
+"""Probe p: a confusable digit written as its escape and as itself, in a string and a comment."""
+
+ESCAPED = "\u0661"  # p: the six-character escape
+LITERAL = "١"  # p: the character itself
+# p: a comment holding the escape, \u0661
+# p: a comment holding the character itself, ١
+
+$ cat revprobes/q/tests/unit/conftest.py
+"""Probe q: a conftest.py in tests/unit/."""
+
+import pytest
+
+
+@pytest.fixture
+def outer() -> str:
+    """Give the outer fixture."""
+    return "outer"
+
+$ cat revprobes/q/tests/unit/testing/conftest.py
+"""Probe q: a second conftest.py, in tests/unit/testing/."""
+
+import pytest
+
+
+@pytest.fixture
+def inner() -> str:
+    """Give the inner fixture."""
+    return "inner"
+
+$ cat revprobes/q/tests/unit/testing/test_q.py
+"""Probe q: a test taking a fixture from each conftest.py."""
+
+
+def test_both(outer: str, inner: str) -> None:
+    """Both conftest.py files were loaded."""
+    assert (outer, inner) == ("outer", "inner")
+
+$ cat revprobes/utc_zone.py
+"""Probe r: what Event.at's check, tzinfo.utcoffset(None) == timedelta(0), accepts and refuses."""
+
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo
+
+from patchbay.errors import PatchbayValidationError
+from patchbay.events import Event
+
+
+class ZeroForNone(tzinfo):
+    """Answers zero for no particular instant, and an hour east of UTC at every real one."""
+
+    def utcoffset(self, dt: datetime | None) -> timedelta:
+        return timedelta(0) if dt is None else timedelta(hours=1)
+
+    def dst(self, dt: datetime | None) -> None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str:
+        return "ZERO-FOR-NONE"
+
+
+parsed_z = Event.model_validate_json(
+    '{"name": "thing.happened", "at": "2026-07-15T12:00:00Z", "source": "s", "correlation_id": "c"}'
+).at
+cases = [
+    ("datetime.UTC", datetime(2026, 7, 15, 12, tzinfo=UTC)),
+    ("timezone.utc", datetime(2026, 7, 15, 12, tzinfo=timezone.utc)),
+    ("ZoneInfo('UTC')", datetime(2026, 7, 15, 12, tzinfo=ZoneInfo("UTC"))),
+    ("pydantic's parsed Z", parsed_z),
+    ("naive", datetime(2026, 7, 15, 12)),
+    ("+01:00, fixed", datetime(2026, 7, 15, 12, tzinfo=timezone(timedelta(hours=1)))),
+    ("Europe/London in January", datetime(2026, 1, 15, 12, tzinfo=ZoneInfo("Europe/London"))),
+    ("Europe/London in July", datetime(2026, 7, 15, 12, tzinfo=ZoneInfo("Europe/London"))),
+    ("ZeroForNone", datetime(2026, 7, 15, 12, tzinfo=ZeroForNone())),
+]
+for label, at in cases:
+    zone = at.tzinfo
+    asked = "naive" if zone is None else repr(zone.utcoffset(None))
+    at_instant = "naive" if zone is None else repr(at.utcoffset())
+    try:
+        event = Event(name="thing.happened", at=at, source="s", correlation_id="c")
+        print(f"r {label}: utcoffset(None) {asked}, at the instant {at_instant}: accepted, "
+              f"held as {event.at.isoformat()}, tzinfo is UTC {event.at.tzinfo is UTC}, "
+              f"same instant {event.at == at}")
+    except PatchbayValidationError as error:
+        print(f"r {label}: utcoffset(None) {asked}, at the instant {at_instant}: refused, {error}")
+
+$ cat revprobes/int_division.py
+"""Probe s: int / int, which Python rounds correctly, and where it overflows."""
+
+import sys
+
+cases = (
+    ("8 / 10**400", 8, 10**400),
+    ("2**24 / 768000", 2**24, 768_000),
+    ("2**1024 / 3", 2**1024, 3),
+    ("2**1024 / 1", 2**1024, 1),
+    ("10**400 / 1", 10**400, 1),
+)
+print(f"s the largest float is {sys.float_info.max!r}")
+for label, numerator, denominator in cases:
+    try:
+        print(f"s {label}: {numerator / denominator!r}")
+    except OverflowError as error:
+        print(f"s {label}: OverflowError: {error}")
+
+================================================================================
+$ grep -nE '^ESCAPED|holding the escape' revprobes/escape.py | od -c   (the escape: a backslash, u, 0, 6, 6, 1)
+0000000    3   :   E   S   C   A   P   E   D       =       "   \   u   0
+0000020    6   6   1   "           #       p   :       t   h   e       s
+0000040    i   x   -   c   h   a   r   a   c   t   e   r       e   s   c
+0000060    a   p   e  \n   5   :   #       p   :       a       c   o   m
+0000100    m   e   n   t       h   o   l   d   i   n   g       t   h   e
+0000120        e   s   c   a   p   e   ,       \   u   0   6   6   1  \n
+0000140
+
+$ grep -nE '^LITERAL|holding the character' revprobes/escape.py | od -c   (the character itself, U+0661)
+0000000    4   :   L   I   T   E   R   A   L       =       "   ١  **   "
+0000020            #       p   :       t   h   e       c   h   a   r   a
+0000040    c   t   e   r       i   t   s   e   l   f  \n   6   :   #    
+0000060    p   :       a       c   o   m   m   e   n   t       h   o   l
+0000100    d   i   n   g       t   h   e       c   h   a   r   a   c   t
+0000120    e   r       i   t   s   e   l   f   ,       ١  **  \n        
+0000136
+
+$ uv run --locked ruff check --no-cache --output-format concise revprobes/escape.py
+revprobes/escape.py:1:1: INP001 File `revprobes/escape.py` is part of an implicit namespace package. Add an `__init__.py`.
+revprobes/escape.py:4:12: RUF001 String contains ambiguous `١` (ARABIC-INDIC DIGIT ONE). Did you mean `l` (LATIN SMALL LETTER L)?
+revprobes/escape.py:6:46: RUF003 Comment contains ambiguous `١` (ARABIC-INDIC DIGIT ONE). Did you mean `l` (LATIN SMALL LETTER L)?
+Found 3 errors.
+exit=1
+
+$ uv run --locked mypy revprobes/q/tests/unit/conftest.py revprobes/q/tests/unit/testing/conftest.py revprobes/q/tests/unit/testing/test_q.py
+revprobes/q/tests/unit/testing/conftest.py: error: Duplicate module named "conftest" (also at "revprobes/q/tests/unit/conftest.py")
+revprobes/q/tests/unit/testing/conftest.py: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#mapping-file-paths-to-modules for more info
+revprobes/q/tests/unit/testing/conftest.py: note: Common resolutions include:
+revprobes/q/tests/unit/testing/conftest.py: note:     a) using `--exclude` to avoid checking one of them,
+revprobes/q/tests/unit/testing/conftest.py: note:     b) adding `__init__.py` somewhere,
+revprobes/q/tests/unit/testing/conftest.py: note:     c) using `--explicit-package-bases` or adjusting `MYPYPATH`
+Found 1 error in 1 file (errors prevented further checking)
+exit=2
+
+$ uv run --locked pytest -p no:cacheprovider -v revprobes/q/tests
+============================= test session starts ==============================
+platform darwin -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0
+rootdir: <export>
+configfile: pyproject.toml
+plugins: platformdirs-4.14.5, hypothesis-6.170.14
+collected 1 item
+
+revprobes/q/tests/unit/testing/test_q.py .                               [100%]
+
+============================== 1 passed in 0.10s ===============================
+exit=0
+
+$ uv run --locked python revprobes/utc_zone.py
+r datetime.UTC: utcoffset(None) datetime.timedelta(0), at the instant datetime.timedelta(0): accepted, held as 2026-07-15T12:00:00+00:00, tzinfo is UTC True, same instant True
+r timezone.utc: utcoffset(None) datetime.timedelta(0), at the instant datetime.timedelta(0): accepted, held as 2026-07-15T12:00:00+00:00, tzinfo is UTC True, same instant True
+r ZoneInfo('UTC'): utcoffset(None) datetime.timedelta(0), at the instant datetime.timedelta(0): accepted, held as 2026-07-15T12:00:00+00:00, tzinfo is UTC True, same instant True
+r pydantic's parsed Z: utcoffset(None) datetime.timedelta(0), at the instant datetime.timedelta(0): accepted, held as 2026-07-15T12:00:00+00:00, tzinfo is UTC True, same instant True
+r naive: utcoffset(None) naive, at the instant naive: refused, 1 validation error(s): at: Value error, an event's time is in UTC, given a naive time 2026-07-15T12:00:00
+r +01:00, fixed: utcoffset(None) datetime.timedelta(seconds=3600), at the instant datetime.timedelta(seconds=3600): refused, 1 validation error(s): at: Value error, an event's time is in UTC, offset zero all year, given 2026-07-15T12:00:00+01:00 (UTC+01:00)
+r Europe/London in January: utcoffset(None) None, at the instant datetime.timedelta(0): refused, 1 validation error(s): at: Value error, an event's time is in UTC, offset zero all year, given 2026-01-15T12:00:00+00:00 (Europe/London)
+r Europe/London in July: utcoffset(None) None, at the instant datetime.timedelta(seconds=3600): refused, 1 validation error(s): at: Value error, an event's time is in UTC, offset zero all year, given 2026-07-15T12:00:00+01:00 (Europe/London)
+r ZeroForNone: utcoffset(None) datetime.timedelta(0), at the instant datetime.timedelta(seconds=3600): accepted, held as 2026-07-15T11:00:00+00:00, tzinfo is UTC True, same instant True
+exit=0
+
+$ uv run --locked python revprobes/int_division.py
+s the largest float is 1.7976931348623157e+308
+s 8 / 10**400: 0.0
+s 2**24 / 768000: 21.845333333333333
+s 2**1024 / 3: 5.992310449541053e+307
+s 2**1024 / 1: OverflowError: integer division result too large for a float
+s 10**400 / 1: OverflowError: integer division result too large for a float
+exit=0
+

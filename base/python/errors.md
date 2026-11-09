@@ -3,13 +3,11 @@
 A patchbay package reports every failure as an exception of its own, carrying the fields that say
 what failed. This standard says how the package's exceptions are arranged, what each carries and
 what may leave a public method. Every rule names the file of a consuming project it is verified
-against, the test that holds it and the probe a rule about a tool's behaviour rests on. It was
-written from patchbay (`fromtheoutfit/patchbay`) at `7471387`, the merge of its PR 11, whose
-contracts spec (`agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/`) and its
-revision after the review of that pull request
-(`agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/`) record each choice as a
-Decision with its reason. The probes it cites are in the `verification/probes.txt` of the spec of
-issue #21 in `patchbay-standards`, cited by letter (probe f).
+against, the test that holds it and the probe a rule about a tool's behaviour rests on. Written from
+fromtheoutfit/patchbay at `7471387`, the merge of its PR 11, whose contracts spec and that spec's
+revision record each choice as a Decision; the evidence is in the `verification/` of the spec of
+issue #21 in `patchbay-standards` and of its revision after the review of PR 25, patchbay's own
+probes cited by name and the ones those specs added by letter.
 
 Where a model's refusal comes from is `base/python/models.md`'s, and what the event bus raises and
 lets through is `base/python/events.md`'s; this standard names both and restates neither.
@@ -83,13 +81,11 @@ lets through is `base/python/events.md`'s; this standard names both and restates
 
 ## In this repository
 
-`patchbay-standards` has no package: no `pyproject.toml`, no Python under `src/` or `tests/`. This
-standard does not apply here, and no file here verifies it. Its rules were read from patchbay at
-`7471387`; a spec that changes one reads it again from a consuming project's shipped files and
-reruns the probes a rule rests on.
+This repository has no package, so this standard does not apply here; its `shape-spec.md` lists it
+in Step 5a for consuming projects.
 
 ## In a consuming project
 
-This standard is synced in as `agent-os/standards/base/python/errors.md`. Every rule above is the
-project's, verified against the project's own files it names. Step 5b of the project's
-`shape-spec.md` surfaces it from the index for a spec that adds or changes an exception.
+Synced in as `agent-os/standards/base/python/errors.md`, its rules the project's, verified against
+the project's own files; Step 5a includes it in every spec, with its full content in that spec's
+`standards.md`.

@@ -1,0 +1,256 @@
+patchbay evidence for the revision after the review of PR 25, 2026-11-07, branch
+task/21-standards-spec-write-basepython-models-errors-events-testing-typing-and-layout-from-patchbays-contracts-spec-and-correct-toolchainmd.
+
+The thirteenth spec's citation check, rerun on the standards as this revision leaves them: every test the
+six new standards and base/python/toolchain.md cite is found by name in fromtheoutfit/patchbay at 7471387
+and passes by node id, and every helper and name they cite is found there. Sections 1, 2, 4 and 5 are as
+the thirteenth spec's verification/patchbay-evidence.txt shows them, rerun on the same export.
+
+================================================================================
+1. The commit
+================================================================================
+$ git rev-parse origin/main
+7471387675bc92ceac231e6de5d1711f7686afde
+exit=0
+
+$ git ls-remote origin refs/heads/main
+7471387675bc92ceac231e6de5d1711f7686afde	refs/heads/main
+exit=0
+
+$ git log -1 "--format=%H %P%n%s" 7471387
+7471387675bc92ceac231e6de5d1711f7686afde 3f910d81c355b3ab73699e89dee7e088f1d73e70 f5023c5e6382ae9f707a35f587a24460c2a4a95d
+Merge pull request #11 from fromtheoutfit/feature/10-contracts-instrument-protocol-models-errors-events-and-the-fakeinstrument-reference-implementation
+exit=0
+
+$ git diff --stat f5023c5 7471387   (the checkout's HEAD, the merged feature branch, against the merge: nothing)
+exit=0
+
+================================================================================
+2. The export
+================================================================================
+$ git archive 7471387 | tar -x -C <export>; cd <export>; uv sync --locked   (run once, before these runs)
+$ uv --version
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+exit=0
+
+$ uv sync --locked --check
+Would use project environment at: .venv
+Resolved 31 packages in 5ms
+Checked 30 packages in 3ms
+Would make no changes
+exit=0
+
+$ uv run --locked python -c "import sys, pydantic, pydantic_core, numpy; print(sys.version.split()[0], pydantic.VERSION, pydantic_core.__version__, numpy.__version__)"
+3.12.16 2.14.3 2.50.4 2.5.4
+exit=0
+
+================================================================================
+3. The whole suite, then every test the standards cite, by node id
+================================================================================
+$ uv run --locked pytest -p no:cacheprovider
+........................................................................ [ 26%]
+........................................................................ [ 53%]
+........................................................................ [ 80%]
+......................................................                   [100%]
+270 passed in 0.88s
+exit=0
+
+$ grep -ohE 'test_[a-z0-9_]+' base/python/layout.md base/python/typing.md base/python/models.md base/python/errors.md base/python/events.md base/testing/tests.md base/python/toolchain.md | sort -u   (from <patchbay-standards>), each found in tests/unit
+module     test_contract_tests.py
+module     test_contracts.py
+module     test_errors.py
+module     test_events.py
+module     test_fake.py
+module     test_models.py
+module     test_package.py
+module     test_version.py
+tests/unit/test_events.py::test_a_bad_subscription_is_refused_where_it_is_made
+tests/unit/test_events.py::test_a_base_exception_stops_delivery_where_it_is_raised
+tests/unit/test_events.py::test_a_cancel_during_a_publish_takes_effect_from_the_next_event
+tests/unit/test_events.py::test_a_cancelled_subscriber_is_no_longer_held_by_the_bus
+tests/unit/test_events.py::test_a_changed_parameter_is_named
+tests/unit/testing/test_contract_tests.py::test_a_contract_violation_is_an_assertion_error_with_fields
+tests/unit/testing/test_contract_tests.py::test_a_correct_instrument_with_the_widest_bounds_passes
+tests/unit/test_events.py::test_a_failing_subscriber_hides_the_event_from_no_other
+tests/unit/test_models.py::test_a_frozen_model_is_unchanged_by_a_refused_assignment
+tests/unit/test_events.py::test_a_function_is_a_subscriber
+tests/unit/test_models.py::test_a_keyword_reaches_pydantic_through_the_wrapper
+tests/unit/test_models.py::test_a_model_on_patchbay_model_refuses_as_patchbay_at_any_depth
+tests/unit/test_events.py::test_a_name_with_digits_and_underscores_is_an_event_s_name
+tests/unit/test_models.py::test_a_parameter_that_does_not_hold_together_is_refused
+tests/unit/test_models.py::test_a_patch_comes_back_from_its_json_data
+tests/unit/test_models.py::test_a_patch_has_one_json_whatever_order_it_was_built_in
+tests/unit/test_models.py::test_a_patch_is_not_hashable
+tests/unit/test_models.py::test_a_patch_round_trips_through_json_byte_for_byte
+tests/unit/test_models.py::test_a_patch_s_mappings_are_read_only
+tests/unit/test_models.py::test_a_patch_s_parameter_ids_are_not_empty
+tests/unit/test_models.py::test_a_preset_key_is_not_a_parameter_id
+tests/unit/test_models.py::test_a_render_result_holds_a_read_only_copy
+tests/unit/test_models.py::test_a_render_result_is_not_hashable
+tests/unit/test_models.py::test_a_render_result_refuses_audio_of_another_shape
+tests/unit/test_models.py::test_a_render_result_refuses_audio_that_is_not_finite
+tests/unit/test_events.py::test_a_subscriber_added_during_a_publish_starts_with_the_next_event
+tests/unit/test_events.py::test_a_subscription_is_a_context_manager_that_cancels_on_exit
+tests/unit/test_events.py::test_a_subscription_says_what_it_delivers_and_to_whom
+tests/unit/test_events.py::test_a_time_in_utc_is_held_as_datetime_utc
+tests/unit/test_events.py::test_an_event_comes_back_from_its_json_data
+tests/unit/test_events.py::test_an_event_is_frozen
+tests/unit/test_events.py::test_an_event_is_stamped_in_utc_when_built
+tests/unit/test_events.py::test_an_event_round_trips_through_json
+tests/unit/test_events.py::test_an_event_s_name_is_dotted_lowercase_words
+tests/unit/test_events.py::test_an_event_s_name_is_fixed_by_its_class
+tests/unit/test_events.py::test_an_event_s_time_is_refused_unless_utc
+tests/unit/test_events.py::test_an_event_says_where_it_came_from
+tests/unit/test_contracts.py::test_an_object_missing_a_member_is_not_an_instrument
+tests/unit/test_contracts.py::test_an_object_with_every_member_is_an_instrument
+tests/unit/test_models.py::test_audio_seconds_holds_at_any_rate
+tests/unit/test_events.py::test_cancel_ends_delivery_and_a_second_cancel_does_nothing
+tests/unit/testing/test_contract_tests.py::test_contract
+tests/unit/testing/test_contract_tests.py::test_each_contract_test_catches_its_broken_fake
+tests/unit/test_events.py::test_each_event_names_itself_in_past_tense_dotted_form
+tests/unit/test_events.py::test_each_subscribe_is_its_own_subscription
+tests/unit/test_errors.py::test_error_is_a_patchbay_error_and_no_builtin_subtype
+tests/unit/test_errors.py::test_error_is_rebuilt_from_its_args
+tests/unit/testing/test_contract_tests.py::test_every_contract_test_has_a_broken_fake
+tests/unit/test_models.py::test_every_entry_point_refuses_with_patchbay_validation_error
+tests/unit/test_package.py::test_every_name_in_all_resolves
+tests/unit/test_errors.py::test_fields_are_attributes
+tests/unit/test_models.py::test_from_json_data_is_still_strict
+tests/unit/test_models.py::test_from_json_data_refuses_data_json_cannot_hold
+tests/unit/test_models.py::test_from_json_data_takes_json_s_own_forms
+tests/unit/testing/test_fake.py::test_get_of_an_unknown_id_names_the_id_and_the_instrument
+tests/unit/test_contracts.py::test_issubclass_is_refused_for_a_protocol_with_a_data_member
+tests/unit/test_errors.py::test_message_is_built_from_the_fields
+tests/unit/test_errors.py::test_no_field_is_named_like_pydantic_s_errors_method
+tests/unit/test_package.py::test_public_names_are_in_all
+tests/unit/test_events.py::test_publish_delivers_to_every_subscriber_once_in_subscription_order
+tests/unit/test_events.py::test_publish_with_no_subscribers_does_nothing
+tests/unit/test_version.py::test_release_pattern_rejects_a_non_numeric_segment
+tests/unit/test_models.py::test_render_results_compare_by_their_arrays
+tests/unit/test_models.py::test_sample_at_is_an_int_at_any_tempo
+tests/unit/test_models.py::test_sample_at_places_a_beat_by_the_rule_that_fixes_the_length
+tests/unit/test_models.py::test_samples_is_an_int_however_long_the_render
+tests/unit/test_models.py::test_samples_rounds_half_to_even
+tests/unit/test_models.py::test_strict_admits_an_int_for_a_float_and_json_forms
+tests/unit/test_models.py::test_strict_refuses_a_conversion
+tests/unit/test_events.py::test_subscribe_by_type_receives_only_that_type
+tests/unit/test_events.py::test_subscribe_to_the_base_event_is_every_event
+tests/unit/test_contracts.py::test_subscriber_is_the_events_module_s_own
+tests/unit/testing/test_contract_tests.py::test_the_contract_tests_are_never_collected_by_pytest
+tests/unit/test_package.py::test_the_package_re_exports_the_contract_surface
+tests/unit/test_models.py::test_the_validating_classmethods_keep_pydantic_s_signatures
+tests/unit/test_models.py::test_validation_run_for_something_else_raises_pydantic_s_error
+tests/unit/test_version.py::test_version_matches_pyproject
+(77 tests)
+
+$ uv run --locked pytest -p no:cacheprovider tests/unit/test_events.py::test_a_bad_subscription_is_refused_where_it_is_made tests/unit/test_events.py::test_a_base_exception_stops_delivery_where_it_is_raised tests/unit/test_events.py::test_a_cancel_during_a_publish_takes_effect_from_the_next_event tests/unit/test_events.py::test_a_cancelled_subscriber_is_no_longer_held_by_the_bus tests/unit/test_events.py::test_a_changed_parameter_is_named tests/unit/testing/test_contract_tests.py::test_a_contract_violation_is_an_assertion_error_with_fields tests/unit/testing/test_contract_tests.py::test_a_correct_instrument_with_the_widest_bounds_passes tests/unit/test_events.py::test_a_failing_subscriber_hides_the_event_from_no_other tests/unit/test_models.py::test_a_frozen_model_is_unchanged_by_a_refused_assignment tests/unit/test_events.py::test_a_function_is_a_subscriber tests/unit/test_models.py::test_a_keyword_reaches_pydantic_through_the_wrapper tests/unit/test_models.py::test_a_model_on_patchbay_model_refuses_as_patchbay_at_any_depth tests/unit/test_events.py::test_a_name_with_digits_and_underscores_is_an_event_s_name tests/unit/test_models.py::test_a_parameter_that_does_not_hold_together_is_refused tests/unit/test_models.py::test_a_patch_comes_back_from_its_json_data tests/unit/test_models.py::test_a_patch_has_one_json_whatever_order_it_was_built_in tests/unit/test_models.py::test_a_patch_is_not_hashable tests/unit/test_models.py::test_a_patch_round_trips_through_json_byte_for_byte tests/unit/test_models.py::test_a_patch_s_mappings_are_read_only tests/unit/test_models.py::test_a_patch_s_parameter_ids_are_not_empty tests/unit/test_models.py::test_a_preset_key_is_not_a_parameter_id tests/unit/test_models.py::test_a_render_result_holds_a_read_only_copy tests/unit/test_models.py::test_a_render_result_is_not_hashable tests/unit/test_models.py::test_a_render_result_refuses_audio_of_another_shape tests/unit/test_models.py::test_a_render_result_refuses_audio_that_is_not_finite tests/unit/test_events.py::test_a_subscriber_added_during_a_publish_starts_with_the_next_event tests/unit/test_events.py::test_a_subscription_is_a_context_manager_that_cancels_on_exit tests/unit/test_events.py::test_a_subscription_says_what_it_delivers_and_to_whom tests/unit/test_events.py::test_a_time_in_utc_is_held_as_datetime_utc tests/unit/test_events.py::test_an_event_comes_back_from_its_json_data tests/unit/test_events.py::test_an_event_is_frozen tests/unit/test_events.py::test_an_event_is_stamped_in_utc_when_built tests/unit/test_events.py::test_an_event_round_trips_through_json tests/unit/test_events.py::test_an_event_s_name_is_dotted_lowercase_words tests/unit/test_events.py::test_an_event_s_name_is_fixed_by_its_class tests/unit/test_events.py::test_an_event_s_time_is_refused_unless_utc tests/unit/test_events.py::test_an_event_says_where_it_came_from tests/unit/test_contracts.py::test_an_object_missing_a_member_is_not_an_instrument tests/unit/test_contracts.py::test_an_object_with_every_member_is_an_instrument tests/unit/test_models.py::test_audio_seconds_holds_at_any_rate tests/unit/test_events.py::test_cancel_ends_delivery_and_a_second_cancel_does_nothing tests/unit/testing/test_contract_tests.py::test_contract tests/unit/testing/test_contract_tests.py::test_each_contract_test_catches_its_broken_fake tests/unit/test_events.py::test_each_event_names_itself_in_past_tense_dotted_form tests/unit/test_events.py::test_each_subscribe_is_its_own_subscription tests/unit/test_errors.py::test_error_is_a_patchbay_error_and_no_builtin_subtype tests/unit/test_errors.py::test_error_is_rebuilt_from_its_args tests/unit/testing/test_contract_tests.py::test_every_contract_test_has_a_broken_fake tests/unit/test_models.py::test_every_entry_point_refuses_with_patchbay_validation_error tests/unit/test_package.py::test_every_name_in_all_resolves tests/unit/test_errors.py::test_fields_are_attributes tests/unit/test_models.py::test_from_json_data_is_still_strict tests/unit/test_models.py::test_from_json_data_refuses_data_json_cannot_hold tests/unit/test_models.py::test_from_json_data_takes_json_s_own_forms tests/unit/testing/test_fake.py::test_get_of_an_unknown_id_names_the_id_and_the_instrument tests/unit/test_contracts.py::test_issubclass_is_refused_for_a_protocol_with_a_data_member tests/unit/test_errors.py::test_message_is_built_from_the_fields tests/unit/test_errors.py::test_no_field_is_named_like_pydantic_s_errors_method tests/unit/test_package.py::test_public_names_are_in_all tests/unit/test_events.py::test_publish_delivers_to_every_subscriber_once_in_subscription_order tests/unit/test_events.py::test_publish_with_no_subscribers_does_nothing tests/unit/test_version.py::test_release_pattern_rejects_a_non_numeric_segment tests/unit/test_models.py::test_render_results_compare_by_their_arrays tests/unit/test_models.py::test_sample_at_is_an_int_at_any_tempo tests/unit/test_models.py::test_sample_at_places_a_beat_by_the_rule_that_fixes_the_length tests/unit/test_models.py::test_samples_is_an_int_however_long_the_render tests/unit/test_models.py::test_samples_rounds_half_to_even tests/unit/test_models.py::test_strict_admits_an_int_for_a_float_and_json_forms tests/unit/test_models.py::test_strict_refuses_a_conversion tests/unit/test_events.py::test_subscribe_by_type_receives_only_that_type tests/unit/test_events.py::test_subscribe_to_the_base_event_is_every_event tests/unit/test_contracts.py::test_subscriber_is_the_events_module_s_own tests/unit/testing/test_contract_tests.py::test_the_contract_tests_are_never_collected_by_pytest tests/unit/test_package.py::test_the_package_re_exports_the_contract_surface tests/unit/test_models.py::test_the_validating_classmethods_keep_pydantic_s_signatures tests/unit/test_models.py::test_validation_run_for_something_else_raises_pydantic_s_error tests/unit/test_version.py::test_version_matches_pyproject
+........................................................................ [ 36%]
+........................................................................ [ 72%]
+........................................................                 [100%]
+200 passed in 0.48s
+exit=0
+
+$ the helpers and names the standards cite, each defined at 7471387
+ok   _WideRange  tests/unit/testing/test_contract_tests.py:255:class _WideRange(FakeInstrument):
+ok   _LoadsUntilARefusal  tests/unit/testing/test_contract_tests.py:83:class _LoadsUntilARefusal(FakeInstrument):
+ok   _RendersAnyLength  tests/unit/testing/test_contract_tests.py:107:class _RendersAnyLength(FakeInstrument):
+ok   _subscribe_unchecked  tests/unit/test_events.py:232:def _subscribe_unchecked(bus: EventBus, event_type: object, subscriber: object) -> None:
+ok   _FINITE  tests/unit/test_models.py:64:_FINITE = st.floats(allow_nan=False, allow_infinity=False)
+ok   _RELEASE  tests/unit/test_version.py:15:_RELEASE = re.compile(r"[0-9]+(\.[0-9]+)*")
+ok   _refusals  src/patchbay/models.py:79:def _refusals() -> Iterator[None]:
+ok   _refusing  src/patchbay/models.py:87:def _refusing[**P, R](validate: Callable[P, R]) -> Callable[P, R]:
+ok   _other_value  src/patchbay/testing/contract_tests.py:100:def _other_value(parameter: Parameter, current: Quantity) -> Quantity:
+ok   _out_of_range  src/patchbay/testing/contract_tests.py:106:def _out_of_range(parameter: Parameter) -> list[Quantity]:
+ok   _parameter  src/patchbay/testing/fake.py:227:    def _parameter(self, parameter_id: ParameterId) -> Parameter:
+ok   _check_whole  src/patchbay/testing/fake.py:233:    def _check_whole(self, patch: Patch) -> None:
+ok   _deliver  src/patchbay/events.py:239:def _deliver(subscriber: Subscriber[Any], event: Event) -> Exception | None:
+ok   _remove  src/patchbay/events.py:234:    def _remove(self, subscription: Subscription) -> None:
+ok   _in_utc  src/patchbay/events.py:65:    def _in_utc(cls, at: datetime) -> datetime:
+ok   _NAME  src/patchbay/events.py:35:_NAME = re.compile(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+")
+ok   _default_is_a_value  src/patchbay/models.py:239:    def _default_is_a_value(self) -> Self:
+ok   CONTRACT_TESTS  src/patchbay/testing/contract_tests.py:347:CONTRACT_TESTS: tuple[ContractTest, ...] = (
+ok   ContractTest  src/patchbay/testing/contract_tests.py:50:type ContractTest = Callable[[Instrument, EventBus], None]
+ok   ContractViolationError  src/patchbay/testing/contract_tests.py:64:class ContractViolationError(AssertionError):
+ok   PatchbayModel  src/patchbay/models.py:102:class PatchbayModel(BaseModel, frozen=True):
+ok   from_json_data  src/patchbay/models.py:135:    def from_json_data(cls, data: object, /) -> Self:
+ok   sample_at  src/patchbay/models.py:336:    def sample_at(self, pattern: Pattern, beat: float, /) -> int:
+
+================================================================================
+4. The wheel's files, and what an import of the package loads
+================================================================================
+$ uv build --wheel --out-dir <scratchpad>/wheel
+Building wheel...
+Successfully built <scratchpad>/wheel/patchbay_core-0.0.1-py3-none-any.whl
+exit=0
+
+$ uv run --locked python -c "import sys, zipfile, glob; print('\n'.join(n for n in zipfile.ZipFile(glob.glob(sys.argv[1] + '/*.whl')[0]).namelist() if n.startswith('patchbay/')))" <scratchpad>/wheel
+patchbay/
+patchbay/__init__.py
+patchbay/contracts.py
+patchbay/errors.py
+patchbay/events.py
+patchbay/models.py
+patchbay/py.typed
+patchbay/testing/
+patchbay/testing/__init__.py
+patchbay/testing/contract_tests.py
+patchbay/testing/fake.py
+patchbay/testing/recording.py
+exit=0
+
+$ uv run --locked python -c "import sys, patchbay; print(sorted(m for m in sys.modules if m.startswith('patchbay')))"
+['patchbay', 'patchbay.contracts', 'patchbay.errors', 'patchbay.events', 'patchbay.models']
+exit=0
+
+$ uv run --locked python -c "import importlib.metadata as m; m.version('patchbay-no-such-distribution')"
+Traceback (most recent call last):
+  File "~/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/importlib/metadata/__init__.py", line 397, in from_name
+    return next(cls.discover(name=name))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+StopIteration
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "~/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/importlib/metadata/__init__.py", line 889, in version
+    return distribution(distribution_name).version
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/importlib/metadata/__init__.py", line 862, in distribution
+    return Distribution.from_name(distribution_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/importlib/metadata/__init__.py", line 399, in from_name
+    raise PackageNotFoundError(name)
+importlib.metadata.PackageNotFoundError: No package metadata was found for patchbay-no-such-distribution
+exit=1
+
+================================================================================
+5. ruff and mypy over the tree, and the suppressions
+================================================================================
+$ uv run --locked ruff check --no-cache src tests
+All checks passed!
+exit=0
+
+$ uv run --locked mypy src tests
+Success: no issues found in 19 source files
+exit=0
+
+$ grep -rnE "noqa|type: ignore" src tests
+src/patchbay/models.py:120:    __init__.__pydantic_base_init__ = True  # type: ignore[attr-defined]
+src/patchbay/models.py:263:    __hash__: ClassVar[None] = None  # type: ignore[assignment]
+src/patchbay/models.py:367:    __hash__: ClassVar[None] = None  # type: ignore[assignment]
+src/patchbay/events.py:243:    except Exception as error:  # noqa: BLE001  # the issue: one listener hides no event from another
+tests/unit/test_contracts.py:75:        issubclass(_Silent, Instrument)  # type: ignore[misc]
+tests/unit/test_models.py:87:    assert _takes_parameter_id(key) == "osc_1_level"  # type: ignore[arg-type]
+tests/unit/test_models.py:140:        _QUANTITY.value = 0.25  # type: ignore[misc]
+tests/unit/test_models.py:498:        patch.values[ParameterId("level")] = _QUANTITY  # type: ignore[index]
+tests/unit/test_events.py:155:        event.correlation_id = "c9"  # type: ignore[misc]
+tests/unit/test_events.py:234:    bus.subscribe(event_type, subscriber)  # type: ignore[call-overload]
+exit=0
+
+$ grep -rnE "__future__|TypeVar|ParamSpec|Generic|TypeAlias|^import pytest|^from pytest" src
+exit=1
+
+$ grep -rn plugins pyproject.toml
+exit=1
+

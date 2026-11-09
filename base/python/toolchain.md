@@ -275,14 +275,13 @@ cites them and does not restate them.
 
 `patchbay-standards` has no package: no `pyproject.toml`, no `uv.lock`, no Python under `src/` or
 `tests/`. This standard does not apply here, and no file here verifies it. Its rules were read from
-patchbay at `73a583a`, the tool steps and mypy's `files` again at `3f910d8`; a spec that changes
-one reads it again from a consuming project's shipped files, and reruns the probes a rule rests
-on. "Dependencies" and the suppression rules were read again at `7471387`. The one Python tool
-this repository's gate runs, pymarkdown through `uvx`, takes the no-manifest form of
-`verification-gate.md`. Step 5a of this
-repository's `shape-spec.md` lists this standard with the note that it applies to consuming
-projects; a spec shaped here records it under "Core Architecture" as not applying and does not copy
-it into `standards.md`.
+patchbay at `73a583a`, the tool steps and mypy's `files` again at `3f910d8`; a spec that changes one
+reads it again from a consuming project's shipped files, and reruns the probes a rule rests on.
+"Dependencies" and the suppression rules were read again at `7471387`. The one Python tool this
+repository's gate runs, pymarkdown through `uvx`, takes the no-manifest form of
+`verification-gate.md`. Step 5a of this repository's `shape-spec.md` lists this standard with the
+note that it applies to consuming projects; a spec shaped here records it under "Core Architecture"
+as not applying and does not copy it into `standards.md`.
 
 ## In a consuming project
 

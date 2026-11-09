@@ -1,17 +1,14 @@
 # Typing
 
 A patchbay package is typed so that mypy, strict over the package and its tests, refuses what the
-contracts forbid before a test runs. This standard says how keys, protocols, generics and
-re-exports are written for mypy to hold them, and which annotation form pydantic needs. Every rule
-names the file of a consuming project it is verified against, the test that holds it and the probe
-a rule about a tool's behaviour rests on. It was written from patchbay (`fromtheoutfit/patchbay`)
-at `7471387`, the merge of its PR 11, whose contracts spec
-(`agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/`) and its revision after the
-review of that pull request (`agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/`)
-record each choice as a Decision with its reason. The probes it cites are in the
-`verification/probes.txt` of the spec of issue #21 in `patchbay-standards`, which reruns
-patchbay's own at its pins, cited by name (`typing_probe.py` E), and adds the ones patchbay
-lacked, cited by letter (probe k).
+contracts forbid before a test runs. This standard says how keys, protocols, generics and re-exports
+are written for mypy to hold them, and which annotation form pydantic needs. Every rule names the
+file of a consuming project it is verified against, the test that holds it and the probe a rule
+about a tool's behaviour rests on. Written from fromtheoutfit/patchbay at `7471387`, the merge of
+its PR 11, whose contracts spec and that spec's revision record each choice as a Decision; the
+evidence is in the `verification/` of the spec of issue #21 in `patchbay-standards` and of its
+revision after the review of PR 25, patchbay's own probes cited by name and the ones those specs
+added by letter.
 
 mypy's configuration, strict with `implicit_reexport = false`, is `base/python/toolchain.md`'s. How
 mypy reads a model's frozenness is `base/python/models.md`'s, and the variance of the subscriber
@@ -77,16 +74,11 @@ protocol `base/python/events.md`'s.
 
 ## In this repository
 
-`patchbay-standards` has no package: no `pyproject.toml`, no Python under `src/` or `tests/`. This
-standard does not apply here, and no file here verifies it. Its rules were read from patchbay at
-`7471387`; a spec that changes one reads it again from a consuming project's shipped files and
-reruns the probes a rule rests on. Step 5a of this repository's `shape-spec.md` lists this standard
-with the note that it applies to consuming projects; a spec shaped here records it under "Core
-Architecture" as not applying and does not copy it into `standards.md`.
+This repository has no package, so this standard does not apply here; its `shape-spec.md` lists it
+in Step 5a for consuming projects.
 
 ## In a consuming project
 
-This standard is synced in as `agent-os/standards/base/python/typing.md`. Every rule above is the
-project's, verified against the project's own files it names. The project's `shape-spec.md` lists
-it in Step 5a, the tier every spec includes without asking, with its full content in that spec's
+Synced in as `agent-os/standards/base/python/typing.md`, its rules the project's, verified against
+the project's own files; Step 5a includes it in every spec, with its full content in that spec's
 `standards.md`.

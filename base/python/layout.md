@@ -1,14 +1,13 @@
 # Layout
 
 Where everything in a patchbay package lives: its modules, the subpackage its consumers' tests use,
-what its `__init__.py` holds, and the one direction its modules import in. Every rule names the
-file of a consuming project it is verified against and the test that holds it. It was written from
-patchbay (`fromtheoutfit/patchbay`) at `7471387`, the merge of its PR 11, whose contracts spec
-(`agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/`) and its revision after the
-review of that pull request (`agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/`)
-record each choice as a Decision with its reason; the toolchain spec of issue #4 in
-`patchbay-standards` deferred its `__init__.py` rules here. The evidence it cites is in the
-`verification/patchbay-evidence.txt` of the spec of issue #21 in `patchbay-standards`.
+what its `__init__.py` holds, and the one direction its modules import in. Every rule names the file
+of a consuming project it is verified against, the test that holds it and the probe a rule about a
+tool's behaviour rests on. Written from fromtheoutfit/patchbay at `7471387`, the merge of its PR 11,
+whose contracts spec and that spec's revision record each choice as a Decision; the evidence is in
+the `verification/` of the spec of issue #21 in `patchbay-standards` and of its revision after the
+review of PR 25, patchbay's own probes cited by name and the ones those specs added by letter. The
+toolchain spec of issue #4 deferred its `__init__.py` rules here.
 
 Where a test file lives is `base/testing/tests.md`'s; how a name is re-exported so mypy sees it is
 `base/python/typing.md`'s.
@@ -26,7 +25,14 @@ Where a test file lives is `base/testing/tests.md`'s; how a name is re-exported 
   imports it, so importing the package loads none of it; a consumer imports it by name. It imports
   no pytest (`base/testing/tests.md`). Verified against `src/patchbay/testing/`, its
   `__init__.py`'s docstring, `src/patchbay/__init__.py`, and the wheel's files and the modules an
-  import of the package loads, in the `verification/patchbay-evidence.txt` named above.
+  import of the package loads, in the `verification/patchbay-evidence.txt` of the spec of issue #21.
+- **No two modules of the package share a basename**, its subpackages' included, so the test
+  module each takes its name from (`base/testing/tests.md`, the mirror) is one no other test module
+  has, and mypy, which reads `tests/` with no `__init__.py`, never meets two modules of one name.
+  The named exception is `__init__.py`, one per package, whose tests take their names from what
+  they hold (`base/testing/tests.md`). patchbay's seven, `contracts`, `errors`, `events`, `models`,
+  `contract_tests`, `fake` and `recording`, are seven names. Verified against `src/patchbay/` and
+  `tests/unit/`; probe n.
 
 ## `__init__.py`
 
@@ -72,16 +78,11 @@ Where a test file lives is `base/testing/tests.md`'s; how a name is re-exported 
 
 ## In this repository
 
-`patchbay-standards` has no package: no `pyproject.toml`, no Python under `src/` or `tests/`. This
-standard does not apply here, and no file here verifies it. Its rules were read from patchbay at
-`7471387`; a spec that changes one reads it again from a consuming project's shipped files. Step 5a
-of this repository's `shape-spec.md` lists this standard with the note that it applies to
-consuming projects; a spec shaped here records it under "Core Architecture" as not applying and
-does not copy it into `standards.md`.
+This repository has no package, so this standard does not apply here; its `shape-spec.md` lists it
+in Step 5a for consuming projects.
 
 ## In a consuming project
 
-This standard is synced in as `agent-os/standards/base/python/layout.md`. Every rule above is the
-project's, verified against the project's own files it names. The project's `shape-spec.md` lists
-it in Step 5a, the tier every spec includes without asking, with its full content in that spec's
+Synced in as `agent-os/standards/base/python/layout.md`, its rules the project's, verified against
+the project's own files; Step 5a includes it in every spec, with its full content in that spec's
 `standards.md`.

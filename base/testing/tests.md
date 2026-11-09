@@ -1,17 +1,13 @@
 # Tests
 
 How a test in a patchbay package is written and where it lives, and how the contract suite, the
-tests every implementation of a package's protocol runs, is written and proven. Every rule names
-the file of a consuming project it is verified against, the test that holds it and the probe a rule
-about a tool's behaviour rests on. It was written from patchbay (`fromtheoutfit/patchbay`) at
-`7471387`, the merge of its PR 11, whose contracts spec
-(`agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/`) and its revision after the
-review of that pull request (`agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/`)
-record each choice as a Decision with its reason; the toolchain spec of issue #4 in
-`patchbay-standards` deferred its test-file rules here. The probes it cites are in the
-`verification/probes.txt` of the spec of issue #21 in `patchbay-standards`, which reruns
-patchbay's own at its pins, cited by name (`mutations.py`), and adds the ones patchbay lacked,
-cited by letter (probe e).
+tests every implementation of a package's protocol runs, is written and proven. Every rule names the
+file of a consuming project it is verified against, the test that holds it and the probe a rule
+about a tool's behaviour rests on. Written from fromtheoutfit/patchbay at `7471387`, the merge of
+its PR 11, whose contracts spec and that spec's revision record each choice as a Decision; the
+evidence is in the `verification/` of the spec of issue #21 in `patchbay-standards` and of its
+revision after the review of PR 25, patchbay's own probes cited by name and the ones those specs
+added by letter. The toolchain spec of issue #4 deferred its test-file rules here.
 
 pytest's and hypothesis's configuration, the `"tests/**"` per-file ignores and mypy's `files` are
 `base/python/toolchain.md`'s. Where the `testing` subpackage lives is `base/python/layout.md`'s.
@@ -22,17 +18,21 @@ pytest's and hypothesis's configuration, the `"tests/**"` per-file ignores and m
   tested by `tests/unit/test_<module>.py`, and `src/<package>/testing/<module>.py` by
   `tests/unit/testing/test_<module>.py`. Two named exceptions: the root `__init__.py` is tested by
   `test_package.py`, its surface and its distribution's metadata, and `test_version.py`, its
-  version; `testing/__init__.py`, which holds re-exports alone, has no test module. Verified
-  against `src/patchbay/` and `tests/unit/`.
-- **Every test file's basename is used once under `tests/`, which has no `__init__.py`**: `tests/`
-  is a tree pytest collects from `testpaths`, not a package, and mypy, given `src` and `tests`,
-  refuses two modules of one name as a duplicate. Verified against `tests/unit/`, the comment on
-  INP001 in `pyproject.toml`'s per-file ignores, and the gate's mypy step; probe n.
-- **A `conftest.py` sits in the directory whose tests share its fixtures, and nowhere else**, its
-  fixtures function-scoped so every test starts fresh. patchbay has one,
-  `tests/unit/testing/conftest.py`, whose `bus` and `instrument` the contract tests and the fake's
-  tests both take; there is no `tests/conftest.py`. Verified against `tests/unit/testing/conftest.py`,
-  `tests/unit/testing/test_contract_tests.py` and `tests/unit/testing/test_fake.py`.
+  version; `testing/__init__.py`, which holds re-exports alone, has no test module. No two modules
+  of the package share a basename (`base/python/layout.md`), so the mirror never gives two test
+  modules one name. Verified against `src/patchbay/` and `tests/unit/`.
+- **Every module under `tests/` has a basename no other module there has, `conftest.py` included,
+  and `tests/` has no `__init__.py`**: `tests/` is a tree pytest collects from `testpaths`, not a
+  package, and mypy, given `src` and `tests`, refuses two modules of one name as a duplicate, two
+  test files or two `conftest.py` alike, though pytest loads both of the latter. Verified against
+  `tests/unit/`, the comment on INP001 in `pyproject.toml`'s per-file ignores, and the gate's mypy
+  step; probes n and q.
+- **`tests/` holds one `conftest.py` at most, in the directory that holds every test taking its
+  fixtures**, the fixtures function-scoped so every test starts fresh: a second is a duplicate
+  module to mypy (above). patchbay's is `tests/unit/testing/conftest.py`, whose `bus` and
+  `instrument` the contract tests and the fake's tests both take, and there is no other. Verified
+  against `tests/unit/testing/conftest.py`, `tests/unit/testing/test_contract_tests.py` and
+  `tests/unit/testing/test_fake.py`; probe q.
 
 ## Inside a test
 
@@ -46,14 +46,17 @@ pytest's and hypothesis's configuration, the `"tests/**"` per-file ignores and m
   the Arabic-Indic ten) and `tests/unit/test_models.py` (`_FINITE`).
 - **A pattern a value is held to spells its digits `[0-9]`, never `\d`**, which matches any Unicode
   decimal digit, ARABIC-INDIC DIGIT ONE among them; and a character ruff finds confusable is
-  written as its escape, as RUF001 (in a string) and RUF003 (in a comment) ask, the rules kept.
-  Verified against `tests/unit/test_version.py` (`_RELEASE` and its comment); probes f (o1) and o.
+  written as its escape, as RUF001 (in a string) and RUF003 (in a comment) ask, the rules kept:
+  each reports the character itself and neither its escape. Verified against
+  `tests/unit/test_version.py` (`_RELEASE` and its comment); probes f (o1), o (the character) and
+  p (its escape).
 - **A test that holds a refusal mypy must keep making carries a coded `# type: ignore[<code>]` on
   the refused line**, and strict's `warn_unused_ignores` fails the gate the day mypy stops refusing
   and the ignore suppresses nothing (`base/python/toolchain.md`, "mypy"). patchbay's tests hold six:
-  a `PresetKey` where a `ParameterId` is expected (`arg-type`), `issubclass` of `Instrument`,
-  an assignment to a frozen model and to a frozen event (each `misc`), an item assigned into a
-  `Patch`'s mapping (`index`), and a subscription of types mypy refuses (`call-overload`). Verified
+  a `PresetKey` where a `ParameterId` is expected (`arg-type`); `issubclass` of `Instrument`
+  (`misc`); an assignment to a frozen model (`misc`); an assignment to a frozen event (`misc`); an
+  item assigned into a `Patch`'s mapping (`index`); and a subscription of types mypy refuses
+  (`call-overload`). Verified
   against `tests/unit/test_models.py` (`test_a_preset_key_is_not_a_parameter_id`,
   `test_a_frozen_model_is_unchanged_by_a_refused_assignment`, `test_a_patch_s_mappings_are_read_only`),
   `tests/unit/test_contracts.py` (`test_issubclass_is_refused_for_a_protocol_with_a_data_member`)
@@ -117,13 +120,11 @@ pytest's and hypothesis's configuration, the `"tests/**"` per-file ignores and m
 
 ## In this repository
 
-`patchbay-standards` has no package: no `pyproject.toml`, no Python under `src/` or `tests/`. This
-standard does not apply here, and no file here verifies it. Its rules were read from patchbay at
-`7471387`; a spec that changes one reads it again from a consuming project's shipped files and
-reruns the probes a rule rests on.
+This repository has no package, so this standard does not apply here; Step 5b of its `shape-spec.md`
+leaves it out.
 
 ## In a consuming project
 
-This standard is synced in as `agent-os/standards/base/testing/tests.md`. Every rule above is the
-project's, verified against the project's own files it names. Step 5b of the project's
-`shape-spec.md` surfaces it from the index for a spec that writes or changes a test.
+Synced in as `agent-os/standards/base/testing/tests.md`, its rules the project's, verified against
+the project's own files; Step 5b surfaces it from the index for a spec that writes or changes a
+test.
