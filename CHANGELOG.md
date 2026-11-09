@@ -11,6 +11,78 @@ bring in.
 
 ### Added
 
+- Fourteenth spec, `agent-os/specs/2026-11-07-2041-revision-after-pr-25-review/`: the owner's review
+  of PR 25 (the thirteenth spec, issue #21), fourteen findings, each checked against the shipped
+  files and the four that rest on a tool's behaviour probed (`verification/probes.txt`, probes p to
+  s). A standards spec: no gate file changes, and no file under `base/` added, removed or renamed.
+  - `base/testing/tests.md`: every module under `tests/` has a basename of its own, `conftest.py`
+    included, so `tests/` holds one `conftest.py` at most; the mirror rule points to `layout.md`'s
+    new rule; the escape rule cites a probe that writes the escape; each of the six held ignores is
+    named with its code.
+  - `base/python/layout.md`: no two modules of the package share a basename, `__init__.py` aside.
+  - `base/python/models.md`: a nested model is held to its own config, strict where it is on the
+    base; int over int overflows only past the largest float.
+  - `base/python/events.md`: the UTC rule states its check, the zone's answer for no particular
+    instant, and the `tzinfo` it lets through.
+  - The six new standards: one provenance line each, naming both specs' `verification/`, and one
+    line each for "In this repository" and "In a consuming project". `base/python/errors.md` is in
+    Step 5a. `base/python/toolchain.md`: its "In this repository" reflowed.
+  - `index.yml`: the `python/layout`, `python/events` and `testing/tests` descriptions revised.
+  - `.claude/commands/agent-os/shape-spec.md`: Step 5a holds `base/python/errors` too, five
+    standards; here Step 5b leaves out every standard under `python/` and `testing/`; the Step 5b
+    prompt and the `shape.md` template name each by its full key.
+  - fromtheoutfit/patchbay#12, revised in place again: its Step 5a lists five.
+    fromtheoutfit/patchbay#13: `Event.at`'s check, which passes a `tzinfo` answering zero for no
+    instant and another offset at a real one.
+  - Proposals sent upstream: fromtheoutfit/patchbay-standards#26 (`base/python/toolchain.md`'s
+    closing sections in the one-line form), approved by the owner.
+
+- Thirteenth spec, `agent-os/specs/2026-11-07-1549-contracts-standards-and-toolchain/` (issue #21,
+  as revised after the review of fromtheoutfit/patchbay#11), a standards spec: six new base
+  standards and two corrections to `base/python/toolchain.md`, every rule written from
+  fromtheoutfit/patchbay at `main` (`7471387`), its contracts spec and that spec's revision, and
+  naming the file, the test and the probe it is verified against. patchbay's probes are rerun at
+  its pins and the ones it lacked added (`verification/probes.txt`); every test a rule cites passes
+  by node id (`verification/patchbay-evidence.txt`). No gate file changes.
+  - `base/python/layout.md`: one module per concern, a `testing` subpackage shipped in the wheel
+    and never re-exported, `__init__.py` holding re-exports, `__all__` and `__version__` alone, the
+    surface test, and one direction of import from the errors leaf up.
+  - `base/python/typing.md`: `NewType` keys, read-only protocol members and positional-only
+    parameters, `isinstance` the runtime check, PEP 695 generics, re-exports through `__all__`, and
+    no future import where pydantic reads annotations.
+  - `base/python/models.md`: one base frozen by the class keyword, closed, finite and strict; its
+    own entry points refusing as the package, pydantic's classmethods wrapped and the base-init
+    marker carried; one entry point for JSON-form data; read-only containers; non-empty ids; one
+    exact method for what every implementation computes alike.
+  - `base/python/errors.md`: one root, names ending in `Error`, fields as arguments and attributes
+    with the message built from them, no field named for a third party's method, a leaf module, no
+    built-in escaping a public method, and chaining.
+  - `base/python/events.md`: the event, its name and its UTC stamp judged by zone; the synchronous
+    bus over a snapshot that hides no event; `subscribe` refusing where it is made, the
+    `Subscription`, and the contravariant `Subscriber`.
+  - `base/testing/tests.md`, the first standard under `base/testing/`: test files mirror the
+    source, unique basenames, a `conftest.py` only where shared, pytest's root, `@example`, `[0-9]`,
+    coded ignores holding mypy's refusals; and the contract suite, unprefixed functions in one
+    tuple, an `AssertionError` with fields, values one float past a bound, each test proven by a
+    fake broken its way.
+  - `base/python/toolchain.md`: "Dependencies" gains runtime ranges, the declared direct import and
+    the lock's diff, and replaces the empty-dependencies example; "ruff" gains the four suppressions
+    with their reasons and the D401 fix; "mypy" gains the coded `# type: ignore` and its typed
+    dependencies.
+  - `index.yml`: six entries; `python/toolchain`'s description revised.
+  - `.claude/commands/agent-os/shape-spec.md`: Step 5a lists `base/python/layout`, `typing` and
+    `models` beside `toolchain`, with Step 5b's note and the `shape.md` template lines. The fourteenth
+    spec adds `base/python/errors` to the tier.
+  - `scripts/gate-negative-tests.sh`, unchanged, is rerun, since `base/` gains files and a folder
+    that `mk` copies (`verification/gate-negative-tests.txt`, `verification/ci-negative-test.txt`).
+  - **fromtheoutfit/patchbay takes these after its next sync, in the gate spec of
+    fromtheoutfit/patchbay#12, revised in place:** its `shape-spec.md` Step 5a and template lines
+    list the three, and its Docs step reads the six standards and toolchain's corrected text against
+    its tree.
+  - Proposals sent upstream: fromtheoutfit/patchbay-standards#24, from this spec's retrospective
+    (`base/process/standards-retrospective.md`, `base/python/layout.md`, `base/testing/tests.md`,
+    `base/process/verification-gate.md`), all four approved by the owner.
+
 - Twelfth spec, `agent-os/specs/2026-11-07-1518-revision-after-pr-23-review/`: the owner's review
   of PR 23 (the eleventh spec, issues #17, #19 and #20), nine findings, each reproduced or probed
   before it was fixed (`verification/probes.txt`), and a gate spec, since the gate's scripts, the

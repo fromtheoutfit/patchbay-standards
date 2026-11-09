@@ -1,0 +1,867 @@
+Probes for the contracts standards and the toolchain corrections (issue #21), run 2026-11-07 on branch
+task/21-standards-spec-write-basepython-models-errors-events-testing-typing-and-layout-from-patchbays-contracts-spec-and-correct-toolchainmd.
+
+Every probe runs on an export of fromtheoutfit/patchbay at 7471387 (origin/main, the merge of PR 11;
+`git archive 7471387`, shown as <export>), from its root, through its locked environment: python as
+`uv run --locked python <script>`, mypy as `uv run --locked mypy <script>` and ruff as
+`uv run --locked ruff check --no-cache <script>`, so each tool reads patchbay's [tool.*] (ruff select ALL
+with its six ignores, mypy strict with warn_unreachable and implicit_reexport = false, pytest's addopts)
+at the versions uv.lock pins. VIRTUAL_ENV is unset, so uv uses the export's own .venv.
+
+Section 1 reruns patchbay's own probes verbatim and compares each output with the one recorded in
+patchbay at 7471387. Section 2 holds the probes this spec adds where no patchbay probe covers a claim a
+rule rests on. Each new probe's source is shown before its output, and its cases put the claim beside
+the one it competes with: the refusal beside the acceptance, the rule's case beside the case it is not.
+
+What the standards take from them:
+
+- Section 1, every rerun identical to patchbay's recorded output (paths, addresses and timings aside):
+  runtime.py 1-7 (models: read-only mapping, base64 bytes, the array, strict, frozen assignment;
+  typing: runtime_checkable and issubclass), typing_probe.py A-J (models: the class keyword is what
+  mypy reads; typing: NewType keys; events: Subscriber contravariant, its parameter's name free),
+  strict_nested.py and config_form.py (models: strict at depth, the keyword and model_config),
+  frozen_kw.py and frozen_kw2.py (models: mypy refuses a subclass without the keyword),
+  models_init.py (models: the base-init marker), footing.py A-E and footing_typing.py (models: the
+  wrapped classmethods, from_json_data, the exact sample count, the constrained key; events: the
+  zone judged), and mutations.py (tests: the widest-bounds test fails twice with the old arithmetic).
+- a, nested_refusal.py: a ValueError in a nested validator is collected with its path beside the
+  outer model's own refusal; a TypeError passes through pydantic-core unwrapped and the outer refusal
+  is lost. Without __pydantic_base_init__, PatchbayModel's own refusing __init__ refuses a valid JSON
+  enum one level down, and a refusal loses the outer path and the outer field's refusal; with it
+  (patchbay's PatchbayModel) both are right. model_copy(update=...) on a patchbay model validates
+  nothing: a str lands in a float field (a5) (models).
+- b, ruff_rules.py: D401 reports a non-imperative docstring, and not on a function named test_*, so
+  the prefix waived it; the contract tests' first-round docstring "The instrument exposes ..." is
+  reported once unprefixed. PGH003 reports a blanket `# type: ignore` and not a coded one; BLE001 the
+  catch of every Exception; PLR2004 a magic value in a comparison and not one in arithmetic
+  (toolchain, tests, events).
+- c and k, mypy_rules.py: under strict, an unused coded ignore is an error (unused-ignore), a used one
+  passes; under implicit_reexport = false a name a module imports but does not list in __all__ is not
+  exported (attr-defined), and --implicit-reexport lifts it (typing, tests).
+- d, optimized.py: python -O strips assert; a raised AssertionError subclass survives it (tests).
+- e, pytest_probe: pytest collects a test_-named function a test module imports by name, and neither
+  an unprefixed one nor a contract test imported from patchbay.testing (tests).
+- f and o, tool_facts.py: one float past 2**53 and past the largest float (nextafter; bound + 1.0 is
+  the bound); pydantic's ValidationError.errors is a method and pydantic does not re-export
+  ErrorDetails, which is pydantic-core's; \d matches U+0661 and [0-9] does not; an error that
+  passes its fields to Exception in order is rebuilt by copy and by pickle, and one that passes a
+  message built from them is not, TypeError (f3) (tests, errors, toolchain).
+- j and m, ruff_rules.py: N818 reports an exception name without the Error suffix; UP040, UP046 and
+  UP047 report a TypeAlias, a Generic class and a TypeVar function, so PEP 695 is what ruff asks
+  under ALL at py312; RUF001 and RUF003 report a confusable digit written literally, not its escape
+  (errors, typing, tests).
+- l, future_*.py: with `from __future__ import annotations` ruff reports TC003 on a field-only import;
+  moved under TYPE_CHECKING as it asks, the model is not fully defined at first use. Without the
+  future import neither happens (typing).
+- n, dup/: mypy refuses two test_x.py under one tree with no __init__.py: a duplicate module (tests).
+
+$ uv --version; versions in the export's environment
+uv 0.13.7 (Homebrew 2026-11-03 aarch64-apple-darwin)
+python 3.12.16 | pydantic 2.14.3 | pydantic-core 2.50.4 | numpy 2.5.4
+mypy 2.4.1 (compiled: yes)
+ruff 0.17.4
+pytest 9.2.0
+
+================================================================================
+1. patchbay's probes, rerun verbatim
+================================================================================
+
+The scripts and their recorded outputs are taken from patchbay at 7471387 by <scratchpad>/tools/extract.py
+(below), from the export's agent-os/specs/2026-11-07-0806-contracts-models-events-errors-fake/verification/probes.txt,
+agent-os/specs/2026-11-07-1432-contracts-revision-after-pr-11-review/verification/probes.txt and that
+folder's mutations.txt, where each source is shown; the scripts sit in <export>/probes, so mypy prints
+the paths patchbay recorded. findings.py is not rerun: it reproduces the review's findings against
+6f4e7a8, whose code 7471387 replaced; the three tool facts of it a rule rests on (6, 11, 12) are
+section 2's f. Each rerun's output is compared with the recorded one after one normalization, shown
+here as norm(): the export's path for <repo> as patchbay wrote it, memory addresses, pytest's timing,
+blank lines. mutations.py's recorded output is its E and FAILED lines and the count, so its rerun is
+compared on those.
+
+$ cat <scratchpad>/tools/extract.py
+    """Extract the probe scripts and their recorded outputs from patchbay's two probes.txt files."""
+    # Usage: extract.py <export>/agent-os/specs <out>
+    import re, sys, pathlib
+    base = pathlib.Path(sys.argv[1]); out = pathlib.Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
+    rec = out / "recorded"; rec.mkdir(exist_ok=True)
+    p1 = (base / "2026-11-07-0806-contracts-models-events-errors-fake/verification/probes.txt").read_text().splitlines()
+    # P1: "$ cat probes/X.py" ... "$ uv run --locked <tool> probes/X.py" ... until next "$ " or "=====" line
+    i = 0
+    while i < len(p1):
+        m = re.match(r"^\$ cat probes/(\S+)$", p1[i])
+        if not m:
+            i += 1; continue
+        name = m.group(1); j = i + 1; src = []
+        while not p1[j].startswith("$ "):
+            src.append(p1[j]); j += 1
+        while src and not src[-1].strip(): src.pop()
+        (out / name).write_text("\n".join(src) + "\n")
+        while j < len(p1) and p1[j].startswith("$ uv run"):
+            cmd = p1[j]; tool = cmd.split()[4]; k = j + 1; o = []
+            while k < len(p1) and not p1[k].startswith("$ ") and not p1[k].startswith("====="):
+                o.append(p1[k]); k += 1
+            while o and not o[-1].strip(): o.pop()
+            (rec / f"{name}.{tool}.txt").write_text("\n".join(o) + "\n")
+            j = k
+        i = j
+    # P2: "probes/X.py" header, source, "---- output (...)" line, output, "=====".
+    p2 = (base / "2026-11-07-1432-contracts-revision-after-pr-11-review/verification/probes.txt").read_text().splitlines()
+    for i, line in enumerate(p2):
+        m = re.match(r"^probes/(\S+\.py)$", line)
+        if not m or not p2[i - 1].startswith("====="):
+            continue
+        name = m.group(1); j = i + 1; src = []
+        while not p2[j].startswith("-" * 20):
+            src.append(p2[j]); j += 1
+        while src and not src[0].strip(): src.pop(0)
+        while src and not src[-1].strip(): src.pop()
+        tool = "mypy" if "mypy" in p2[j] else "python"
+        (out / name).write_text("\n".join(src) + "\n")
+        k = j + 1; o = []
+        while k < len(p2) and not p2[k].startswith("====="):
+            o.append(p2[k]); k += 1
+        while o and not o[0].strip(): o.pop(0)
+        while o and not o[-1].strip(): o.pop()
+        (rec / f"{name}.{tool}.txt").write_text("\n".join(o) + "\n")
+    m3 = (base / "2026-11-07-1432-contracts-revision-after-pr-11-review/verification/mutations.txt").read_text().splitlines()
+    s = m3.index("probes/mutations.py"); e = next(k for k in range(s, len(m3)) if m3[k].startswith("-" * 20))
+    src = m3[s + 1:e]
+    while src and not src[0].strip(): src.pop(0)
+    while src and not src[-1].strip(): src.pop()
+    (out / "mutations.py").write_text("\n".join(src) + "\n")
+    (rec / "mutations.py.python.txt").write_text("\n".join(l for l in m3[e + 1:] if l.strip()) + "\n")
+
+    norm: sed -E -e "s|<export>/probes/|probes/|g" -e "s|<export>|<repo>|g" -e "s/0x[0-9a-f]+/0xADDR/g" -e "s/in [0-9.]+s/in Ns/g" | grep -v "^[[:space:]]*$"
+
+$ shasum -a 256 <export>/probes/*.py
+c8cc85e380b599eff33774cd35f642f06bbb4053decd51d3e09ada45b83a018a  config_form.py
+696c38448628b13f11c7b65f13b07895a7a87f276f7a7fefccbd1fc0d22e8732  findings.py
+062ba084172697afd64776f74791a98481f9e511e07be866fba4958b7ef7dab9  footing_typing.py
+c47b1b5f1e6a0aebedc5d35bef4fd7b1eab3a455f054f7cc21e17302231f1582  footing.py
+70f53d9561e8682cb74ff75d9a6c41576cbbd0b90e37d28e426d5ea46bf2bb3a  frozen_kw.py
+ae5f27098056e2c789d1f0ff950fe1bd376d0bc860998759f16c648f93585dfd  frozen_kw2.py
+55caeb32ed21d07c8885628730ceb20e421513cf0b7d4a356b68c0d8b0b9d3f7  models_init.py
+e990c73f8c74cc0c6cb3e18596da1031971fc6baad0cdc115106a9e1fb3ea03d  mutations.py
+6616083ff77526b404f10ca787a1c26951f26d3429fc5f086c03441e9201bb1a  runtime.py
+f9fde2c69b87a16961f86aa95238f1e8d512870801a21de79cb230f3938be27c  strict_nested.py
+086a94b96479d2e98d57251eb38b24e1995e793e871a52fa33a9b7d7e3270808  typing_probe.py
+
+================================================================================
+$ uv run --locked python probes/runtime.py
+pydantic 2.14.3, pydantic-core 2.50.4, numpy 2.5.4
+1. A Mapping field, lax and frozen: what it validates to
+  type(values) = dict
+  values['b'] = 2 on a frozen model: ok -> {'a': 1, 'b': 2}
+  hash(model holding a dict): builtins.TypeError: unhashable type: 'dict'
+  model.values = {} (attribute assignment): pydantic_core._pydantic_core.ValidationError: 1 validation error for LaxMap
+  del model.values: pydantic_core._pydantic_core.ValidationError: 1 validation error for LaxMap
+2. MappingProxyType after an after-validator, with and without a wrap serializer
+  type(values) = mappingproxy
+  values['c'] = 3: builtins.AttributeError: 'mappingproxy' object has no attribute '__setitem__'
+  model_dump_json() without a serializer (warnings are errors): pydantic_core._pydantic_core.PydanticSerializationError: Unable to serialize unknown type: <class 'mappingproxy'>
+  model_dump_json() with a wrap serializer: ok -> '{"values":{"a":1,"b":2}}'
+  model_dump() with a wrap serializer: ok -> {'values': {'a': 1, 'b': 2}}
+  round trip equal: ok -> True
+  ProxySer(values=p1.values) (a mappingproxy as input, lax): ok -> mappingproxy({'a': 1, 'b': 2})
+3. bytes in JSON: the default (utf8) and base64
+  utf8 default: dump non-UTF-8 bytes: pydantic_core._pydantic_core.PydanticSerializationError: Error serializing to JSON: invalid utf-8 sequence of 1 bytes from index 0
+  base64: dump: ok -> '{"opaque":{"k":"_wCACg=="}}'
+  base64: round trip byte-for-byte: ok -> True
+  base64: empty bytes round trip: ok -> True
+4. An NDArray[np.float32] arbitrary-type field: schema, check, ==, hash
+  build with a float32 (1,4) array: ok -> (1, 4)
+  build with a float64 array (no dtype validator yet): ok -> dtype('float64')
+  build with a list: pydantic_core._pydantic_core.ValidationError: 1 validation error for Arr
+  Arr(a) == Arr(a.copy()): builtins.ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+  Arr(a) == Arr(a) (same object): ok -> True
+  hash(Arr(a)): builtins.TypeError: unhashable type: 'numpy.ndarray'
+  model_dump_json(): pydantic_core._pydantic_core.PydanticSerializationError: Unable to serialize unknown type: <class 'numpy.ndarray'>
+  write into an array marked writeable=False: builtins.ValueError: assignment destination is read-only
+5. Strict mode: what it admits and refuses, Python and JSON input
+  python: f=1 (int for float): ok -> 1.0
+  json:   f=1 (int for float): ok -> 1.0
+  python: f='0.5' (str for float): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   f='0.5' (str for float): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: i='1' (str for int): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: i=1.0 (float for int): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   i=1.0 (float for int): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: i=True (bool for int): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   i=true (bool for int): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: b=1 (int for bool): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   b=1 (int for bool): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: u='ratio' (str for Unit): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: u=Unit.ratio: ok -> <Unit.ratio: 'ratio'>
+  json:   u='ratio': ok -> <Unit.ratio: 'ratio'>
+  json:   u='nope': pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: t=['a'] (list for tuple): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   t=['a'] (array for tuple): ok -> ('a',)
+  python: inner={'value': 1.0} (dict for model): ok -> S(f=0.0, i=0, b=False, u=<Unit.none: 'none'>, t=(), inner=Inner(value=1.0), m={}, raw=b'')
+  json:   inner={'value': 1.0}: ok -> Inner(value=1.0)
+  python: model_validate({'inner': {'value': 1.0}}): ok -> S(f=0.0, i=0, b=False, u=<Unit.none: 'none'>, t=(), inner=Inner(value=1.0), m={}, raw=b'')
+  python: m=dict of Inner: ok -> {'k': Inner(value=1.0)}
+  python: m=MappingProxyType of Inner: ok -> {'k': Inner(value=1.0)}
+  python: f=nan: pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  json:   raw base64 'AP8=': ok -> b'\x00\xff'
+  python: raw='x' (str for bytes): pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  python: raw=bytearray: pydantic_core._pydantic_core.ValidationError: 1 validation error for S
+  model_validate_strings({'f': '0.5'}): ok -> 0.5
+6. A frozen model's assignment and deletion
+  q.value = 2.0: pydantic_core._pydantic_core.ValidationError: 1 validation error for Inner
+  del q.value: pydantic_core._pydantic_core.ValidationError: 1 validation error for Inner
+  issubclass(ValidationError, ValueError) = True
+7. runtime_checkable with a property member
+  isinstance(HasAttr(), Named): ok -> True
+  isinstance(HasProp(), Named): ok -> True
+  isinstance(Missing(), Named): ok -> False
+  issubclass(HasAttr, Named): builtins.TypeError: Protocols with non-method members don't support issubclass()
+  isinstance(print, Sub): ok -> True
+  isinstance(lambda: None, Sub) (wrong arity): ok -> True
+  isinstance(1, Sub): ok -> False
+exit=0
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked mypy probes/typing_probe.py
+probes/typing_probe.py:28: error: Argument "value" to "Quantity" has incompatible type "str"; expected "float"  [arg-type]
+probes/typing_probe.py:29: error: Unexpected keyword argument "valu" for "Quantity"; did you mean "value"?  [call-arg]
+probes/typing_probe.py:33: error: Property "value" defined in "KwFrozen" is read-only  [misc]
+probes/typing_probe.py:42: error: Argument 1 to "take" has incompatible type "PresetKey"; expected "ParameterId"  [arg-type]
+probes/typing_probe.py:43: error: Argument 1 to "take" has incompatible type "str"; expected "ParameterId"  [arg-type]
+probes/typing_probe.py:69: error: Argument 1 to "want_any" has incompatible type "Callable[[Changed], None]"; expected "Subscriber[Event]"  [arg-type]
+probes/typing_probe.py:69: note: "Subscriber[Event].__call__" has type "Callable[[Event], None]"
+probes/typing_probe.py:70: note: Revealed type is "def (self: typing_probe.Quantity, *, value: float, unit: str)"
+Found 6 errors in 1 file (checked 1 source file)
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked python probes/strict_nested.py
+1. strict, a dict for a nested model (Python mode)
+  Outer(inner={'value': 1.0}): ok -> Outer(inner=Inner(value=1.0), many=())
+  Outer(inner={'value': '0.5'}) (the inner field still strict?): ValidationError: 1 validation error for Outer | ['inner.value', "  Input should be a valid number [type=float_type, input_value='0.5', input_type=str]"]
+  Outer(inner={'value': 1}) (int for float inside): ok -> Outer(inner=Inner(value=1.0), many=())
+  Outer(inner=Inner(value=1.0), many=({'value': 2.0},)): ok -> Outer(inner=Inner(value=1.0), many=(Inner(value=2.0),))
+  Outer.model_validate({'inner': {'value': 1.0}}): ok -> Outer(inner=Inner(value=1.0), many=())
+  Outer.model_validate({'inner': {'value': True}}) (bool for float inside): ValidationError: 1 validation error for Outer | ['inner.value', '  Input should be a valid number [type=float_type, input_value=True, input_type=bool]']
+2. strict, ConfigDict(strict=True) on the outer only: does the inner inherit strict?
+  StrictOuterLaxInner(inner={'value': '0.5'}): ok -> StrictOuterLaxInner(inner=LaxInner(value=0.5))
+3. InstanceOf[Inner]
+  OuterInstance(inner={'value': 1.0}) (Python mode): ValidationError: 1 validation error for OuterInstance | ['inner', "  Input should be an instance of Inner [type=is_instance_of, input_value={'value': 1.0}, input_type=dict]"]
+  OuterInstance(inner=Inner(value=1.0)): ok -> OuterInstance(inner=Inner(value=1.0))
+  OuterInstance.model_validate_json('{"inner": {"value": 1.0}}'): ok -> OuterInstance(inner=Inner(value=1.0))
+  OuterInstance.model_validate_json(... value '0.5'): ValidationError: 1 validation error for OuterInstance | ['inner.value', "  Input should be a valid number [type=float_type, input_value='0.5', input_type=str]"]
+  round trip: ok -> OuterInstance(inner=Inner(value=1.0))
+4. model_validate_strings under strict
+  Inner.model_validate_strings({'value': '0.5'}): ok -> Inner(value=0.5)
+  Inner.model_validate_strings({'value': 'x'}): ValidationError: 1 validation error for Inner | ['value', "  Input should be a valid number, unable to parse string as a number [type=float_parsing, input_value='x', input_type=str]"]
+exit=0
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked mypy probes/frozen_kw.py
+probes/frozen_kw.py:10: error: Non-frozen dataclass cannot inherit from a frozen dataclass  [misc]
+probes/frozen_kw.py:14: error: Non-frozen dataclass cannot inherit from a frozen dataclass  [misc]
+probes/frozen_kw.py:22: note: Revealed type is "TypedDict(pydantic.config.ConfigDict, {'alias_generator'?: (def (str) -> str) | pydantic.aliases.AliasGenerator | None, 'allow_inf_nan'?: bool, 'arbitrary_types_allowed'?: bool, 'cache_strings'?: bool | Literal['all'] | Literal['keys'] | Literal['none'], 'coerce_numbers_to_str'?: bool, 'defer_build'?: bool, 'extra'?: Literal['allow'] | Literal['ignore'] | Literal['forbid'] | None, 'field_title_generator'?: (def (str, pydantic.fields.FieldInfo | pydantic.fields.ComputedFieldInfo) -> str) | None, 'from_attributes'?: bool, 'frozen'?: bool, 'hide_input_in_errors'?: bool, 'ignored_types'?: tuple[type, ...], 'json_encoders'?: dict[type[object], def (Any) -> Any] | None, 'json_schema_extra'?: dict[str, int | float | str | bool | None | list[...] | ...] | (def (dict[str, int | float | str | bool | None | list[...] | ...])) | (def (dict[str, int | float | str | bool | None | list[...] | ...], type[Any])) | None, 'json_schema_mode_override'?: Literal['validation'] | Literal['serialization'] | None, 'json_schema_serialization_defaults_required'?: bool, 'loc_by_alias'?: bool, 'model_title_generator'?: (def (type) -> str) | None, 'plugin_settings'?: dict[str, object] | None, 'polymorphic_serialization'?: bool, 'populate_by_name'?: bool, 'protected_namespaces'?: tuple[str | re.Pattern[str], ...], 'regex_engine'?: Literal['rust-regex'] | Literal['python-re'], 'revalidate_instances'?: Literal['always'] | Literal['never'] | Literal['subclass-instances'], 'schema_generator'?: type[pydantic._internal._generate_schema.GenerateSchema] | None, 'ser_json_bytes'?: Literal['utf8'] | Literal['base64'] | Literal['hex'], 'ser_json_inf_nan'?: Literal['null'] | Literal['constants'] | Literal['strings'], 'ser_json_temporal'?: Literal['iso8601'] | Literal['seconds'] | Literal['milliseconds'], 'ser_json_timedelta'?: Literal['iso8601'] | Literal['float'], 'serialize_by_alias'?: bool, 'str_max_length'?: int | None, 'str_min_length'?: int, 'str_strip_whitespace'?: bool, 'str_to_lower'?: bool, 'str_to_upper'?: bool, 'strict'?: bool, 'title'?: str | None, 'url_preserve_empty_path'?: bool, 'use_attribute_docstrings'?: bool, 'use_enum_values'?: bool, 'val_json_bytes'?: Literal['utf8'] | Literal['base64'] | Literal['hex'], 'val_temporal_unit'?: Literal['seconds'] | Literal['milliseconds'] | Literal['infer'], 'validate_assignment'?: bool, 'validate_by_alias'?: bool, 'validate_by_name'?: bool, 'validate_default'?: bool, 'validate_return'?: bool, 'validation_error_cause'?: bool})"
+Found 2 errors in 1 file (checked 1 source file)
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked mypy probes/frozen_kw2.py
+probes/frozen_kw2.py:19: error: Property "value" defined in "Sub" is read-only  [misc]
+probes/frozen_kw2.py:21: error: Property "other" defined in "Sub2" is read-only  [misc]
+probes/frozen_kw2.py:22: error: Argument "value" to "Sub" has incompatible type "str"; expected "float"  [arg-type]
+Found 3 errors in 1 file (checked 1 source file)
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked python probes/config_form.py
+merged config of Holder: {'frozen': True, 'extra': 'forbid', 'strict': True, 'allow_inf_nan': False, 'ser_json_bytes': 'base64', 'val_json_bytes': 'base64'}
+  Holder(default={'value': 0.5, 'unit': 'ratio'}) (str for Unit inside a nested dict): ValidationError: ['default.unit', "  Input should be an instance of Unit [type=is_instance_of, input_value='ratio', input_type=str]"]
+  Holder(default={'value': 0.5, 'unit': Unit.ratio}): ok -> Holder(default=Quantity(value=0.5, unit=<Unit.ratio: 'ratio'>), raw=b'')
+  Holder(default=Quantity(value=0.5, unit=Unit.ratio), extra=1): ValidationError: ['extra', '  Extra inputs are not permitted [type=extra_forbidden, input_value=1, input_type=int]']
+  Quantity(value=float('inf'), unit=Unit.ratio): ValidationError: ['value', '  Input should be a finite number [type=finite_number, input_value=inf, input_type=float]']
+  Holder JSON round trip of non-UTF-8 bytes: ok -> b'\xff'
+  q.value = 1.0 at runtime: ValidationError: ['value', '  Instance is frozen [type=frozen_instance, input_value=1.0, input_type=float]']
+Traceback (most recent call last):
+  File "probes/config_form.py", line 48, in <module>
+    q.value = 1.0  # N: mypy refuses (read-only property)
+    ^^^^^^^
+  File "<repo>/.venv/lib/python3.12/site-packages/pydantic/main.py", line 1116, in __setattr__
+    elif (setattr_handler := self._setattr_handler(name, value)) is not None:
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/.venv/lib/python3.12/site-packages/pydantic/main.py", line 1152, in _setattr_handler
+    _check_frozen(cls, name, value)
+  File "<repo>/.venv/lib/python3.12/site-packages/pydantic/main.py", line 104, in _check_frozen
+    raise ValidationError.from_exception_data(
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Quantity
+value
+  Instance is frozen [type=frozen_instance, input_value=1.0, input_type=float]
+    For further information visit https://errors.pydantic.dev/2.14/v/frozen_instance
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked mypy probes/config_form.py
+probes/config_form.py:48: error: Property "value" defined in "Quantity" is read-only  [misc]
+Found 1 error in 1 file (checked 1 source file)
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked python probes/models_init.py
+custom_init flags: True False
+  PlainOuter JSON {'q': {'unit': 'ratio'}}: ValidationError at [('q', 'unit')]: Input should be an instance of Unit; __init__ called for ['PlainOuter', 'PlainQ']
+  MarkedOuter JSON {'q': {'unit': 'ratio'}}: MarkedOuter(q=MarkedQ(unit=<Unit.ratio: 'ratio'>)); __init__ called for []
+  MarkedOuter(q=MarkedQ(unit=Unit.ratio)): MarkedOuter(q=MarkedQ(unit=<Unit.ratio: 'ratio'>)); __init__ called for ['MarkedQ', 'MarkedOuter']
+  MarkedOuter(q={'unit': 'nope'}) (the nested path kept?): ValidationError at [('q', 'unit')]: Input should be an instance of Unit; __init__ called for ['MarkedOuter']
+exit=0
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked python probes/footing.py
+# A: pydantic's classmethods wrapped in the class body, not restated
+A1 Outer.model_validate, nested dict: ok -> Outer(inner=Inner(x=1.0), name='n')
+A2 nested JSON round trip: ok -> Outer(inner=Inner(x=2.0), name='n')
+A3 a nested refusal, its path kept: Refused: ['inner.x', 'name']
+A4 bad JSON: Refused: ['']
+A5 model_validate_strings: Refused: ['x']
+A6 a keyword passes through (strict=False): ok -> Inner(x=1.5)
+A7 inspect.signature(Inner.model_validate) == BaseModel's: True
+A7 inspect.signature(Inner.model_validate_json) == BaseModel's: True
+A7 inspect.signature(Inner.model_validate_strings) == BaseModel's: True
+A8 field names: ['inner', 'name']
+# B: the exact sample count
+B1 tempo=120.0 bars=1 tail=0.25 rate=48000: 108000
+B1 tempo=1e-300 bars=1 tail=0.0 rate=48000: an int of 308 digits
+B1 tempo=120.0 bars=1 tail=1e+308 rate=48000: an int of 313 digits
+B1 tempo=120.0 bars=1 tail=0.0 rate=10**400: an int of 401 digits
+B1 tempo=120.0 bars=10**400 tail=0.0 rate=48000: an int of 405 digits
+B2 the float formula for the contract tests' request: 108000
+B3 round(Fraction(5, 2)) = 2, round(Fraction(7, 2)) = 4, type int
+B4 int / int at rate 10**400: ok -> 0.0
+B5 float / int at rate 10**400: OverflowError: int too large to convert to float
+# C: a zone's offset at every instant
+C1 UTC: utcoffset(None) = datetime.timedelta(0)
+C1 timezone.utc: utcoffset(None) = datetime.timedelta(0)
+C1 ZoneInfo('UTC'): utcoffset(None) = datetime.timedelta(0)
+C1 pydantic's parsed Z: utcoffset(None) = datetime.timedelta(0)
+C1 an hour east: utcoffset(None) = datetime.timedelta(seconds=3600)
+C1 Europe/London: utcoffset(None) = None
+C2 astimezone(UTC) of pydantic's Z: tzinfo is UTC True, same instant True
+C3 timezone.utc is UTC: True
+# D: a constrained NewType as a Mapping key
+D1 key 'a': ok -> {'a': 1}
+D2 key '': ValidationError: 1 validation error for Keys
+# E: json.dumps then model_validate_json, strict
+E1 JSON's own forms: ok -> Json(colour=<Colour.red: 'red'>, blob=b'\x00\xff', at=datetime.datetime(2026, 11, 7, 8, 0, tzinfo=TzInfo(0)), items=(1, 2), ratio=1.0
+E2 the same dict through model_validate: Refused: ['colour', 'blob', 'at', 'items']
+E3 '0.5' for a float: Refused: ['ratio']
+E4 1 for True: Refused: ['flag']
+E5 NaN: Refused: ['ratio']
+E6 json.dumps of a set: TypeError: Object of type set is not JSON serializable
+E7 json.dumps of a datetime: TypeError: Object of type datetime is not JSON serializable
+E8 json.dumps of a circular list: ValueError: Circular reference detected
+exit=0
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked mypy probes/footing_typing.py
+probes/footing_typing.py:43: error: Unexpected keyword argument "stirct" for "model_validate" of "BaseModel"; did you mean "strict"?  [call-arg]
+probes/footing_typing.py:43: note: "model_validate" defined in "pydantic.main"
+Found 1 error in 1 file (checked 1 source file)
+exit=1
+-- compared with patchbay's recorded output under norm(): identical
+
+================================================================================
+$ uv run --locked python probes/mutations.py
+E       patchbay.testing.contract_tests.ContractViolationError: a_value_out_of_range_raises_value_out_of_range: expected ValueOutOfRangeError to be raised, got no exception
+E       patchbay.testing.contract_tests.ContractViolationError: a_patch_refused_part_way_changes_nothing: expected PatchRejectedError to be raised, got no exception
+FAILED tests/unit/testing/test_contract_tests.py::test_a_correct_instrument_with_the_widest_bounds_passes[a_value_out_of_range_raises_value_out_of_range]
+FAILED tests/unit/testing/test_contract_tests.py::test_a_correct_instrument_with_the_widest_bounds_passes[a_patch_refused_part_way_changes_nothing]
+2 failed, 11 passed in Ns
+exit=1
+-- compared with patchbay's recorded E, FAILED and count lines: identical
+
+================================================================================
+2. New probes
+================================================================================
+
+The sources are copied into <export>/newprobes, inside the export, so ruff, mypy and pytest read
+patchbay's pyproject.toml. ruff's INP001 (newprobes/ has no __init__.py) is in each ruff output and
+is not under test.
+
+$ cat newprobes/nested_refusal.py
+"""Probe a: why no hook covers every path, and why PatchbayModel.__init__ carries the marker.
+
+pydantic-core collects a ValueError raised inside a validator as one refusal with its path and
+goes on validating; any other exception passes through it unwrapped. Each case puts a refusal in
+the nested model beside one in the outer model's own field, so the output shows whether both are
+reported and with what path.
+"""
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
+
+from patchbay.errors import PatchbayValidationError
+from patchbay.models import PatchbayModel, Unit
+
+
+def case(label: str, fn: Any) -> None:
+    try:
+        print(f"{label}: ok -> {fn()!r}")
+    except ValidationError as error:
+        print(f"{label}: pydantic ValidationError at {[e['loc'] for e in error.errors()]}")
+    except PatchbayValidationError as error:
+        print(f"{label}: PatchbayValidationError at {[d['loc'] for d in error.details]}")
+    except Exception as error:  # noqa: BLE001
+        print(f"{label}: {type(error).__name__} passed through: {error}")
+
+
+class InnerValue(BaseModel):
+    x: float
+
+    @field_validator("x")
+    @classmethod
+    def _positive(cls, x: float) -> float:
+        if x < 0:
+            raise ValueError("x is negative")
+        return x
+
+
+class InnerOther(BaseModel):
+    x: float
+
+    @field_validator("x")
+    @classmethod
+    def _positive(cls, x: float) -> float:
+        if x < 0:
+            raise TypeError("x is negative")  # not a ValueError
+        return x
+
+
+class OuterValue(BaseModel):
+    inner: InnerValue
+    name: str
+
+
+class OuterOther(BaseModel):
+    inner: InnerOther
+    name: str
+
+
+bad = {"inner": {"x": -1.0}, "name": 5}
+print("# a1: a ValueError in a nested validator, beside an outer refusal")
+case("a1 OuterValue", lambda: OuterValue.model_validate(bad))
+print("# a2: a TypeError in the same place")
+case("a2 OuterOther", lambda: OuterOther.model_validate(bad))
+
+
+class NoMarker(BaseModel, frozen=True):
+    """PatchbayModel's refusing __init__, without __pydantic_base_init__."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+
+    def __init__(self, /, **data: object) -> None:
+        try:
+            super().__init__(**data)
+        except ValidationError as error:
+            raise PatchbayValidationError(tuple(error.errors(include_url=False))) from error
+
+
+class NoMarkerQ(NoMarker, frozen=True):
+    unit: Unit
+
+
+class NoMarkerOuter(NoMarker, frozen=True):
+    q: NoMarkerQ
+    name: str
+
+
+class MarkedQ(PatchbayModel, frozen=True):
+    unit: Unit
+
+
+class MarkedOuter(PatchbayModel, frozen=True):
+    q: MarkedQ
+    name: str
+
+
+print("# a3: JSON with a valid nested enum, without and with the marker")
+case("a3 NoMarkerOuter", lambda: NoMarkerOuter.model_validate_json('{"q": {"unit": "ratio"}, "name": "n"}'))
+case("a3 MarkedOuter (PatchbayModel)", lambda: MarkedOuter.model_validate_json('{"q": {"unit": "ratio"}, "name": "n"}'))
+print("# a4: a bad nested value beside a bad outer field, Python input")
+case("a4 NoMarkerOuter", lambda: NoMarkerOuter(q={"unit": "kelvin"}, name=5))
+case("a4 MarkedOuter (PatchbayModel)", lambda: MarkedOuter(q={"unit": "kelvin"}, name=5))
+
+print("# a5: model_copy(update=...) on a patchbay model")
+from patchbay.models import Quantity  # noqa: E402
+
+case("a5 Quantity.model_copy(update={'value': 'x'})", lambda: Quantity(value=0.5, unit=Unit.ratio).model_copy(update={"value": "x"}))
+
+$ cat newprobes/tool_facts.py
+"""Probe f: the Python and pydantic facts errors.md and tests.md rest on (patchbay findings.py 6, 11, 12)."""
+
+import math
+import re
+import sys
+
+import pydantic
+from pydantic import ValidationError
+
+print("# f1: one float past a bound")
+for bound in (2.0**53, sys.float_info.max):
+    print(f"f1 bound={bound!r}: bound + 1.0 == bound is {bound + 1.0 == bound}; "
+          f"nextafter up is {math.nextafter(bound, math.inf)!r}")
+print(f"f1 nextafter(-max, -inf) is {math.nextafter(-sys.float_info.max, -math.inf)!r}")
+print("# f2: pydantic's errors is a method; ErrorDetails is pydantic-core's")
+print(f"f2 callable(ValidationError.errors): {callable(ValidationError.errors)}")
+print(f"f2 hasattr(pydantic, 'ErrorDetails'): {hasattr(pydantic, 'ErrorDetails')}")
+from pydantic_core import ErrorDetails  # noqa: E402
+
+print(f"f2 pydantic_core.ErrorDetails: {ErrorDetails.__module__}.{ErrorDetails.__name__}")
+print("# o1: \\d and [0-9] on ARABIC-INDIC DIGIT ONE, U+0661")
+print(f"o1 re.fullmatch(r'\\d', '\\u0661'): {bool(re.fullmatch(r'\d', '١'))}")
+print(f"o1 re.fullmatch(r'[0-9]', '\\u0661'): {bool(re.fullmatch(r'[0-9]', '١'))}")
+
+print("# f3: an error rebuilt from its args by copy and pickle, beside one whose args are a message")
+import copy  # noqa: E402
+import pickle  # noqa: E402
+
+from patchbay.errors import ValueOutOfRangeError  # noqa: E402
+
+
+class MessageOnlyError(Exception):
+    """Takes fields, but passes Exception a message built from them instead."""
+
+    def __init__(self, parameter_id: str, given: float) -> None:
+        super().__init__(f"{given!r} is not a value of {parameter_id!r}")
+        self.parameter_id = parameter_id
+        self.given = given
+
+
+for error in (ValueOutOfRangeError("cutoff", 20.0, 20000.0, 30000.0), MessageOnlyError("cutoff", 30000.0)):
+    for name, rebuild in (("copy", copy.deepcopy), ("pickle", lambda e: pickle.loads(pickle.dumps(e)))):
+        try:
+            again = rebuild(error)
+            print(f"f3 {type(error).__name__} by {name}: ok -> args {again.args!r}, str {str(again)!r}")
+        except Exception as failure:  # noqa: BLE001
+            print(f"f3 {type(error).__name__} by {name}: {type(failure).__name__}: {failure}")
+
+$ cat newprobes/optimized.py
+"""Probe d: python -O strips assert; a raised AssertionError subclass survives it."""
+
+
+class ViolationError(AssertionError):
+    pass
+
+
+def by_assert() -> None:
+    assert False, "assert ran"  # noqa: B011, PT015, S101
+
+
+def by_raise() -> None:
+    raise ViolationError("raise ran")
+
+
+print(f"__debug__ = {__debug__}")
+for check in (by_assert, by_raise):
+    try:
+        check()
+        print(f"{check.__name__}: returned, nothing raised")
+    except AssertionError as error:
+        print(f"{check.__name__}: {type(error).__name__}: {error}")
+
+$ cat newprobes/ruff_rules.py
+"""Probe b, j, m: which rules ruff 0.17.4 reports here under patchbay's [tool.ruff] (select ALL)."""
+
+from typing import Generic, TypeAlias, TypeVar
+
+T = TypeVar("T")
+Pair: TypeAlias = tuple[int, int]
+
+
+class Box(Generic[T]):
+    """A generic class written with TypeVar (m: UP046?)."""
+
+    def __init__(self, item: T) -> None:
+        """Hold the item."""
+        self.item = item
+
+
+def first(items: list[T]) -> T:
+    """Return the first item, a generic function written with TypeVar (m: UP047?)."""
+    return items[0]
+
+
+class Refused(Exception):
+    """An exception whose name does not end in Error (j: N818?)."""
+
+
+class RefusedError(Exception):
+    """An exception whose name ends in Error."""
+
+
+def seconds(beats: float, tempo: float) -> float:
+    """Return how long the beats last (b: PLR2004 on 60 in arithmetic?)."""
+    return beats * 60 / tempo
+
+
+def is_channels_by_samples(ndim: int) -> bool:
+    """Say whether an array has two dimensions (b: PLR2004 on 2 in a comparison?)."""
+    return ndim != 2
+
+
+def deliver(call: object) -> Exception | None:
+    """Catch every Exception from a call (b: BLE001?)."""
+    try:
+        call()  # type: ignore[operator]
+    except Exception as error:
+        return error
+    return None
+
+
+def blanket() -> int:
+    """Return an int through a blanket type ignore (b: PGH003?)."""
+    value: int = "x"  # type: ignore
+    return value
+
+
+def coded() -> int:
+    """Return an int through a coded type ignore."""
+    value: int = "x"  # type: ignore[assignment]
+    return value
+
+
+def checks_imperative() -> None:
+    """Check that the mood is imperative."""
+
+
+def checks_not_imperative() -> None:
+    """Checks that the mood is not imperative (b: D401?)."""
+
+
+def parameters_are_unique_and_typed() -> None:
+    """The instrument exposes at least one Parameter, and no two share an id."""
+
+
+def get_after_set_returns_what_was_set() -> None:
+    """For every parameter, `get` returns the value `set` was given."""
+
+
+def test_checks_not_imperative() -> None:
+    """Checks that the mood is not imperative, in a test_ function (b: D401 waived?)."""
+
+
+DIGIT = "١"  # o: the escape
+
+
+LITERAL = "١"  # o: the literal (RUF001?)
+# o: a comment holding the literal ١ (RUF003?)
+
+$ cat newprobes/future_without.py
+"""Probe l: the same module without the future import."""
+
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class Stamped(BaseModel):
+    """A model whose field type is a standard-library class."""
+
+    at: datetime
+
+$ cat newprobes/future_with.py
+"""Probe l: a model module with the future import, the field type imported at runtime."""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class Stamped(BaseModel):
+    """A model whose field type is a standard-library class."""
+
+    at: datetime
+
+$ cat newprobes/future_moved.py
+"""Probe l: the same module with the import moved under TYPE_CHECKING, as TC003 asks."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+
+class Stamped(BaseModel):
+    """A model whose field type is a standard-library class."""
+
+    at: datetime
+
+$ cat newprobes/future_use.py
+"""Probe l: build each module's model at first use, from a module that never binds the name datetime."""
+
+import datetime as dt
+import importlib
+
+for name in ("future_without", "future_with", "future_moved"):
+    try:
+        module = importlib.import_module(name)
+        print(f"{name}: ok -> {module.Stamped(at=dt.datetime(2026, 11, 7, tzinfo=dt.UTC))!r}")
+    except Exception as error:  # noqa: BLE001
+        print(f"{name}: {type(error).__name__}: {str(error).splitlines()[0]}")
+
+$ cat newprobes/mypy_rules.py
+"""Probe c, k: warn_unused_ignores under strict, and implicit_reexport = false."""
+
+from patchbay.contracts import Parameter, Subscriber
+
+used: int = "x"  # type: ignore[assignment]
+unused: int = 1  # type: ignore[assignment]
+print(Parameter, Subscriber)
+
+$ cat newprobes/dup/a/test_x.py
+"""Probe n: a test module."""
+
+$ cat newprobes/dup/b/test_x.py
+"""Probe n: another test module of the same basename."""
+
+$ cat newprobes/pytest_probe/helpers.py
+"""Probe e: functions a test module imports by name."""
+
+
+def test_imported() -> None:
+    """A test_-prefixed function defined here, imported into the test module."""
+
+
+def check_imported() -> None:
+    """An unprefixed function defined here, imported into the test module."""
+
+$ cat newprobes/pytest_probe/test_collect.py
+"""Probe e: what pytest collects from a module that imports functions by name."""
+
+from helpers import check_imported, test_imported
+
+from patchbay.testing.contract_tests import parameters_are_unique_and_typed
+
+
+def test_local() -> None:
+    """A test defined here."""
+    del check_imported, test_imported, parameters_are_unique_and_typed
+
+================================================================================
+$ uv run --locked python newprobes/nested_refusal.py
+# a1: a ValueError in a nested validator, beside an outer refusal
+a1 OuterValue: pydantic ValidationError at [('inner', 'x'), ('name',)]
+# a2: a TypeError in the same place
+a2 OuterOther: TypeError passed through: x is negative
+# a3: JSON with a valid nested enum, without and with the marker
+a3 NoMarkerOuter: PatchbayValidationError at [('unit',)]
+a3 MarkedOuter (PatchbayModel): ok -> MarkedOuter(q=MarkedQ(unit=<Unit.ratio: 'ratio'>), name='n')
+# a4: a bad nested value beside a bad outer field, Python input
+a4 NoMarkerOuter: PatchbayValidationError at [('unit',)]
+a4 MarkedOuter (PatchbayModel): PatchbayValidationError at [('q', 'unit'), ('name',)]
+# a5: model_copy(update=...) on a patchbay model
+a5 Quantity.model_copy(update={'value': 'x'}): ok -> Quantity(value='x', unit=<Unit.ratio: 'ratio'>)
+exit=0
+
+$ uv run --locked python newprobes/tool_facts.py
+# f1: one float past a bound
+f1 bound=9007199254740992.0: bound + 1.0 == bound is True; nextafter up is 9007199254740994.0
+f1 bound=1.7976931348623157e+308: bound + 1.0 == bound is True; nextafter up is inf
+f1 nextafter(-max, -inf) is -inf
+# f2: pydantic's errors is a method; ErrorDetails is pydantic-core's
+f2 callable(ValidationError.errors): True
+f2 hasattr(pydantic, 'ErrorDetails'): False
+f2 pydantic_core.ErrorDetails: pydantic_core.ErrorDetails
+# o1: \d and [0-9] on ARABIC-INDIC DIGIT ONE, U+0661
+o1 re.fullmatch(r'\d', '\u0661'): True
+o1 re.fullmatch(r'[0-9]', '\u0661'): False
+# f3: an error rebuilt from its args by copy and pickle, beside one whose args are a message
+f3 ValueOutOfRangeError by copy: ok -> args ('cutoff', 20.0, 20000.0, 30000.0), str "30000.0 is not a value of parameter 'cutoff' (minimum 20.0, maximum 20000.0)"
+f3 ValueOutOfRangeError by pickle: ok -> args ('cutoff', 20.0, 20000.0, 30000.0), str "30000.0 is not a value of parameter 'cutoff' (minimum 20.0, maximum 20000.0)"
+f3 MessageOnlyError by copy: TypeError: MessageOnlyError.__init__() missing 1 required positional argument: 'given'
+f3 MessageOnlyError by pickle: TypeError: MessageOnlyError.__init__() missing 1 required positional argument: 'given'
+exit=0
+
+$ uv run --locked python newprobes/optimized.py
+__debug__ = True
+by_assert: AssertionError: assert ran
+by_raise: ViolationError: raise ran
+exit=0
+
+$ uv run --locked python -O newprobes/optimized.py
+__debug__ = False
+by_assert: returned, nothing raised
+by_raise: ViolationError: raise ran
+exit=0
+
+$ uv run --locked ruff check --no-cache --output-format concise newprobes/ruff_rules.py
+newprobes/ruff_rules.py:1:1: INP001 File `newprobes/ruff_rules.py` is part of an implicit namespace package. Add an `__init__.py`.
+newprobes/ruff_rules.py:6:1: UP040 Type alias `Pair` uses `TypeAlias` annotation instead of the `type` keyword
+newprobes/ruff_rules.py:9:11: UP046 Generic class `Box` uses `Generic` subclass instead of type parameters
+newprobes/ruff_rules.py:17:5: UP047 Generic function `first` should use type parameters
+newprobes/ruff_rules.py:22:7: N818 Exception name `Refused` should be named with an Error suffix
+newprobes/ruff_rules.py:37:20: PLR2004 Magic value used in comparison, consider replacing `2` with a constant variable
+newprobes/ruff_rules.py:44:12: BLE001 Do not catch blind exception: `Exception`
+newprobes/ruff_rules.py:51:23: PGH003 Use specific rule codes when ignoring type issues
+newprobes/ruff_rules.py:66:5: D401 First line of docstring should be in imperative mood: "Checks that the mood is not imperative (b: D401?)."
+newprobes/ruff_rules.py:70:5: D401 First line of docstring should be in imperative mood: "The instrument exposes at least one Parameter, and no two share an id."
+newprobes/ruff_rules.py:81:10: RUF001 String contains ambiguous `١` (ARABIC-INDIC DIGIT ONE). Did you mean `l` (LATIN SMALL LETTER L)?
+newprobes/ruff_rules.py:84:12: RUF001 String contains ambiguous `١` (ARABIC-INDIC DIGIT ONE). Did you mean `l` (LATIN SMALL LETTER L)?
+newprobes/ruff_rules.py:85:36: RUF003 Comment contains ambiguous `١` (ARABIC-INDIC DIGIT ONE). Did you mean `l` (LATIN SMALL LETTER L)?
+Found 13 errors.
+3 unsafe fixes available with `--fix --unsafe-fixes`.
+exit=1
+
+$ uv run --locked ruff check --no-cache --output-format concise newprobes/future_without.py newprobes/future_with.py newprobes/future_moved.py
+newprobes/future_moved.py:1:1: INP001 File `newprobes/future_moved.py` is part of an implicit namespace package. Add an `__init__.py`.
+newprobes/future_with.py:1:1: INP001 File `newprobes/future_with.py` is part of an implicit namespace package. Add an `__init__.py`.
+newprobes/future_with.py:5:22: TC003 Move standard library import `datetime.datetime` into a type-checking block
+newprobes/future_without.py:1:1: INP001 File `newprobes/future_without.py` is part of an implicit namespace package. Add an `__init__.py`.
+Found 4 errors.
+1 unsafe fix available with `--fix --unsafe-fixes`.
+exit=1
+
+$ cd newprobes && uv run --locked python future_use.py
+future_without: ok -> Stamped(at=datetime.datetime(2026, 11, 7, 0, 0, tzinfo=datetime.timezone.utc))
+future_with: ok -> Stamped(at=datetime.datetime(2026, 11, 7, 0, 0, tzinfo=datetime.timezone.utc))
+future_moved: PydanticUserError: `Stamped` is not fully defined; you should define `datetime`, then call `Stamped.model_rebuild()`.
+exit=0
+
+$ uv run --locked mypy newprobes/mypy_rules.py
+newprobes/mypy_rules.py:3: error: Module "patchbay.contracts" does not explicitly export attribute "Parameter"  [attr-defined]
+newprobes/mypy_rules.py:6: error: Unused "type: ignore" comment  [unused-ignore]
+Found 2 errors in 1 file (checked 1 source file)
+exit=1
+
+$ uv run --locked mypy --implicit-reexport newprobes/mypy_rules.py
+newprobes/mypy_rules.py:6: error: Unused "type: ignore" comment  [unused-ignore]
+Found 1 error in 1 file (checked 1 source file)
+exit=1
+
+$ uv run --locked mypy newprobes/dup/a/test_x.py newprobes/dup/b/test_x.py
+newprobes/dup/b/test_x.py: error: Duplicate module named "test_x" (also at "newprobes/dup/a/test_x.py")
+newprobes/dup/b/test_x.py: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#mapping-file-paths-to-modules for more info
+newprobes/dup/b/test_x.py: note: Common resolutions include:
+newprobes/dup/b/test_x.py: note:     a) using `--exclude` to avoid checking one of them,
+newprobes/dup/b/test_x.py: note:     b) adding `__init__.py` somewhere,
+newprobes/dup/b/test_x.py: note:     c) using `--explicit-package-bases` or adjusting `MYPYPATH`
+Found 1 error in 1 file (errors prevented further checking)
+exit=2
+
+$ uv run --locked pytest -p no:cacheprovider --collect-only newprobes/pytest_probe/test_collect.py
+newprobes/pytest_probe/test_collect.py::test_imported
+newprobes/pytest_probe/test_collect.py::test_local
+
+2 tests collected in 0.10s
+exit=0
+
